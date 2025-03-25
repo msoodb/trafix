@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2
+CFLAGS = -Wall -Wextra -O2 -I./include
 LDFLAGS = -lpcap
 SRC_DIR = src
 BUILD_DIR = build

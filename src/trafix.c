@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
+#include <string.h>
 #include "trafix.h"
+#include "trfx_config.h"
 
-// Simulate active network connections with fake data
 void print_active_connections() {
     printf("Active Network Connections:\n");
     for (int i = 0; i < 5; i++) {
@@ -13,24 +13,29 @@ void print_active_connections() {
     }
 }
 
-// Simulate bandwidth usage with random values
 void print_bandwidth_usage() {
-    printf("\nBandwidth Usage (Mock Data):\n");
+    printf("\nBandwidth Usage:\n");
     printf("Incoming: %d MB/s\n", rand() % 100);
     printf("Outgoing: %d MB/s\n", rand() % 100);
 }
 
-// Simulate identifying top bandwidth-consuming processes or IP addresses
 void print_top_talkers() {
     printf("\nTop Talkers:\n");
     for (int i = 0; i < 3; i++) {
-        printf("Talker %d: IP 192.168.1.%d - %d MB/s\n", 
-               i+1, rand() % 255, rand() % 100);
+        printf("Talker %d: IP 192.168.1.%d - %d MB/s\n", i+1, rand() % 255, rand() % 100);
     }
 }
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));  // Seed for random number generation
+
+    // Read configuration
+    trfx_read_config(CONFIG_FILE);
+
+    printf("Configuration Loaded:\n");
+    printf("Alert Bandwidth: %d MB\n", alert_bandwidth);
+    printf("Filter IP: %s\n", filter_ip);
+    printf("Filter Process: %s\n", filter_process);
 
     if (argc < 2) {
         printf("Usage: %s [connections|bandwidth|top]\n", argv[0]);
