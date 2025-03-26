@@ -1,55 +1,50 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include "trafix.h"
 #include "trfx_config.h"
+#include "trfx_connections.h"
+#include "trfx_bandwidth.h"
+#include "trfx_top.h"
+#include "trfx_dashboard.h"
 
-void print_active_connections() {
-    printf("Active Network Connections:\n");
-    for (int i = 0; i < 5; i++) {
-        printf("Connection %d: IP 192.168.1.%d:%d -> 10.0.0.%d:%d [Status: ESTABLISHED]\n",
-               i+1, rand() % 255, rand() % 65535, rand() % 255, rand() % 65535);
-    }
-}
-
-void print_bandwidth_usage() {
-    printf("\nBandwidth Usage:\n");
-    printf("Incoming: %d MB/s\n", rand() % 100);
-    printf("Outgoing: %d MB/s\n", rand() % 100);
-}
-
-void print_top_talkers() {
-    printf("\nTop Talkers:\n");
-    for (int i = 0; i < 3; i++) {
-        printf("Talker %d: IP 192.168.1.%d - %d MB/s\n", i+1, rand() % 255, rand() % 100);
-    }
+void print_usage(const char *prog_name) {
+    printf("Usage: %s [-c] [-b] [-t] [-d] [-h]\n", prog_name);
+    printf("  -c  Show active network connections\n");
+    printf("  -b  Show bandwidth usage\n");
+    printf("  -t  Show top talkers\n");
+    printf("  -d  Show interactive dashboard\n");
+    printf("  -h  Show this help message\n");
 }
 
 int main(int argc, char *argv[]) {
-    srand(time(NULL));  // Seed for random number generation
+    srand(time(NULL));
 
-    // Read configuration
-    trfx_read_config(CONFIG_FILE);
+    read_config(CONFIG_FILE);
 
-    printf("Configuration Loaded:\n");
-    printf("Alert Bandwidth: %d MB\n", alert_bandwidth);
-    printf("Filter IP: %s\n", filter_ip);
-    printf("Filter Process: %s\n", filter_process);
+    int opt;
+    int show_connections = 0, show_bandwidth = 0, show_top_talkers = 0, show_dashboard = 0;
 
-    if (argc < 2) {
-        printf("Usage: %s [connections|bandwidth|top]\n", argv[0]);
-        return 1;
+    while ((opt = getopt(argc, argv, "cbtdh")) != -1) {
+        switch (opt) {
+            case 'c': show_connections = 1; break;
+            case 'b': show_bandwidth = 1; break;
+            case 't': show_top_talkers = 1; break;
+            case 'd': show_dashboard = 1; break;
+            case 'h': print_usage(argv[0]); return 0;
+            default: print_usage(argv[0]); return 1;
+        }
     }
 
-    if (strcmp(argv[1], "connections") == 0) {
-        print_active_connections();
-    } else if (strcmp(argv[1], "bandwidth") == 0) {
-        print_bandwidth_usage();
-    } else if (strcmp(argv[1], "top") == 0) {
-        print_top_talkers();
+    if (show_dashboard) {
+        start_dashboard();
     } else {
-        printf("Invalid command. Use 'connections', 'bandwidth', or 'top'.\n");
+        if (!show_connections && !show_bandwidth && !show_top_talkers) {
+            print_usage(argv[0]);
+            return 1;
+        }
     }
 
     return 0;

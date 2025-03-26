@@ -4,11 +4,11 @@
 #include "trfx_config.h"
 
 // Global configuration variables
-int alert_bandwidth = 100;        // Default 100MB
-char filter_ip[16] = "0.0.0.0";   // Default no filter
-char filter_process[50] = "";     // Default no process filter
+int alert_bandwidth = 100;
+char filter_ip[16] = "0.0.0.0";
+char filter_process[50] = "";
 
-void trfx_read_config(const char *config_file) {
+void read_config(const char *config_file) {
     FILE *file = fopen(config_file, "r");
     if (!file) {
         perror("Error opening config file");
@@ -17,10 +17,7 @@ void trfx_read_config(const char *config_file) {
 
     char line[256];
     while (fgets(line, sizeof(line), file)) {
-        // Remove newline
         line[strcspn(line, "\n")] = 0;
-
-        // Skip comments or empty lines
         if (line[0] == '#' || line[0] == '\0') continue;
 
         if (strncmp(line, "alert_bandwidth", 15) == 0) {
