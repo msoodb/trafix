@@ -4,6 +4,7 @@
 #include "trfx_connections.h"
 #include "trfx_bandwidth.h"
 #include "trfx_top.h"
+#include "trfx_cpu.h"
 
 #define COLOR_TITLE 1
 #define COLOR_SECTION 2
@@ -77,6 +78,46 @@ void display_bandwidth_usage(WINDOW *win) {
 
     // Free the dynamically allocated bandwidth data
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
+}
+
+#include <unistd.h>
+
+// Function to display CPU usage per core in the given window
+void display_cpu_data(WINDOW *win) {
+    int num_cores = 0;
+
+    // Get CPU usage for each core
+    char **cpu_data = get_cpu_usage(&num_cores);
+
+    int row = 1;
+
+    // Draw the border around the window
+    box(win, 0, 0);
+
+    // Title line (bold)
+    attron(A_BOLD);
+    mvwprintw(win, row++, 2, "%-15s | %10s", "Core", "CPU Usage (%)");
+    attroff(A_BOLD);
+
+    // Divider line
+    mvwprintw(win, row++, 1, "---------------------------------------------");
+
+    // Display the CPU usage per core
+    for (int i = 0; i < num_cores; i++) {
+      mvwprintw(win, row++, 1, "%s", cpu_data[i]);
+    }
+
+    // Refresh the window to show updates
+    wrefresh(win);
+
+    // Free the memory for CPU data
+    for (int i = 0; i < num_cores; i++) {
+        free(cpu_data[i]);
+    }
+    free(cpu_data);
+
+    // Delay to update every second or as needed
+    napms(1000);  // Delay in milliseconds, e.g., 1000 ms = 1 second
 }
 
 void zoom_section(WINDOW *win) {
@@ -160,11 +201,12 @@ void start_dashboard() {
     while (1) {
         // Title
         attron(COLOR_PAIR(COLOR_TITLE) | A_BOLD);
-        mvprintw(0, (screen_width - 40) / 2, "=== Trafix Network Monitoring Dashboard ===");
+        //mvprintw(0, (screen_width - 40) / 2, "=== Trafix Network Monitoring Dashboard ===");
         attroff(COLOR_PAIR(COLOR_TITLE) | A_BOLD);
 
 	display_active_connections(sections[0][0]);  // Active connections
 	display_bandwidth_usage(sections[0][1]);  // Bandwidth usage
+	display_cpu_data(sections[0][2]);
 	
         // Refresh each window to display content
         for (int i = 0; i < ROWS; i++) {
@@ -190,7 +232,7 @@ void start_dashboard() {
         if (ch == 'q' || ch == 'Q') break;
 
         // Small delay to prevent 100% CPU usage
-        usleep(500000);
+        usleep(100000);
     }
 
     // Cleanup
