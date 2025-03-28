@@ -33,7 +33,7 @@ char** get_bandwidth_usage(int *num_interfaces) {
     for (int i = 0; i < *num_interfaces; i++) {
         float sent_data = (rand() % 1000) / 10.0;   // Random sent data in MB
         float received_data = (rand() % 1000) / 10.0; // Random received data in MB
-        snprintf(data[i], 100, "%-15s | %10.1f | %10.1f", generate_random_interface_name(), sent_data, received_data);
+        snprintf(data[i], 100, " %-15s | %10.1f | %10.1f", generate_random_interface_name(), sent_data, received_data);
     }
 
     return data;

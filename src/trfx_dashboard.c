@@ -5,6 +5,7 @@
 #include "trfx_bandwidth.h"
 #include "trfx_top.h"
 #include "trfx_cpu.h"
+#include "trfx_disk.h"
 
 #define COLOR_TITLE 1
 #define COLOR_SECTION 2
@@ -120,6 +121,44 @@ void display_cpu_data(WINDOW *win) {
     napms(1000);  // Delay in milliseconds, e.g., 1000 ms = 1 second
 }
 
+// Function to display disk usage per partition in the given window
+void display_disk_data(WINDOW *win) {
+    int num_partitions = 0;
+    
+    // Get disk usage for each partition
+    char **disk_data = get_disk_usage(&num_partitions);
+    
+    int row = 1;
+    
+    // Draw the border around the window
+    box(win, 0, 0);
+    
+    // Title line (bold)
+    attron(A_BOLD);
+    mvwprintw(win, row++, 2, "%-15s | %10s", "Partition", "Disk Usage (%)");
+    attroff(A_BOLD);
+    
+    // Divider line
+    mvwprintw(win, row++, 1, "---------------------------------------------");
+    
+    // Display the disk usage per partition
+    for (int i = 0; i < num_partitions; i++) {
+        mvwprintw(win, row++, 1, "%s", disk_data[i]);
+    }
+    
+    // Refresh the window to show updates
+    wrefresh(win);
+    
+    // Free the memory for disk data
+    for (int i = 0; i < num_partitions; i++) {
+        free(disk_data[i]);
+    }
+    free(disk_data);
+    
+    // Delay to update every second or as needed
+    napms(1000);  // Delay in milliseconds, e.g., 1000 ms = 1 second
+}
+
 void zoom_section(WINDOW *win) {
     int screen_width, screen_height;
     getmaxyx(stdscr, screen_height, screen_width);
@@ -207,6 +246,7 @@ void start_dashboard() {
 	display_active_connections(sections[0][0]);  // Active connections
 	display_bandwidth_usage(sections[0][1]);  // Bandwidth usage
 	display_cpu_data(sections[0][2]);
+	display_disk_data(sections[1][0]);
 	
         // Refresh each window to display content
         for (int i = 0; i < ROWS; i++) {
