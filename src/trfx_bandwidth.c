@@ -174,6 +174,24 @@ static NetStat* find_prev_stat(const char *name) {
     return NULL;
 }
 
+// Function to format bytes into human-readable form (KB, MB, GB)
+const char* format_bytes(double bytes) {
+    static char formatted[20];  // Static buffer to hold the formatted string
+
+    if (bytes < 1024) {
+        snprintf(formatted, sizeof(formatted), "%.2f B", bytes);
+    } else if (bytes < 1024 * 1024) {
+        snprintf(formatted, sizeof(formatted), "%.2f KB", bytes / 1024);
+    } else if (bytes < 1024 * 1024 * 1024) {
+        snprintf(formatted, sizeof(formatted), "%.2f MB", bytes / (1024 * 1024));
+    } else {
+        snprintf(formatted, sizeof(formatted), "%.2f GB", bytes / (1024 * 1024 * 1024));
+    }
+
+    return formatted;
+}
+
+// Function to get bandwidth usage, modified to use format_bytes
 char** get_bandwidth_usage(int *num_interfaces) {
     NetStat curr_stats[MAX_INTERFACES];
     int curr_count = 0;
@@ -196,18 +214,23 @@ char** get_bandwidth_usage(int *num_interfaces) {
             exit(1);
         }
 
-        float delta_tx = 0, delta_rx = 0;
+        double delta_tx = 0, delta_rx = 0;
 
+        // Calculate delta if previous stats exist
         if (initialized) {
             NetStat *prev = find_prev_stat(curr_stats[i].name);
             if (prev) {
-                delta_tx = (curr_stats[i].tx_bytes - prev->tx_bytes) / (1024.0 * 1024.0);
-                delta_rx = (curr_stats[i].rx_bytes - prev->rx_bytes) / (1024.0 * 1024.0);
+                delta_tx = curr_stats[i].tx_bytes - prev->tx_bytes;
+                delta_rx = curr_stats[i].rx_bytes - prev->rx_bytes;
             }
         }
 
-	snprintf(data[i], 128, " %-15.15s | %10.2f | %10.2f", curr_stats[i].name, delta_tx, delta_rx);
+        // Format the sent and received bytes using format_bytes
+        const char *formatted_sent = format_bytes(delta_tx);
+        const char *formatted_recv = format_bytes(delta_rx);
 
+        // Store formatted data
+        snprintf(data[i], 128, " %-15.15s | %10s | %10s", curr_stats[i].name, formatted_sent, formatted_recv);
     }
 
     // Update previous state

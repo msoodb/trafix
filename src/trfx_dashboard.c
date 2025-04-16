@@ -74,10 +74,14 @@ void display_bandwidth_usage(WINDOW *win) {
     for (int i = 0; i < num_interfaces; i++) {
       char name[32];
       sscanf(bandwidth_usage[i], " %31s", name);
-      
+
       // Skip loopback (lo)
-      if (strcmp(name, "lo") == 0) continue;
-      
+      if (strcmp(name, "lo") == 0 || strncmp(name, "br-", 3) == 0 ||
+          strncmp(name, "docker", 6) == 0 || strncmp(name, "veth", 4) == 0 ||
+          strncmp(name, "virbr", 5) == 0 || strncmp(name, "vmnet", 5) == 0) {
+        continue; // Skip virtual interfaces
+      }
+
       ip = get_ip_address(name);
       if (ip) {
         connected_if = name;
@@ -146,18 +150,18 @@ void display_bandwidth_usage(WINDOW *win) {
     }
 
     row++; // blank line
-    
+
     // Table headers
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, "%-15s | %10s | %10s", "Interface", "Sent (MB)",
-              "Received (MB)");
+    mvwprintw(win, row++, 2, "%-15s | %10s | %10s", "Interface", "Sent",
+              "Received");
     wattroff(win, A_BOLD);
     mvwprintw(win, row++, 1, "---------------------------------------------");
 
     for (int i = 0; i < num_interfaces && row < max_rows - 1; i++) {
       mvwprintw(win, row++, 1, "%s", bandwidth_usage[i]);
     }
-
+    
     wrefresh(win);
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
 }
