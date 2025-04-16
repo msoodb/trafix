@@ -11,3 +11,10 @@ Key Features:
 - User-Friendly CLI: Simple and intuitive command-line interface with filtering, sorting, and customizable options.
 
 Trafix is designed to be fast, efficient, and lightweight, with minimal system resource usage.
+
+
+```sh
+	make clean
+	make
+	bin/trafix
+```
