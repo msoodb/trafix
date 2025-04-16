@@ -2,7 +2,9 @@
 #define TRFX_BANDWIDTH_H
 
 char *get_gateway_ip();
-char* get_dns_servers();
+char *get_dns_servers();
+void get_default_gateway_and_metric(char *gateway, char *metric);
+void get_routing_table_summary(char *routing_table);
 const char *generate_random_interface_name();
 char *get_ip_address(const char *ifname);
 char *get_wifi_ssid(const char *ifname);

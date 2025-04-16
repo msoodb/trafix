@@ -91,6 +91,43 @@ char* get_gateway_ip() {
     return gateway;
 }
 
+// Function to get the default gateway and metric
+void get_default_gateway_and_metric(char *gateway, char *metric) {
+    FILE *fp = popen("ip route | grep default", "r");
+    if (!fp) {
+        strcpy(gateway, "N/A");
+        strcpy(metric, "N/A");
+        return;
+    }
+
+    char buffer[256];
+    if (fgets(buffer, sizeof(buffer), fp)) {
+        // Example line: "default via 192.168.1.1 dev eth0 proto static metric 100"
+        sscanf(buffer, "default via %s dev %*s proto %*s metric %s", gateway, metric);
+    } else {
+        strcpy(gateway, "N/A");
+        strcpy(metric, "N/A");
+    }
+
+    pclose(fp);
+}
+
+// Function to get the routing table summary
+void get_routing_table_summary(char *routing_table) {
+    FILE *fp = popen("ip route", "r");
+    if (!fp) {
+        strcpy(routing_table, "Failed to retrieve routing table");
+        return;
+    }
+
+    routing_table[0] = '\0';  // Clear the string
+    char buffer[512];
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        strcat(routing_table, buffer);  // Append the output to routing_table string
+    }
+    pclose(fp);
+}
+
 char* get_dns_servers() {
     FILE *fp = fopen("/etc/resolv.conf", "r");
     if (!fp) return NULL;

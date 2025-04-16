@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     read_config(CONFIG_FILE);
 
     int opt;
-    int show_connections = 0, show_bandwidth = 0, show_top_talkers = 0, show_dashboard = 0;
+    int show_connections = 0, show_bandwidth = 0, show_top_talkers = 0, show_dashboard = 1;
 
     while ((opt = getopt(argc, argv, "cbtdh")) != -1) {
         switch (opt) {

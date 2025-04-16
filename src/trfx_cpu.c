@@ -48,7 +48,7 @@ char** get_cpu_usage(int *num_cores) {
                 float usage = (delta_total > 0) ? ((float)delta_work / delta_total) * 100.0 : 0.0;
 
                 // Store the formatted result
-		snprintf(cpu_data[*num_cores], 50, "  CPU %d %-8s |  %10.2f %s", core_id, "", usage, "");
+		snprintf(cpu_data[*num_cores], 50, "  CPU %d %-1s |  %5.2f %s", core_id, "", usage, "");
 
 
                 // Update previous values for next iteration

@@ -29,15 +29,18 @@ void display_active_connections(WINDOW *win) {
     // Clear previous content
     werase(win);  // Clears the window content without affecting the border
 
+    // Draw the border around the window
+    box(win, 0, 0);  
+
     // Display the headers
     attron(A_BOLD);
-    mvwprintw(win, 1, 4, "%-20s -> %-20s  %s", "Source IP:Port", "Dest IP:Port", "Status");
+    mvwprintw(win, 1, 2, "%-20s -> %-20s  %s", "Source IP:Port", "Dest IP:Port", "Status");
     attroff(A_BOLD);
-    mvwprintw(win, 2, 4, "------------------------------------------------------------");
+    mvwprintw(win, 2, 2, "------------------------------------------------------------");
 
     // Display the active connections
     for (int i = 0; i < num_connections; i++) {
-        mvwprintw(win, 3 + i, 4, "%s", active_connections[i]);
+        mvwprintw(win, 3 + i, 2, "%s", active_connections[i]);
     }
 
     // Refresh the window to show updates
@@ -47,42 +50,6 @@ void display_active_connections(WINDOW *win) {
     free_active_connections(active_connections, num_connections);
 }
 
-
-
-// Function to display CPU usage per core in the given window
-void display_cpu_data(WINDOW *win) {
-  int num_cores = 0;
-
-  // Get CPU usage for each core
-  char **cpu_data = get_cpu_usage(&num_cores);
-
-  int row = 1;
-
-  // Title line (bold)
-  attron(A_BOLD);
-  mvwprintw(win, row++, 2, "%-8s | %10s", "Core", "CPU Usage (%)");
-  attroff(A_BOLD);
-
-  // Divider line
-  mvwprintw(win, row++, 1, "---------------------------------------------");
-
-  // Display the CPU usage per core
-  for (int i = 0; i < num_cores; i++) {
-    mvwprintw(win, row++, 1, "%s", cpu_data[i]);
-  }
-
-  // Refresh the window to show updates
-  wrefresh(win);
-
-  // Free the memory for CPU data
-  for (int i = 0; i < num_cores; i++) {
-    free(cpu_data[i]);
-  }
-  free(cpu_data);
-
-  // Delay to update every second or as needed
-  napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
-}
 
 // Function to display bandwidth usage in the given window
 void display_bandwidth_usage(WINDOW *win) {
@@ -95,6 +62,7 @@ void display_bandwidth_usage(WINDOW *win) {
     char **bandwidth_usage = get_bandwidth_usage(&num_interfaces);
 
     werase(win);
+    box(win, 0, 0);  // Draw border
 
     int row = 1;
 
@@ -205,6 +173,44 @@ void display_bandwidth_usage(WINDOW *win) {
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
 }
 
+// Function to display CPU usage per core in the given window
+void display_cpu_data(WINDOW *win) {
+  int num_cores = 0;
+
+  // Get CPU usage for each core
+  char **cpu_data = get_cpu_usage(&num_cores);
+
+  int row = 1;
+
+  // Draw the border around the window
+  box(win, 0, 0);
+
+  // Title line (bold)
+  attron(A_BOLD);
+  mvwprintw(win, row++, 2, "%-15s | %10s", "Core", "CPU Usage (%)");
+  attroff(A_BOLD);
+
+  // Divider line
+  mvwprintw(win, row++, 1, "---------------------------------------------");
+
+  // Display the CPU usage per core
+  for (int i = 0; i < num_cores; i++) {
+    mvwprintw(win, row++, 1, "%s", cpu_data[i]);
+  }
+
+  // Refresh the window to show updates
+  wrefresh(win);
+
+  // Free the memory for CPU data
+  for (int i = 0; i < num_cores; i++) {
+    free(cpu_data[i]);
+  }
+  free(cpu_data);
+
+  // Delay to update every second or as needed
+  napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
+}
+
 // Function to display disk usage per partition in the given window
 void display_disk_data(WINDOW *win) {
   int num_partitions = 0;
@@ -214,9 +220,12 @@ void display_disk_data(WINDOW *win) {
 
   int row = 1;
 
+  // Draw the border around the window
+  box(win, 0, 0);
+
   // Title line (bold)
   attron(A_BOLD);
-  mvwprintw(win, row++, 2, "%-16s | %10s", "Partition", "Disk Usage (%)");
+  mvwprintw(win, row++, 2, "%-15s | %10s", "Partition", "Disk Usage (%)");
   attroff(A_BOLD);
 
   // Divider line
@@ -294,14 +303,24 @@ void start_dashboard() {
 
   WINDOW *sections[ROWS][COLS];
 
-  // Initialize sections (windows) with no borders
+  // Initialize windows and draw borders immediately
   for (int i = 0; i < ROWS; i++) {
     for (int j = 0; j < COLS; j++) {
-      sections[i][j] = newwin(box_height, box_width, i * box_height, j * box_width);
+      sections[i][j] =
+          newwin(box_height, box_width, i * box_height, j * box_width);
+      box(sections[i][j], 0, 0); // Draw border around each section
     }
   }
 
-  // Set nodelay for all windows
+  // Refresh the screen after drawing the borders
+  refresh();
+  for (int i = 0; i < ROWS; i++) {
+    for (int j = 0; j < COLS; j++) {
+      wrefresh(sections[i][j]); // Ensure the borders are visible
+    }
+  }
+
+  // Set nodelay to non-blocking for main window and sections
   nodelay(stdscr, TRUE);
   for (int i = 0; i < ROWS; i++) {
     for (int j = 0; j < COLS; j++) {
@@ -309,57 +328,51 @@ void start_dashboard() {
     }
   }
 
-  // Function to draw grid lines on the main window (to avoid flicker)
-  void draw_grid() {
-    for (int i = 1; i < ROWS; i++) {
-      int y = i * box_height;
-      mvhline(y, 0, ACS_HLINE, screen_width);
-    }
-    for (int j = 1; j < COLS; j++) {
-      int x = j * box_width;
-      mvvline(0, x, ACS_VLINE, screen_height);
-    }
-    for (int i = 1; i < ROWS; i++) {
-      for (int j = 1; j < COLS; j++) {
-        mvaddch(i * box_height, j * box_width, ACS_PLUS);
-      }
-    }
-    //refresh(); // Refresh grid lines after drawing them
-  }
-
-  // Draw grid lines initially
-  draw_grid();
-
-  // Main loop for displaying dashboard content
   int ch;
   while (1) {
-    // Update section content (bandwidth, connections, etc.)
-    display_bandwidth_usage(sections[0][0]);
-    display_cpu_data(sections[0][1]);
-    display_active_connections(sections[0][2]);
-    display_disk_data(sections[1][1]);
+    // Title
+    attron(COLOR_PAIR(COLOR_TITLE) | A_BOLD);
+    // mvprintw(0, (screen_width - 40) / 2, "=== Trafix Network Monitoring
+    // Dashboard ===");
+    attroff(COLOR_PAIR(COLOR_TITLE) | A_BOLD);
 
-    // Refresh each content window
+    display_active_connections(sections[0][0]); // Active connections
+    display_bandwidth_usage(sections[0][1]);    // Bandwidth usage
+    display_cpu_data(sections[0][2]);
+    display_disk_data(sections[1][0]);
+
+    // Refresh each window to display content
     for (int i = 0; i < ROWS; i++) {
       for (int j = 0; j < COLS; j++) {
         wrefresh(sections[i][j]);
       }
     }
 
-    // Redraw the grid lines after refreshing content
-    draw_grid();
+    refresh();
 
-    // Handle user input (zoom, exit, etc.)
-    /*ch = getch();
-    if (ch == '1') zoom_section(sections[0][0]);
-    if (ch == '2') zoom_section(sections[0][1]);
-    if (ch == '3') zoom_section(sections[0][2]);
-    if (ch == '4') zoom_section(sections[1][0]);
-    if (ch == '5') zoom_section(sections[1][1]);
-    if (ch == '6') zoom_section(sections[1][2]);
-    if (ch == 'q' || ch == 'Q') break;*/
+    // Get user input with non-blocking
+    ch = getch();
 
-    usleep(100000); // Sleep to prevent excessive CPU usage
+    // Check for zoom keys (1-6 for zoom in, Ctrl+R for zoom out)
+    if (ch == '1')
+      zoom_section(sections[0][0]); // Zoom Section 1
+    if (ch == '2')
+      zoom_section(sections[0][1]); // Zoom Section 2
+    if (ch == '3')
+      zoom_section(sections[0][2]); // Zoom Section 3
+    if (ch == '4')
+      zoom_section(sections[1][0]); // Zoom Section 4
+    if (ch == '5')
+      zoom_section(sections[1][1]); // Zoom Section 5
+    if (ch == '6')
+      zoom_section(sections[1][2]); // Zoom Section 6
+
+    // Check for quit
+    if (ch == 'q' || ch == 'Q')
+      break;
+
+    // Small delay to prevent 100% CPU usage
+    usleep(100000);
   }
 
   // Cleanup
@@ -368,6 +381,5 @@ void start_dashboard() {
       delwin(sections[i][j]);
     }
   }
-
   endwin();
 }

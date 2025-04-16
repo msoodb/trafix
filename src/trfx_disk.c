@@ -66,7 +66,7 @@ char** get_disk_usage(int *num_partitions) {
                 int used = total - free;
                 float usage = (total > 0) ? ((float)used / total) * 100.0 : 0.0;
 
-                snprintf(disk_data[*num_partitions], 50, "  %-8s | %10.2f %%", partition, usage);
+                snprintf(disk_data[*num_partitions], 50, "  %-15s | %10.2f %%", partition, usage);
                 (*num_partitions)++;
             }
         }
