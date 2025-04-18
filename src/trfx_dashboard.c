@@ -11,6 +11,7 @@
 #include "trfx_wifi.h"
 #include "trfx_sysinfo.h"
 #include "trfx_meminfo.h"
+#include "trfx_procinfo.h"
 
 #define COLOR_TITLE 1
 #define COLOR_SECTION 2
@@ -20,6 +21,10 @@
 #define ROWS 2
 #define COLS 3
 
+#define ROW1_COLS 4
+#define ROW2_COLS 3
+#define ROW3_COLS 1
+#define TOTAL_ROWS 3
 
 // Function to refresh and display active connections in the window
 void display_active_connections(WINDOW *win) {
@@ -98,7 +103,25 @@ void display_system_info(WINDOW *win) {
     mvwprintw(win, row++, 2, "  Load Avg: %s", sysinfo.load_avg);
     mvwprintw(win, row++, 2, "  Logged-in Users: %s", sysinfo.logged_in_users);
 
-    row++;
+    wrefresh(win);
+    napms(1000);
+}
+
+void display_process_info(WINDOW *win) {
+ProcessInfo list[MAX_PROCESSES];
+    int count = get_top_processes_by_mem(list, MAX_PROCESSES);
+    int row = 1;
+
+    wattron(win, COLOR_PAIR(1));
+    mvwprintw(win, row++, 1, "  PID     USER     PR NI     VIRT    RES    SHR S %%CPU %%MEM     TIME+  COMMAND");
+    wattroff(win, COLOR_PAIR(1));
+
+    for (int i = 0; i < count && row < getmaxy(win) - 1; i++) {
+        mvwprintw(win, row++, 1, "%6s %-8s %2s %2s %7s %6s %6s %s %5s %5s %10s %.20s",
+                  list[i].pid, list[i].user, list[i].pr, list[i].ni,
+                  list[i].virt, list[i].res, list[i].shr, list[i].state,
+                  list[i].cpu, list[i].mem, list[i].time, list[i].command);
+    }
 
     wrefresh(win);
     napms(1000);
@@ -108,15 +131,22 @@ void display_memory_info(WINDOW *win) {
     int row = 1;
     MemoryInfo mem = get_memory_info();
 
-    mvwprintw(win, row++, 2, "  Total RAM: %ld MB", mem.total_ram / 1024);
-    mvwprintw(win, row++, 2, "  Used RAM: %ld MB", mem.used_ram / 1024);
-    mvwprintw(win, row++, 2, "  Free RAM: %ld MB", mem.free_ram / 1024);
-    mvwprintw(win, row++, 2, "  Total Swap: %ld MB", mem.total_swap / 1024);
-    mvwprintw(win, row++, 2, "  Used Swap: %ld MB", mem.used_swap / 1024);
-    mvwprintw(win, row++, 2, "  Memory Usage: %.2f%%", mem.mem_percent);
+    float total = mem.total_ram / 1024.0f;
+    float free = mem.free_ram / 1024.0f;
+    float used = mem.used_ram / 1024.0f;
+    float swap_used = mem.used_swap / 1024.0f;
+    float swap_total = mem.total_swap / 1024.0f;
 
+    // Memory line
+    mvwprintw(win, row++, 2, "Memory (MiB) > total: %.1f,  free: %.1f,  used: %.1f  (%.1f%%)",
+              total, free, used, mem.mem_percent);
+
+    // Swap line
+    mvwprintw(win, row++, 2, "Swap   (MiB) > total: %.1f,  used: %.1f", swap_total, swap_used);
+
+    // Top memory-consuming processes
     row++;
-    mvwprintw(win, row++, 2, "  Top Memory Processes:");
+    mvwprintw(win, row++, 2, "Top Memory Processes:");
     char *line = strtok(mem.top_processes, "\n");
     while (line && row < getmaxy(win) - 1) {
         mvwprintw(win, row++, 4, "%s", line);
@@ -125,7 +155,6 @@ void display_memory_info(WINDOW *win) {
 
     wrefresh(win);
     napms(1000);
-
 }
 
 // Function to display bandwidth usage in the given window
@@ -327,91 +356,81 @@ void start_dashboard() {
   init_pair(COLOR_SECTION, COLOR_YELLOW, -1);
   init_pair(COLOR_DATA, COLOR_WHITE, -1);
   init_pair(COLOR_DATA_RED, COLOR_RED, -1);
+  init_pair(1, COLOR_BLACK, COLOR_WHITE);
   noecho();
   curs_set(FALSE);
 
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);
 
-  int box_height = screen_height / ROWS;
-  int box_width = screen_width / COLS;
+  int row_heights[TOTAL_ROWS] = {
+    screen_height / 3,
+    screen_height / 3,
+    screen_height - 2 * (screen_height / 3)
+  };
 
-  WINDOW *sections[ROWS][COLS];
+  int col_counts[TOTAL_ROWS] = { ROW1_COLS, ROW2_COLS, ROW3_COLS };
 
-  // Initialize sections (windows) with no borders
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLS; j++) {
-      sections[i][j] = newwin(box_height, box_width, i * box_height, j * box_width);
+  WINDOW *sections[TOTAL_ROWS][ROW1_COLS];  // Max columns in any row = 4
+
+  int y_offset = 0;
+  for (int row = 0; row < TOTAL_ROWS; row++) {
+    int col_width = screen_width / col_counts[row];
+    for (int col = 0; col < col_counts[row]; col++) {
+      sections[row][col] = newwin(
+        row_heights[row],
+        col_width,
+        y_offset,
+        col * col_width
+      );
+      nodelay(sections[row][col], TRUE);
     }
+    y_offset += row_heights[row];
   }
 
-  // Set nodelay for all windows
   nodelay(stdscr, TRUE);
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLS; j++) {
-      nodelay(sections[i][j], TRUE);
-    }
-  }
 
-  // Function to draw grid lines on the main window (to avoid flicker)
-  void draw_grid() {
-    for (int i = 1; i < ROWS; i++) {
-      int y = i * box_height;
-      mvhline(y, 0, ACS_HLINE, screen_width);
-    }
-    for (int j = 1; j < COLS; j++) {
-      int x = j * box_width;
-      mvvline(0, x, ACS_VLINE, screen_height);
-    }
-    for (int i = 1; i < ROWS; i++) {
-      for (int j = 1; j < COLS; j++) {
-        mvaddch(i * box_height, j * box_width, ACS_PLUS);
-      }
-    }
-    //refresh(); // Refresh grid lines after drawing them
-  }
-
-  // Draw grid lines initially
-  //draw_grid();
-
-  // Main loop for displaying dashboard content
   int ch;
   while (1) {
-    // Update section content (bandwidth, connections, etc.)
-    display_bandwidth_usage(sections[0][0]);
+    // You can customize which data goes where
+    display_bandwidth_usage(sections[1][1]);
     display_cpu_data(sections[0][1]);
     display_active_connections(sections[0][2]);
-    display_disk_data(sections[1][0]);
-    display_system_info(sections[1][1]);
+    display_disk_data(sections[0][3]);
+
+
+    display_process_info(sections[1][0]);
+    display_system_info(sections[0][0]);
+    //display_process_info(sections[1][1]);
     display_memory_info(sections[1][2]);
+
     
-    // Refresh each content window
-    for (int i = 0; i < ROWS; i++) {
-      for (int j = 0; j < COLS; j++) {
-        wrefresh(sections[i][j]);
+
+    // Refresh all windows
+    for (int row = 0; row < TOTAL_ROWS; row++) {
+      for (int col = 0; col < col_counts[row]; col++) {
+        wrefresh(sections[row][col]);
       }
     }
 
-    // Redraw the grid lines after refreshing content
-    //draw_grid();
-
-    // Handle user input (zoom, exit, etc.)
     ch = getch();
     if (ch == '1') zoom_section(sections[0][0]);
     if (ch == '2') zoom_section(sections[0][1]);
     if (ch == '3') zoom_section(sections[0][2]);
-    if (ch == '4') zoom_section(sections[1][0]);
-    if (ch == '5') zoom_section(sections[1][1]);
-    if (ch == '6') zoom_section(sections[1][2]);
+    if (ch == '4') zoom_section(sections[0][3]);
+    if (ch == '5') zoom_section(sections[1][0]);
+    if (ch == '6') zoom_section(sections[1][1]);
+    if (ch == '7') zoom_section(sections[1][2]);
+    if (ch == '8') zoom_section(sections[2][0]);
     if (ch == 'q' || ch == 'Q') break;
 
-    usleep(100000); // Sleep to prevent excessive CPU usage
+    usleep(100000);
   }
 
   // Cleanup
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLS; j++) {
-      delwin(sections[i][j]);
+  for (int row = 0; row < TOTAL_ROWS; row++) {
+    for (int col = 0; col < col_counts[row]; col++) {
+      delwin(sections[row][col]);
     }
   }
 
