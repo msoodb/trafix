@@ -9,6 +9,7 @@
 #include "trfx_cpu.h"
 #include "trfx_disk.h"
 #include "trfx_wifi.h"
+#include "trfx_sysinfo.h"
 
 #define COLOR_TITLE 1
 #define COLOR_SECTION 2
@@ -82,6 +83,27 @@ void display_cpu_data(WINDOW *win) {
 
   // Delay to update every second or as needed
   napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
+}
+
+// Function to display system info in the given window
+void display_system_info(WINDOW *win) {
+    int row = 1;
+    SystemOverview sysinfo = get_system_overview();
+
+    mvwprintw(win, row++, 2, "  Hostname: %s", sysinfo.hostname);
+    mvwprintw(win, row++, 2, "  OS: %s", sysinfo.os_version);
+    mvwprintw(win, row++, 2, "  Kernel: %s", sysinfo.kernel_version);
+    mvwprintw(win, row++, 2, "  Uptime: %s", sysinfo.uptime);
+    mvwprintw(win, row++, 2, "  Load Avg: %s", sysinfo.load_avg);
+    mvwprintw(win, row++, 2, "  Logged-in Users: %s", sysinfo.logged_in_users);
+
+    row++;
+
+    // Refresh the window to show updates
+    wrefresh(win);
+
+    // Delay to update every second or as needed
+    napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
 }
 
 // Function to display bandwidth usage in the given window
@@ -328,7 +350,7 @@ void start_dashboard() {
   }
 
   // Draw grid lines initially
-  draw_grid();
+  //draw_grid();
 
   // Main loop for displaying dashboard content
   int ch;
@@ -337,8 +359,9 @@ void start_dashboard() {
     display_bandwidth_usage(sections[0][0]);
     display_cpu_data(sections[0][1]);
     display_active_connections(sections[0][2]);
-    display_disk_data(sections[1][1]);
-
+    display_disk_data(sections[1][0]);
+    display_system_info(sections[1][1]);
+    
     // Refresh each content window
     for (int i = 0; i < ROWS; i++) {
       for (int j = 0; j < COLS; j++) {
@@ -347,17 +370,17 @@ void start_dashboard() {
     }
 
     // Redraw the grid lines after refreshing content
-    draw_grid();
+    //draw_grid();
 
     // Handle user input (zoom, exit, etc.)
-    /*ch = getch();
+    ch = getch();
     if (ch == '1') zoom_section(sections[0][0]);
     if (ch == '2') zoom_section(sections[0][1]);
     if (ch == '3') zoom_section(sections[0][2]);
     if (ch == '4') zoom_section(sections[1][0]);
     if (ch == '5') zoom_section(sections[1][1]);
     if (ch == '6') zoom_section(sections[1][2]);
-    if (ch == 'q' || ch == 'Q') break;*/
+    if (ch == 'q' || ch == 'Q') break;
 
     usleep(100000); // Sleep to prevent excessive CPU usage
   }
