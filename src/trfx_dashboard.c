@@ -10,6 +10,7 @@
 #include "trfx_disk.h"
 #include "trfx_wifi.h"
 #include "trfx_sysinfo.h"
+#include "trfx_meminfo.h"
 
 #define COLOR_TITLE 1
 #define COLOR_SECTION 2
@@ -99,11 +100,32 @@ void display_system_info(WINDOW *win) {
 
     row++;
 
-    // Refresh the window to show updates
     wrefresh(win);
+    napms(1000);
+}
 
-    // Delay to update every second or as needed
-    napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
+void display_memory_info(WINDOW *win) {
+    int row = 1;
+    MemoryInfo mem = get_memory_info();
+
+    mvwprintw(win, row++, 2, "  Total RAM: %ld MB", mem.total_ram / 1024);
+    mvwprintw(win, row++, 2, "  Used RAM: %ld MB", mem.used_ram / 1024);
+    mvwprintw(win, row++, 2, "  Free RAM: %ld MB", mem.free_ram / 1024);
+    mvwprintw(win, row++, 2, "  Total Swap: %ld MB", mem.total_swap / 1024);
+    mvwprintw(win, row++, 2, "  Used Swap: %ld MB", mem.used_swap / 1024);
+    mvwprintw(win, row++, 2, "  Memory Usage: %.2f%%", mem.mem_percent);
+
+    row++;
+    mvwprintw(win, row++, 2, "  Top Memory Processes:");
+    char *line = strtok(mem.top_processes, "\n");
+    while (line && row < getmaxy(win) - 1) {
+        mvwprintw(win, row++, 4, "%s", line);
+        line = strtok(NULL, "\n");
+    }
+
+    wrefresh(win);
+    napms(1000);
+
 }
 
 // Function to display bandwidth usage in the given window
@@ -361,6 +383,7 @@ void start_dashboard() {
     display_active_connections(sections[0][2]);
     display_disk_data(sections[1][0]);
     display_system_info(sections[1][1]);
+    display_memory_info(sections[1][2]);
     
     // Refresh each content window
     for (int i = 0; i < ROWS; i++) {
