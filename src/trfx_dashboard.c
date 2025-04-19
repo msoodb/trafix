@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "trfx_connections.h"
+#include "trfx_utils.h"
 #include "trfx_bandwidth.h"
 #include "trfx_top.h"
 #include "trfx_cpu.h"
@@ -13,18 +14,124 @@
 #include "trfx_meminfo.h"
 #include "trfx_procinfo.h"
 
-#define COLOR_TITLE 1
-#define COLOR_SECTION 2
-#define COLOR_DATA 3
+#define COLOR_TITLE    1
+#define COLOR_SECTION  2
+#define COLOR_DATA     3
 #define COLOR_DATA_RED 4
-
-#define ROWS 2
-#define COLS 3
+#define COLOR_HEADER   5
 
 #define ROW1_COLS 4
-#define ROW2_COLS 3
-#define ROW3_COLS 1
+#define ROW2_COLS 4
+#define ROW3_COLS 2
 #define TOTAL_ROWS 3
+
+#define FIXED_ROW1_HEIGHT 6
+#define FIXED_ROW2_HEIGHT 0
+
+#define MAX_DISKS 16
+
+// Function to display system info in the given window
+void display_system_info(WINDOW *win) {
+  int row = 0;
+    int line = 0;
+    int label_width = 16;
+    SystemOverview sysinfo = get_system_overview();
+
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Hostname",         sysinfo.hostname);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "OS",               sysinfo.os_version);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Kernel",           sysinfo.kernel_version);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Uptime",           sysinfo.uptime);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Load Avg",         sysinfo.load_avg);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Logged-in Users",  sysinfo.logged_in_users);
+
+    wrefresh(win);
+    napms(1000);
+}
+
+// Function to display CPU info in the given window
+void display_cpu_info(WINDOW *win) {
+  int row = 0;
+  int line = 1;
+  CPUInfo cpu = get_cpu_info();
+
+  wattron(win, A_BOLD);
+  mvwprintw(win, row++, 0, "CPU Information");
+  wattroff(win, A_BOLD);
+
+  mvwprintw(win, row++, line, "Avg Usage: %.1f%%   Temperature: %.1f °C",
+            cpu.avg_usage, cpu.temperature >= 0 ? cpu.temperature : 0.0);
+
+  int coreCount = 0;
+  for (int i = 0; i < cpu.num_cores; i++) {
+    mvwprintw(win, row, line + coreCount * 20, "C%d: %04.1f%%, %.0f MHz", i,
+              cpu.usage_per_core[i], cpu.frequency_per_core[i]);
+    coreCount++;
+
+    if (coreCount == 2) {
+      coreCount = 0;
+      row++;
+    }
+  }
+
+  row++;
+
+  wrefresh(win);
+  napms(1000);
+}
+
+void display_memory_info(WINDOW *win) {
+    int row = 1;
+    MemoryInfo mem = get_memory_info();
+
+    float total = mem.total_ram / 1024.0f;
+    float free = mem.free_ram / 1024.0f;
+    float used = mem.used_ram / 1024.0f;
+    float swap_used = mem.used_swap / 1024.0f;
+    float swap_total = mem.total_swap / 1024.0f;
+
+    // Memory line
+    mvwprintw(win, row++, 2, "Memory (MiB)> total: %.1f, free: %.1f, used: %.1f (%.1f%%)",
+              total, free, used, mem.mem_percent);
+
+    // Swap line
+    mvwprintw(win, row++, 2, "  Swap (MiB)> total: %.1f, used: %.1f", swap_total, swap_used);
+
+    wrefresh(win);
+    napms(1000);
+}
+
+void display_process_info(WINDOW *win) {
+  ProcessInfo list[MAX_PROCESSES];
+  int count = get_top_processes_by_mem(list, MAX_PROCESSES);
+  int row = 1;
+
+  wattron(win, COLOR_PAIR(COLOR_HEADER));
+  mvwprintw(win, row++, 1,
+            "  PID    USER      PR  NI    VIRT    RES      SHR S   %%CPU %%MEM   "
+            "TIME+     COMMAND               ");
+  wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+  for (int i = 0; i < count && row < getmaxy(win) - 1; i++) {
+    mvwprintw(win, row++, 1,
+              "%7s %-10s %2s %2s %8s %7s %7s %1s %5s %5s %10s %-20.20s",
+              list[i].pid,    // right-aligned numeric
+              list[i].user,   // left-aligned string
+              list[i].pr,     // right-aligned numeric
+              list[i].ni,     // right-aligned numeric
+              list[i].virt,   // right-aligned numeric
+              list[i].res,    // right-aligned numeric
+              list[i].shr,    // right-aligned numeric
+              list[i].state,  // 1 char
+              list[i].cpu,    // right-aligned percentage
+              list[i].mem,    // right-aligned percentage
+              list[i].time,   // fixed width time
+              list[i].command // left-aligned string, max 20 chars
+    );
+  }
+
+  wrefresh(win);
+  napms(1000);
+}
 
 // Function to refresh and display active connections in the window
 void display_active_connections(WINDOW *win) {
@@ -54,108 +161,6 @@ void display_active_connections(WINDOW *win) {
     free_active_connections(active_connections, num_connections);
 }
 
-
-
-// Function to display CPU usage per core in the given window
-void display_cpu_data(WINDOW *win) {
-  int num_cores = 0;
-
-  // Get CPU usage for each core
-  char **cpu_data = get_cpu_usage(&num_cores);
-
-  int row = 1;
-
-  // Title line (bold)
-  attron(A_BOLD);
-  mvwprintw(win, row++, 2, "%-8s | %10s", "Core", "CPU Usage (%)");
-  attroff(A_BOLD);
-
-  // Divider line
-  mvwprintw(win, row++, 1, "---------------------------------------------");
-
-  // Display the CPU usage per core
-  for (int i = 0; i < num_cores; i++) {
-    mvwprintw(win, row++, 1, "%s", cpu_data[i]);
-  }
-
-  // Refresh the window to show updates
-  wrefresh(win);
-
-  // Free the memory for CPU data
-  for (int i = 0; i < num_cores; i++) {
-    free(cpu_data[i]);
-  }
-  free(cpu_data);
-
-  // Delay to update every second or as needed
-  napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
-}
-
-// Function to display system info in the given window
-void display_system_info(WINDOW *win) {
-    int row = 1;
-    SystemOverview sysinfo = get_system_overview();
-
-    mvwprintw(win, row++, 2, "  Hostname: %s", sysinfo.hostname);
-    mvwprintw(win, row++, 2, "  OS: %s", sysinfo.os_version);
-    mvwprintw(win, row++, 2, "  Kernel: %s", sysinfo.kernel_version);
-    mvwprintw(win, row++, 2, "  Uptime: %s", sysinfo.uptime);
-    mvwprintw(win, row++, 2, "  Load Avg: %s", sysinfo.load_avg);
-    mvwprintw(win, row++, 2, "  Logged-in Users: %s", sysinfo.logged_in_users);
-
-    wrefresh(win);
-    napms(1000);
-}
-
-void display_process_info(WINDOW *win) {
-ProcessInfo list[MAX_PROCESSES];
-    int count = get_top_processes_by_mem(list, MAX_PROCESSES);
-    int row = 1;
-
-    wattron(win, COLOR_PAIR(1));
-    mvwprintw(win, row++, 1, "  PID     USER     PR NI     VIRT    RES    SHR S %%CPU %%MEM     TIME+  COMMAND");
-    wattroff(win, COLOR_PAIR(1));
-
-    for (int i = 0; i < count && row < getmaxy(win) - 1; i++) {
-        mvwprintw(win, row++, 1, "%6s %-8s %2s %2s %7s %6s %6s %s %5s %5s %10s %.20s",
-                  list[i].pid, list[i].user, list[i].pr, list[i].ni,
-                  list[i].virt, list[i].res, list[i].shr, list[i].state,
-                  list[i].cpu, list[i].mem, list[i].time, list[i].command);
-    }
-
-    wrefresh(win);
-    napms(1000);
-}
-
-void display_memory_info(WINDOW *win) {
-    int row = 1;
-    MemoryInfo mem = get_memory_info();
-
-    float total = mem.total_ram / 1024.0f;
-    float free = mem.free_ram / 1024.0f;
-    float used = mem.used_ram / 1024.0f;
-    float swap_used = mem.used_swap / 1024.0f;
-    float swap_total = mem.total_swap / 1024.0f;
-
-    // Memory line
-    mvwprintw(win, row++, 2, "Memory (MiB) > total: %.1f,  free: %.1f,  used: %.1f  (%.1f%%)",
-              total, free, used, mem.mem_percent);
-
-    // Swap line
-    mvwprintw(win, row++, 2, "Swap   (MiB) > total: %.1f,  used: %.1f", swap_total, swap_used);
-
-    // Top memory-consuming processes
-    row++;
-    mvwprintw(win, row++, 2, "Top Memory Processes:");
-    char *line = strtok(mem.top_processes, "\n");
-    while (line && row < getmaxy(win) - 1) {
-        mvwprintw(win, row++, 4, "%s", line);
-        line = strtok(NULL, "\n");
-    }
-
-    wrefresh(win);
-    napms(1000);
-}
 
 // Function to display bandwidth usage in the given window
 void display_bandwidth_usage(WINDOW *win) {
@@ -278,39 +283,45 @@ void display_bandwidth_usage(WINDOW *win) {
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
 }
 
-// Function to display disk usage per partition in the given window
 void display_disk_data(WINDOW *win) {
-  int num_partitions = 0;
+    DiskInfo disks[16];
+    double total_used = 0.0, total_total = 0.0;
+    int ndisk = get_disk_info(disks, MAX_DISKS, &total_used, &total_total);
+    
+    werase(win);
 
-  // Get disk usage for each partition
-  char **disk_data = get_disk_usage(&num_partitions);
+    int row = 0;
+    wattron(win, A_BOLD);
+    mvwprintw(win, row++, 0, "Disk Information");
+    wattroff(win, A_BOLD);
 
-  int row = 1;
+    mvwprintw(win, row++, 2, "Mount      Filesystem                        Used     Total   Usage   Temp");
 
-  // Title line (bold)
-  attron(A_BOLD);
-  mvwprintw(win, row++, 2, "%-16s | %10s", "Partition", "Disk Usage (%)");
-  attroff(A_BOLD);
+    for (int i = 0; i < ndisk && row < getmaxy(win) - 1; ++i) {
+        char used_buf[16], total_buf[16];
+        format_bytes(disks[i].used_mb, used_buf, sizeof(used_buf));
+        format_bytes(disks[i].total_mb, total_buf, sizeof(total_buf));
 
-  // Divider line
-  mvwprintw(win, row++, 1, "---------------------------------------------");
+        mvwprintw(win, row++, 2, "%-10s %-20s %7s %8s  %5.1f%%  %4.1f°C",
+                  disks[i].mount_point,
+                  disks[i].filesystem,
+                  used_buf,
+                  total_buf,
+                  disks[i].usage_percent,
+                  disks[i].temperature);
+    }
 
-  // Display the disk usage per partition
-  for (int i = 0; i < num_partitions; i++) {
-    mvwprintw(win, row++, 1, "%s", disk_data[i]);
-  }
+    // At the end of disk listing
+    double usage_percent =
+        (total_total > 0) ? (total_used / total_total) * 100.0 : 0.0;
+    char used_buf[16], total_buf[16];
+    format_bytes(total_used, used_buf, sizeof(used_buf));
+    format_bytes(total_total, total_buf, sizeof(total_buf));
 
-  // Refresh the window to show updates
-  wrefresh(win);
+    mvwprintw(win, row++, 2, "%-10s %-30s %8s %8s %6.1f%% %6s", "Total", "-",
+              used_buf, total_buf, usage_percent, " -1.0°C");
 
-  // Free the memory for disk data
-  for (int i = 0; i < num_partitions; i++) {
-    free(disk_data[i]);
-  }
-  free(disk_data);
-
-  // Delay to update every second or as needed
-  napms(1000); // Delay in milliseconds, e.g., 1000 ms = 1 second
+    wrefresh(win);
 }
 
 void zoom_section(WINDOW *win) {
@@ -352,11 +363,11 @@ void start_dashboard() {
   initscr();
   start_color();
   use_default_colors();
+  init_pair(COLOR_HEADER, COLOR_BLACK, COLOR_WHITE);  // black text on white background
   init_pair(COLOR_TITLE, COLOR_CYAN, -1);
   init_pair(COLOR_SECTION, COLOR_YELLOW, -1);
   init_pair(COLOR_DATA, COLOR_WHITE, -1);
   init_pair(COLOR_DATA_RED, COLOR_RED, -1);
-  init_pair(1, COLOR_BLACK, COLOR_WHITE);
   noecho();
   curs_set(FALSE);
 
@@ -364,26 +375,46 @@ void start_dashboard() {
   getmaxyx(stdscr, screen_height, screen_width);
 
   int row_heights[TOTAL_ROWS] = {
-    screen_height / 3,
-    screen_height / 3,
-    screen_height - 2 * (screen_height / 3)
+    FIXED_ROW1_HEIGHT,
+    FIXED_ROW2_HEIGHT,
+    screen_height - FIXED_ROW1_HEIGHT - FIXED_ROW2_HEIGHT
   };
 
   int col_counts[TOTAL_ROWS] = { ROW1_COLS, ROW2_COLS, ROW3_COLS };
 
-  WINDOW *sections[TOTAL_ROWS][ROW1_COLS];  // Max columns in any row = 4
+  WINDOW *sections[TOTAL_ROWS][ROW1_COLS];  // Max columns = 4
+
+  // Define specific widths for each row's columns
+  int row1_widths[ROW1_COLS] = {
+    (int)(screen_width * 0.25),
+    (int)(screen_width * 0.20),
+    (int)(screen_width * 0.50),
+    (int)(screen_width * 0.05)
+  };  
+  int row2_widths[ROW2_COLS] = {
+    screen_width / 3,
+    screen_width / 3,
+    screen_width - 2 * (screen_width / 3)
+  };
+  int row3_widths[ROW3_COLS] = {
+    (int)(screen_width * 0.50),
+    (int)(screen_width * 0.50)
+  };
+
+  int* widths[] = { row1_widths, row2_widths, row3_widths };
 
   int y_offset = 0;
   for (int row = 0; row < TOTAL_ROWS; row++) {
-    int col_width = screen_width / col_counts[row];
+    int x_offset = 0;
     for (int col = 0; col < col_counts[row]; col++) {
       sections[row][col] = newwin(
         row_heights[row],
-        col_width,
+        widths[row][col],
         y_offset,
-        col * col_width
+        x_offset
       );
       nodelay(sections[row][col], TRUE);
+      x_offset += widths[row][col];
     }
     y_offset += row_heights[row];
   }
@@ -392,20 +423,20 @@ void start_dashboard() {
 
   int ch;
   while (1) {
-    // You can customize which data goes where
-    display_bandwidth_usage(sections[1][1]);
-    display_cpu_data(sections[0][1]);
-    display_active_connections(sections[0][2]);
-    display_disk_data(sections[0][3]);
-
-
-    display_process_info(sections[1][0]);
+    // Displaying dashboard content
     display_system_info(sections[0][0]);
-    //display_process_info(sections[1][1]);
-    display_memory_info(sections[1][2]);
+    display_cpu_info(sections[0][1]);
+    //display_memory_info(sections[0][2]);
+    display_disk_data(sections[0][2]);
+
+    //display_bandwidth_usage(sections[0][0]);
+    //display_active_connections(sections[0][2]);
+    //display_disk_data(sections[0][3]);
 
     
-
+    display_process_info(sections[2][0]);
+    display_bandwidth_usage(sections[2][1]);
+ 
     // Refresh all windows
     for (int row = 0; row < TOTAL_ROWS; row++) {
       for (int col = 0; col < col_counts[row]; col++) {

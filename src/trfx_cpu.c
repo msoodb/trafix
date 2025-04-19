@@ -1,68 +1,153 @@
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "trfx_cpu.h"
 
-#define MAX_CORES 8  // Adjust based on the number of cores
-#define STAT_FILE "/proc/stat"
+/*static void read_proc_stat(unsigned long long *total, unsigned long long *idle, int *ncores) {
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return;
 
-// Global arrays to store previous values
-static int total_user_prev[MAX_CORES] = {0};
-static int total_nice_prev[MAX_CORES] = {0};
-static int total_system_prev[MAX_CORES] = {0};
-static int total_idle_prev[MAX_CORES] = {0};
-static int total_time_prev[MAX_CORES] = {0};
-
-// Function to parse CPU statistics and calculate the usage
-char** get_cpu_usage(int *num_cores) {
-    FILE *fp;
     char line[256];
-    int total_user, total_nice, total_system, total_idle;
-    
-    fp = fopen(STAT_FILE, "r");
-    if (fp == NULL) {
-        perror("Error opening /proc/stat");
-        exit(1);
+    int core_idx = -1;
+
+    *total = 0;
+    *idle = 0;
+
+    while (fgets(line, sizeof(line), fp)) {
+        if (strncmp(line, "cpu", 3) != 0) break;
+
+        unsigned long long user, nice, system, idle_, iowait, irq, softirq, steal;
+        sscanf(line, "%*s %llu %llu %llu %llu %llu %llu %llu %llu",
+               &user, &nice, &system, &idle_, &iowait, &irq, &softirq, &steal);
+
+        unsigned long long total_time = user + nice + system + idle_ + iowait + irq + softirq + steal;
+
+        if (core_idx >= 0) { // per-core
+            (*total) += total_time;
+            (*idle) += idle_;
+        }
+
+        core_idx++;
     }
 
-    *num_cores = 0;
+    *ncores = core_idx;
+    fclose(fp);
+    }*/
 
-    // Allocate memory for CPU data
-    char **cpu_data = (char **)malloc(MAX_CORES * sizeof(char *));
-    for (int i = 0; i < MAX_CORES; i++) {
-        cpu_data[i] = (char *)malloc(50 * sizeof(char));
+CPUInfo get_cpu_info() {
+    CPUInfo info = {0};
+    unsigned long long prev_total[MAX_CPU_CORES + 1], prev_idle[MAX_CPU_CORES + 1];
+    unsigned long long curr_total[MAX_CPU_CORES + 1], curr_idle[MAX_CPU_CORES + 1];
+
+    // Gather initial stats
+    for (int i = 0; i <= MAX_CPU_CORES; ++i)
+        prev_total[i] = prev_idle[i] = 0;
+
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return info;
+
+    char line[256];
+    int idx = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        if (strncmp(line, "cpu", 3) != 0) break;
+
+        unsigned long long user, nice, system, idle_, iowait, irq, softirq, steal;
+        sscanf(line, "%*s %llu %llu %llu %llu %llu %llu %llu %llu",
+               &user, &nice, &system, &idle_, &iowait, &irq, &softirq, &steal);
+
+        prev_idle[idx] = idle_;
+        prev_total[idx] = user + nice + system + idle_ + iowait + irq + softirq + steal;
+        idx++;
+    }
+    fclose(fp);
+
+    usleep(100000); // wait 100ms
+
+    // Gather second stats
+    fp = fopen("/proc/stat", "r");
+    if (!fp) return info;
+
+    idx = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        if (strncmp(line, "cpu", 3) != 0) break;
+
+        unsigned long long user, nice, system, idle_, iowait, irq, softirq, steal;
+        sscanf(line, "%*s %llu %llu %llu %llu %llu %llu %llu %llu",
+               &user, &nice, &system, &idle_, &iowait, &irq, &softirq, &steal);
+
+        curr_idle[idx] = idle_;
+        curr_total[idx] = user + nice + system + idle_ + iowait + irq + softirq + steal;
+
+        unsigned long long delta_total = curr_total[idx] - prev_total[idx];
+        unsigned long long delta_idle = curr_idle[idx] - prev_idle[idx];
+
+        float usage = 100.0f * (delta_total - delta_idle) / (float)delta_total;
+        if (idx == 0) {
+            info.avg_usage = usage;
+        } else {
+            info.usage_per_core[idx - 1] = usage;
+        }
+
+        idx++;
     }
 
-    while (fgets(line, sizeof(line), fp) != NULL) {
-        if (strncmp(line, "cpu", 3) == 0 && line[3] != ' ') {
-            int core_id;
-            if (sscanf(line, "cpu%d %d %d %d %d", &core_id, &total_user, &total_nice, &total_system, &total_idle) == 5) {
-                if (*num_cores >= MAX_CORES) break;
+    info.num_cores = idx - 1;
+    fclose(fp);
 
-                int total_time = total_user + total_nice + total_system + total_idle;
-                int delta_total = total_time - total_time_prev[core_id];
-                int delta_work = (total_user + total_nice + total_system) - 
-                                 (total_user_prev[core_id] + total_nice_prev[core_id] + total_system_prev[core_id]);
-
-                // Prevent division by zero
-                float usage = (delta_total > 0) ? ((float)delta_work / delta_total) * 100.0 : 0.0;
-
-                // Store the formatted result
-		snprintf(cpu_data[*num_cores], 50, "  CPU %d %-1s |  %5.2f %s", core_id, "", usage, "");
-
-
-                // Update previous values for next iteration
-                total_user_prev[core_id] = total_user;
-                total_nice_prev[core_id] = total_nice;
-                total_system_prev[core_id] = total_system;
-                total_idle_prev[core_id] = total_idle;
-                total_time_prev[core_id] = total_time;
-
-                (*num_cores)++;
-            }
+    // Read CPU frequencies
+    for (int i = 0; i < info.num_cores; ++i) {
+        char path[128];
+        snprintf(path, sizeof(path),
+                 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+        FILE *f = fopen(path, "r");
+        if (f) {
+            int khz;
+            fscanf(f, "%d", &khz);
+            info.frequency_per_core[i] = khz / 1000.0f;
+            fclose(f);
         }
     }
 
-    fclose(fp);
-    return cpu_data;
+    // Try to get CPU temperature
+    FILE *sensors = popen("sensors | grep 'Core 0:'", "r");
+    if (sensors) {
+        char line[128];
+        if (fgets(line, sizeof(line), sensors)) {
+            float temp;
+            if (sscanf(line, "Core 0: +%f", &temp) == 1) {
+                info.temperature = temp;
+            }
+        }
+        pclose(sensors);
+    } else {
+        info.temperature = -1.0f;
+    }
+
+    return info;
+}
+
+int get_top_processes_by_cpu(CPUProcessInfo *list, int max) {
+    FILE *fp = popen("ps -eo pid,user,pcpu,pmem,time,comm --sort=-pcpu", "r");
+    if (!fp) return 0;
+
+    char line[512];
+    int count = 0;
+
+    // Skip header
+    fgets(line, sizeof(line), fp);
+
+    while (fgets(line, sizeof(line), fp) && count < max) {
+        sscanf(line, "%15s %31s %7s %7s %15s %63s",
+               list[count].pid,
+               list[count].user,
+               list[count].cpu,
+               list[count].mem,
+               list[count].time,
+               list[count].command);
+        count++;
+    }
+
+    pclose(fp);
+    return count;
 }

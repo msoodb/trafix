@@ -212,7 +212,7 @@ static NetStat* find_prev_stat(const char *name) {
 }
 
 // Function to format bytes into human-readable form (KB, MB, GB)
-const char* format_bytes(double bytes) {
+const char* internal_format_bytes(double bytes) {
     static char formatted[20];  // Static buffer to hold the formatted string
 
     if (bytes < 1024) {
@@ -263,8 +263,8 @@ char** get_bandwidth_usage(int *num_interfaces) {
         }
 
         // Format the sent and received bytes using format_bytes
-        const char *formatted_sent = format_bytes(delta_tx);
-        const char *formatted_recv = format_bytes(delta_rx);
+        const char *formatted_sent = internal_format_bytes(delta_tx);
+        const char *formatted_recv = internal_format_bytes(delta_rx);
 
         // Store formatted data
         snprintf(data[i], 128, " %-15.15s | %10s | %10s", curr_stats[i].name, formatted_sent, formatted_recv);
