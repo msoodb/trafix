@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include "trfx_connections.h"
 #include "trfx_utils.h"
 #include "trfx_bandwidth.h"
@@ -20,147 +21,223 @@
 #define COLOR_DATA_RED 4
 #define COLOR_HEADER   5
 
+#define TOTAL_ROWS 3
 #define ROW1_COLS 4
 #define ROW2_COLS 4
 #define ROW3_COLS 2
-#define TOTAL_ROWS 3
 
 #define FIXED_ROW1_HEIGHT 6
 #define FIXED_ROW2_HEIGHT 0
 
 #define MAX_DISKS 16
 
-// Function to display system info in the given window
-void display_system_info(WINDOW *win) {
-  int row = 0;
+volatile int ready = 0;
+pthread_mutex_t ready_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void wait_until_ready() {
+    while (!ready) usleep(10000);
+}
+
+void *system_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
+
+  while (1) {
+    int row = 0;
     int line = 0;
     int label_width = 16;
     SystemOverview sysinfo = get_system_overview();
 
-    mvwprintw(win, row++, line, "%*s: %s", label_width, "Hostname",         sysinfo.hostname);
-    mvwprintw(win, row++, line, "%*s: %s", label_width, "OS",               sysinfo.os_version);
+    werase(win);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "Hostname",    sysinfo.hostname);
+    mvwprintw(win, row++, line, "%*s: %s", label_width, "OS",          sysinfo.os_version);
     mvwprintw(win, row++, line, "%*s: %s", label_width, "Kernel",           sysinfo.kernel_version);
     mvwprintw(win, row++, line, "%*s: %s", label_width, "Uptime",           sysinfo.uptime);
     mvwprintw(win, row++, line, "%*s: %s", label_width, "Load Avg",         sysinfo.load_avg);
     mvwprintw(win, row++, line, "%*s: %s", label_width, "Logged-in Users",  sysinfo.logged_in_users);
 
     wrefresh(win);
-    napms(1000);
-}
-
-// Function to display CPU info in the given window
-void display_cpu_info(WINDOW *win) {
-  int row = 0;
-  int line = 1;
-  CPUInfo cpu = get_cpu_info();
-
-  wattron(win, A_BOLD);
-  mvwprintw(win, row++, 0, "CPU Information");
-  wattroff(win, A_BOLD);
-
-  mvwprintw(win, row++, line, "Avg Usage: %.1f%%   Temperature: %.1f °C",
-            cpu.avg_usage, cpu.temperature >= 0 ? cpu.temperature : 0.0);
-
-  int coreCount = 0;
-  for (int i = 0; i < cpu.num_cores; i++) {
-    mvwprintw(win, row, line + coreCount * 20, "C%d: %04.1f%%, %.0f MHz", i,
-              cpu.usage_per_core[i], cpu.frequency_per_core[i]);
-    coreCount++;
-
-    if (coreCount == 2) {
-      coreCount = 0;
-      row++;
-    }
+    sleep(5);
   }
-
-  row++;
-
-  wrefresh(win);
-  napms(1000);
+  return NULL;
 }
 
-void display_memory_info(WINDOW *win) {
+void *cpu_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
+
+  while (1) {
+    int row = 0;
+    int line = 1;
+    CPUInfo cpu = get_cpu_info();
+
+    werase(win);
+    wattron(win, A_BOLD);
+    mvwprintw(win, row++, 0, "CPU Information");
+    wattroff(win, A_BOLD);
+
+    mvwprintw(win, row++, line, "Avg Usage: %.1f%%   Temperature: %.1f °C",
+              cpu.avg_usage, cpu.temperature >= 0 ? cpu.temperature : 0.0);
+
+    int coreCount = 0;
+    for (int i = 0; i < cpu.num_cores; i++) {
+      mvwprintw(win, row, line + coreCount * 20, "C%d: %04.1f%%, %.0f MHz", i,
+                cpu.usage_per_core[i], cpu.frequency_per_core[i]);
+      coreCount++;
+
+      if (coreCount == 2) {
+        coreCount = 0;
+        row++;
+      }
+    }
+    wrefresh(win);
+    sleep(1);
+  }
+  return NULL;
+}
+
+void *memory_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
+
+  while (1) {
     int row = 1;
     MemoryInfo mem = get_memory_info();
 
+    werase(win);
     float total = mem.total_ram / 1024.0f;
     float free = mem.free_ram / 1024.0f;
     float used = mem.used_ram / 1024.0f;
     float swap_used = mem.used_swap / 1024.0f;
     float swap_total = mem.total_swap / 1024.0f;
 
-    // Memory line
-    mvwprintw(win, row++, 2, "Memory (MiB)> total: %.1f, free: %.1f, used: %.1f (%.1f%%)",
+    mvwprintw(win, row++, 2,
+              "Memory (MiB)> total: %.1f, free: %.1f, used: %.1f (%.1f%%)",
               total, free, used, mem.mem_percent);
-
-    // Swap line
-    mvwprintw(win, row++, 2, "  Swap (MiB)> total: %.1f, used: %.1f", swap_total, swap_used);
+    mvwprintw(win, row++, 2, "  Swap (MiB)> total: %.1f, used: %.1f",
+              swap_total, swap_used);
 
     wrefresh(win);
-    napms(1000);
-}
-
-void display_process_info(WINDOW *win) {
-  ProcessInfo list[MAX_PROCESSES];
-  int count = get_top_processes_by_mem(list, MAX_PROCESSES);
-  int row = 1;
-
-  wattron(win, COLOR_PAIR(COLOR_HEADER));
-  mvwprintw(win, row++, 1,
-            "  PID    USER      PR  NI    VIRT    RES      SHR S   %%CPU %%MEM   "
-            "TIME+     COMMAND               ");
-  wattroff(win, COLOR_PAIR(COLOR_HEADER));
-
-  for (int i = 0; i < count && row < getmaxy(win) - 1; i++) {
-    mvwprintw(win, row++, 1,
-              "%7s %-10s %2s %2s %8s %7s %7s %1s %5s %5s %10s %-20.20s",
-              list[i].pid,    // right-aligned numeric
-              list[i].user,   // left-aligned string
-              list[i].pr,     // right-aligned numeric
-              list[i].ni,     // right-aligned numeric
-              list[i].virt,   // right-aligned numeric
-              list[i].res,    // right-aligned numeric
-              list[i].shr,    // right-aligned numeric
-              list[i].state,  // 1 char
-              list[i].cpu,    // right-aligned percentage
-              list[i].mem,    // right-aligned percentage
-              list[i].time,   // fixed width time
-              list[i].command // left-aligned string, max 20 chars
-    );
+    sleep(2);
   }
-
-  wrefresh(win);
-  napms(1000);
+  return NULL;
 }
 
-// Function to refresh and display active connections in the window
-void display_active_connections(WINDOW *win) {
-    int num_connections = 0;
-    
-    // Get the active connections (dynamically allocated)
-    char **active_connections = get_active_connections(&num_connections);
+void *process_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
 
-    // Clear previous content
-    werase(win);  // Clears the window content without affecting the border
+  while (1) {
+    ProcessInfo list[MAX_PROCESSES];
+    int count = get_top_processes_by_mem(list, MAX_PROCESSES);
+    int row = 1;
 
-    // Display the headers
-    attron(A_BOLD);
-    mvwprintw(win, 1, 4, "%-20s -> %-20s  %s", "Source IP:Port", "Dest IP:Port", "Status");
-    attroff(A_BOLD);
-    mvwprintw(win, 2, 4, "------------------------------------------------------------");
+    werase(win);
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(
+        win, row++, 1,
+        "  PID    USER      PR  NI    VIRT    RES      SHR S   %%CPU %%MEM   "
+        "TIME+     COMMAND               ");
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
-    // Display the active connections
-    for (int i = 0; i < num_connections; i++) {
-        mvwprintw(win, 3 + i, 4, "%s", active_connections[i]);
+    for (int i = 0; i < count && row < getmaxy(win) - 1; i++) {
+      mvwprintw(win, row++, 1,
+                "%7s %-10s %2s %2s %8s %7s %7s %1s %5s %5s %10s %-20.20s",
+                list[i].pid,    // right-aligned numeric
+                list[i].user,   // left-aligned string
+                list[i].pr,     // right-aligned numeric
+                list[i].ni,     // right-aligned numeric
+                list[i].virt,   // right-aligned numeric
+                list[i].res,    // right-aligned numeric
+                list[i].shr,    // right-aligned numeric
+                list[i].state,  // 1 char
+                list[i].cpu,    // right-aligned percentage
+                list[i].mem,    // right-aligned percentage
+                list[i].time,   // fixed width time
+                list[i].command // left-aligned string, max 20 chars
+      );
     }
 
-    // Refresh the window to show updates
     wrefresh(win);
+    sleep(2);
+  }
 
-    // Free the memory after use
-    free_active_connections(active_connections, num_connections);
+  return NULL;
 }
 
+void *disk_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
+
+  while (1) {
+    DiskInfo disks[MAX_DISKS];
+    double total_used = 0.0, total_total = 0.0;
+    int ndisk = get_disk_info(disks, MAX_DISKS, &total_used, &total_total);
+
+    werase(win);
+
+    int row = 1;
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(
+        win, row++, 1,
+        "Mount      Filesystem              Used     Total    Usage   Temp");
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+    for (int i = 0; i < ndisk && row < getmaxy(win) - 2; ++i) {
+      char used_buf[16], total_buf[16];
+      format_bytes(disks[i].used_mb, used_buf, sizeof(used_buf));
+      format_bytes(disks[i].total_mb, total_buf, sizeof(total_buf));
+
+      mvwprintw(win, row++, 1, "%-10.10s %-20.20s %7s %8s  %5.1f%%  %5.1f°C",
+                disks[i].mount_point, disks[i].filesystem, used_buf, total_buf,
+                disks[i].usage_percent, disks[i].temperature);
+    }
+
+    // Print totals
+    double usage_percent =
+        (total_total > 0) ? (total_used / total_total) * 100.0 : 0.0;
+    char used_buf[16], total_buf[16];
+    format_bytes(total_used, used_buf, sizeof(used_buf));
+    format_bytes(total_total, total_buf, sizeof(total_buf));
+
+    mvwprintw(win, row++, 1, "%-10s %-20s %7s %8s  %5.1f%%  %s", "Total", "-",
+              used_buf, total_buf, usage_percent, "- °C");
+
+    wrefresh(win);
+    sleep(3);
+  }
+
+  return NULL;
+}
+
+void *connection_info_thread(void *arg) {
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
+
+  while (1) {
+    ConnectionInfo connections[MAX_CONNECTIONS];
+    int nconn = get_connection_info(connections, MAX_CONNECTIONS);
+
+    werase(win);
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(win, 1, 2, "Active Connections");
+    mvwprintw(win, 2, 2, "%-6s %-22s %-22s %-15s", "Proto", "Local Address",
+              "Remote Address", "State");
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+    int y = 3;
+    for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
+      mvwprintw(win, y++, 2, "%-6s %-22s %-22s %-15s", connections[i].protocol,
+                connections[i].local_addr, connections[i].remote_addr,
+                connections[i].state);
+    }
+
+    wrefresh(win);
+    sleep(3);
+  }
+
+  return NULL;
+}
 
 // Function to display bandwidth usage in the given window
 void display_bandwidth_usage(WINDOW *win) {
@@ -226,6 +303,10 @@ void display_bandwidth_usage(WINDOW *win) {
 
     get_default_gateway_and_metric(gateway, metric);
 
+    wattron(win, A_BOLD);
+    mvwprintw(win, row++, 0, "Network Information");
+    wattroff(win, A_BOLD);
+
     //mvwprintw(win, row++, 2, "Gateway IP: %s", gateway_ip);
     mvwprintw(win, row++, 2, "Default Gateway: %s | Metric: %s", gateway, metric);
     mvwprintw(win, row++, 2, "DNS Servers: %s", dns);
@@ -283,46 +364,6 @@ void display_bandwidth_usage(WINDOW *win) {
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
 }
 
-void display_disk_data(WINDOW *win) {
-    DiskInfo disks[16];
-    double total_used = 0.0, total_total = 0.0;
-    int ndisk = get_disk_info(disks, MAX_DISKS, &total_used, &total_total);
-    
-    werase(win);
-
-    int row = 0;
-    wattron(win, A_BOLD);
-    mvwprintw(win, row++, 0, "Disk Information");
-    wattroff(win, A_BOLD);
-
-    mvwprintw(win, row++, 2, "Mount      Filesystem                        Used     Total   Usage   Temp");
-
-    for (int i = 0; i < ndisk && row < getmaxy(win) - 1; ++i) {
-        char used_buf[16], total_buf[16];
-        format_bytes(disks[i].used_mb, used_buf, sizeof(used_buf));
-        format_bytes(disks[i].total_mb, total_buf, sizeof(total_buf));
-
-        mvwprintw(win, row++, 2, "%-10s %-20s %7s %8s  %5.1f%%  %4.1f°C",
-                  disks[i].mount_point,
-                  disks[i].filesystem,
-                  used_buf,
-                  total_buf,
-                  disks[i].usage_percent,
-                  disks[i].temperature);
-    }
-
-    // At the end of disk listing
-    double usage_percent =
-        (total_total > 0) ? (total_used / total_total) * 100.0 : 0.0;
-    char used_buf[16], total_buf[16];
-    format_bytes(total_used, used_buf, sizeof(used_buf));
-    format_bytes(total_total, total_buf, sizeof(total_buf));
-
-    mvwprintw(win, row++, 2, "%-10s %-30s %8s %8s %6.1f%% %6s", "Total", "-",
-              used_buf, total_buf, usage_percent, " -1.0°C");
-
-    wrefresh(win);
-}
 
 void zoom_section(WINDOW *win) {
   int screen_width, screen_height;
@@ -359,14 +400,13 @@ void zoom_section(WINDOW *win) {
   delwin(zoom_win);
 }
 
-void start_dashboard() {
+/*void start_dashboard() {
   initscr();
   start_color();
   use_default_colors();
-  init_pair(COLOR_HEADER, COLOR_BLACK, COLOR_WHITE);  // black text on white background
-  init_pair(COLOR_TITLE, COLOR_CYAN, -1);
-  init_pair(COLOR_SECTION, COLOR_YELLOW, -1);
-  init_pair(COLOR_DATA, COLOR_WHITE, -1);
+  init_pair(COLOR_HEADER, COLOR_BLACK, COLOR_WHITE);  // black text on white
+  background init_pair(COLOR_TITLE, COLOR_CYAN, -1); init_pair(COLOR_SECTION,
+  COLOR_YELLOW, -1); init_pair(COLOR_DATA, COLOR_WHITE, -1);
   init_pair(COLOR_DATA_RED, COLOR_RED, -1);
   noecho();
   curs_set(FALSE);
@@ -390,7 +430,7 @@ void start_dashboard() {
     (int)(screen_width * 0.20),
     (int)(screen_width * 0.50),
     (int)(screen_width * 0.05)
-  };  
+  };
   int row2_widths[ROW2_COLS] = {
     screen_width / 3,
     screen_width / 3,
@@ -401,7 +441,7 @@ void start_dashboard() {
     (int)(screen_width * 0.50)
   };
 
-  int* widths[] = { row1_widths, row2_widths, row3_widths };
+ int* widths[] = { row1_widths, row2_widths, row3_widths };
 
   int y_offset = 0;
   for (int row = 0; row < TOTAL_ROWS; row++) {
@@ -433,10 +473,10 @@ void start_dashboard() {
     //display_active_connections(sections[0][2]);
     //display_disk_data(sections[0][3]);
 
-    
+
     display_process_info(sections[2][0]);
     display_bandwidth_usage(sections[2][1]);
- 
+
     // Refresh all windows
     for (int row = 0; row < TOTAL_ROWS; row++) {
       for (int col = 0; col < col_counts[row]; col++) {
@@ -465,5 +505,38 @@ void start_dashboard() {
     }
   }
 
+  endwin();
+  }*/
+
+void start_dashboard() {
+  initscr();
+  noecho();
+  curs_set(FALSE);
+  start_color();
+  use_default_colors();
+  init_pair(COLOR_HEADER, COLOR_CYAN, -1);
+
+  int height = LINES / 2;
+  int width = COLS / 3;
+
+  WINDOW *sys_win = newwin(height, width, 0, 0);
+  WINDOW *cpu_win = newwin(height, width, 0, width);
+  WINDOW *mem_win = newwin(height, width, 0, 2 * width);
+  WINDOW *disk_win = newwin(height, width, height, 0);
+  WINDOW *proc_win = newwin(height, width, height, width);
+  WINDOW *conn_win = newwin(height, width, height, 2 * width);
+
+  pthread_t sys_tid, cpu_tid, mem_tid, disk_tid, proc_tid, conn_tid;
+  pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
+  pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
+  pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
+  pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
+  pthread_create(&proc_tid, NULL, process_info_thread, proc_win);
+  pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
+
+  sleep(1);
+  ready = 1;
+
+  getch();
   endwin();
 }

@@ -1,42 +1,65 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include "trfx_connections.h"
 
-char** get_active_connections(int *num_connections) {
-    // Number of active connections
-    *num_connections = 3;
-
-    // Allocate memory for the connections
-    char **data = (char **)malloc(*num_connections * sizeof(char *));
-    
-    // Check if memory allocation was successful
-    if (data == NULL) {
-        perror("Failed to allocate memory");
-        exit(1);
+static void parse_ip_port(char *dest, const char *hex, int is_ipv6) {
+    unsigned ip[4], port;
+    if (is_ipv6) {
+        snprintf(dest, 64, "[IPv6]");
+    } else {
+        sscanf(hex, "%2X%2X%2X%2X:%X", &ip[3], &ip[2], &ip[1], &ip[0], &port);
+        snprintf(dest, 64, "%u.%u.%u.%u:%u", ip[0], ip[1], ip[2], ip[3], port);
     }
-
-    // Allocate memory for each connection string
-    for (int i = 0; i < *num_connections; i++) {
-        data[i] = (char *)malloc(100 * sizeof(char));
-        if (data[i] == NULL) {
-            perror("Failed to allocate memory for connection");
-            exit(1);
-        }
-    }
-
-    // Generate active connection data
-    for (int i = 0; i < *num_connections; i++) {
-        snprintf(data[i], 100, "192.168.1.%3d:%-5d -> 10.0.0.%3d:%-5d  ESTABLISHED",
-                 rand() % 255, rand() % 65535, rand() % 255, rand() % 65535);
-    }
-
-    return data;
 }
 
-void free_active_connections(char **data, int num_connections) {
-    // Free the allocated memory for each connection string
-    for (int i = 0; i < num_connections; i++) {
-        free(data[i]);
+static int load_connections(const char *path, const char *proto, ConnectionInfo *list, int count, int max) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) return count;
+
+    char line[512];
+    fgets(line, sizeof(line), fp); // skip header
+
+    while (fgets(line, sizeof(line), fp) && count < max) {
+        char local[64], remote[64], state[16];
+        char local_hex[128], remote_hex[128];
+        int state_num;
+
+        sscanf(line, "%*d: %64[0-9A-Fa-f]:%*x %64[0-9A-Fa-f]:%*x %x", local_hex, remote_hex, &state_num);
+
+        parse_ip_port(local, local_hex, 0);
+        parse_ip_port(remote, remote_hex, 0);
+
+        snprintf(list[count].protocol, sizeof(list[count].protocol), "%s", proto);
+        snprintf(list[count].local_addr, sizeof(list[count].local_addr), "%s", local);
+        snprintf(list[count].remote_addr, sizeof(list[count].remote_addr), "%s", remote);
+
+        switch (state_num) {
+            case 1: strcpy(state, "ESTABLISHED"); break;
+            case 2: strcpy(state, "SYN_SENT"); break;
+            case 3: strcpy(state, "SYN_RECV"); break;
+            case 4: strcpy(state, "FIN_WAIT1"); break;
+            case 5: strcpy(state, "FIN_WAIT2"); break;
+            case 6: strcpy(state, "TIME_WAIT"); break;
+            case 7: strcpy(state, "CLOSE"); break;
+            case 8: strcpy(state, "CLOSE_WAIT"); break;
+            case 9: strcpy(state, "LAST_ACK"); break;
+            case 10: strcpy(state, "LISTEN"); break;
+            case 11: strcpy(state, "CLOSING"); break;
+            default: strcpy(state, "UNKNOWN"); break;
+        }
+
+        snprintf(list[count].state, sizeof(list[count].state), "%s", state);
+        count++;
     }
-    // Free the memory for the array of strings
-    free(data);
+
+    fclose(fp);
+    return count;
+}
+
+int get_connection_info(ConnectionInfo *connections, int max_conns) {
+    int count = 0;
+    count = load_connections("/proc/net/tcp", "TCP", connections, count, max_conns);
+    count = load_connections("/proc/net/udp", "UDP", connections, count, max_conns);
+    return count;
 }

@@ -39,7 +39,8 @@
     Real-time upload/download speed
     Total data sent/received
     Wi-Fi signal strength, SSID, bitrate, frequency (if on Wi-Fi)
-    Active connections (count or list)
+
+5. 1.  Active connections (count or list)
 
 6. VPN
     VPN connection status

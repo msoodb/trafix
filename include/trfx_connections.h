@@ -1,7 +1,15 @@
 #ifndef TRFX_CONNECTIONS_H
 #define TRFX_CONNECTIONS_H
 
-char** get_active_connections(int *num_connections);
-void free_active_connections(char **data, int num_connections);
+#define MAX_CONNECTIONS 512
 
-#endif
+typedef struct {
+    char protocol[8];
+    char local_addr[64];
+    char remote_addr[64];
+    char state[32];
+} ConnectionInfo;
+
+int get_connection_info(ConnectionInfo *connections, int max_conns);
+
+#endif // TRFX_CONNECTIONS_H
