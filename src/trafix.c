@@ -5,9 +5,6 @@
 #include <time.h>
 #include "trafix.h"
 #include "trfx_config.h"
-#include "trfx_connections.h"
-#include "trfx_bandwidth.h"
-#include "trfx_top.h"
 #include "trfx_dashboard.h"
 
 void print_usage(const char *prog_name) {

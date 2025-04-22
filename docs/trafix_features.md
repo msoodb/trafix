@@ -65,3 +65,15 @@
     System logs (tail of syslog or dmesg)
     Scheduled tasks (cron jobs)
     Security alerts (e.g., failed SSH attempts)
+
+
+## 
+- To stress all CPU cores, run multiple instances in background:
+```sh
+	for i in $(seq 1 $(nproc)); do yes > /dev/null & done
+	stress-ng --cpu 4 --timeout 30s
+```
+- To stop it:
+```sh
+	killall yes
+```
