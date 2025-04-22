@@ -7,7 +7,6 @@
 #include "trfx_connections.h"
 #include "trfx_utils.h"
 #include "trfx_netinfo.h"
-#include "trfx_top.h"
 #include "trfx_cpu.h"
 #include "trfx_disk.h"
 #include "trfx_wifi.h"
