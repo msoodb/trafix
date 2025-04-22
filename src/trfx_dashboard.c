@@ -452,19 +452,8 @@ void *network_info_thread(void *arg) {
   while (1) {
     int num_interfaces = 0;
     int max_rows, max_cols;
-    getmaxyx(win, max_rows, max_cols);
-    (void)max_cols;
 
     char **bandwidth_usage = get_bandwidth_usage(&num_interfaces);
-
-    werase(win);
-
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
-    box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
-    
-    int row = 0;
-    int line = 4;
 
     const char *connected_if = NULL;
     const char *ssid = NULL;
@@ -510,12 +499,27 @@ void *network_info_thread(void *arg) {
     char metric[64] = {0};
     get_default_gateway_and_metric(gateway, metric);
 
+    char *mac = get_mac_address(connected_if);
+    WifiInfo wifi = get_wifi_info(connected_if);
+
+    // Lock only for ncurses rendering
+    pthread_mutex_lock(&ncurses_mutex);
+
+    getmaxyx(win, max_rows, max_cols);
+    int row = 0;
+    int line = 4;
+    int max_lines = max_rows - 1;
+
+    werase(win);
+    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    box(win, 0, 0);
+    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+
     wattron(win, A_BOLD);
     mvwprintw(win, row++, 2, " Network Information ");
     wattroff(win, A_BOLD);
 
-    mvwprintw(win, row++, line, "Default Gateway: %s | Metric: %s", gateway,
-              metric);
+    mvwprintw(win, row++, line, "Default Gateway: %s | Metric: %s", gateway, metric);
     mvwprintw(win, row++, line, "DNS Servers: %s", dns);
     row++;
 
@@ -538,14 +542,9 @@ void *network_info_thread(void *arg) {
     }
 
     row++;
-
-    char *mac = get_mac_address(connected_if);
-    WifiInfo wifi = get_wifi_info(connected_if);
-
     if (ssid) {
       mvwprintw(win, row++, line, "  Wi-Fi: %s", ssid);
-      mvwprintw(win, row++, line, "  Signal Strength: %s dBm",
-                wifi.signal_strength);
+      mvwprintw(win, row++, line, "  Signal Strength: %s dBm", wifi.signal_strength);
       mvwprintw(win, row++, line, "  Bitrate: %s", wifi.bitrate);
       mvwprintw(win, row++, line, "  Frequency: %s MHz", wifi.freq);
       mvwprintw(win, row++, line, "  MAC Address: %s", mac);
@@ -553,16 +552,17 @@ void *network_info_thread(void *arg) {
 
     row++;
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, line, "%-15s | %10s | %10s", "Interface", "Sent",
-              "Received");
+    mvwprintw(win, row++, line, "%-15s | %10s | %10s", "Interface", "Sent", "Received");
     wattroff(win, A_BOLD);
     mvwprintw(win, row++, line, "---------------------------------------------");
 
-    for (int i = 0; i < num_interfaces && row < max_rows - 1; i++) {
+    for (int i = 0; i < num_interfaces && row < max_lines; i++) {
       mvwprintw(win, row++, line, "%s", bandwidth_usage[i]);
     }
 
     wrefresh(win);
+    pthread_mutex_unlock(&ncurses_mutex);
+
     free_bandwidth_usage(bandwidth_usage, num_interfaces);
     sleep(3);
   }
@@ -586,7 +586,7 @@ void start_dashboard() {
   getmaxyx(stdscr, screen_height, screen_width);
 
   // Fixed heights for each row
-  const int row1_height = 16;
+  const int row1_height = 11;
   const int row2_height = screen_height - row1_height;
 
   // Row 1 widths (4 columns)
@@ -617,8 +617,8 @@ void start_dashboard() {
 
   // Create row 2 windows
   WINDOW *proc_win = newwin(row2_height, row2_widths[0], row2_y, 0);
-  //WINDOW *net_win = newwin(row2_height, row2_widths[1], row2_y, row2_widths[0]);
-  WINDOW *conn_win = newwin(row2_height, row2_widths[1], row2_y, row2_widths[0]);
+  WINDOW *net_win = newwin(row2_height, row2_widths[1], row2_y, row2_widths[0]);
+  //WINDOW *conn_win = newwin(row2_height, row2_widths[1], row2_y, row2_widths[0]);
  
   // Launch threads
   pthread_t sys_tid;
@@ -635,10 +635,10 @@ void start_dashboard() {
   pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
   pthread_create(&proc_tid, NULL, process_info_thread, proc_win);
-  //pthread_create(&net_tid, NULL, network_info_thread, net_win);
+  pthread_create(&net_tid, NULL, network_info_thread, net_win);
   //pthread_create(&vpn_tid, NULL, vpn_info_thread, vpn_win);
 
-  pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
+  //pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
   //pthread_create(&log_tid, NULL, logs_info_thread, log_win);
 
   // Signal ready and keep UI alive

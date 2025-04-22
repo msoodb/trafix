@@ -68,12 +68,8 @@
 
 
 ## 
-- To stress all CPU cores, run multiple instances in background:
+- To stress all CPU cores or Memory, run multiple instances in background:
 ```sh
-	for i in $(seq 1 $(nproc)); do yes > /dev/null & done
 	stress-ng --cpu 4 --timeout 30s
-```
-- To stop it:
-```sh
-	killall yes
+	stress-ng --vm 2 --vm-bytes 1G --vm-method all --verify --timeout 30s
 ```
