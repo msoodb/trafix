@@ -93,7 +93,7 @@ char* get_gateway_ip() {
 
 // Function to get the default gateway and metric
 void get_default_gateway_and_metric(char *gateway, char *metric) {
-    FILE *fp = popen("ip route | grep default", "r");
+    FILE *fp = popen("ip route 2>/dev/null | grep default", "r");
     if (!fp) {
         strcpy(gateway, "N/A");
         strcpy(metric, "N/A");
@@ -116,7 +116,6 @@ void get_default_gateway_and_metric(char *gateway, char *metric) {
 void get_routing_table_summary(char *routing_table) {
     FILE *fp = popen("ip route", "r");
     if (!fp) {
-        strcpy(routing_table, "Failed to retrieve routing table");
         return;
     }
 
@@ -180,7 +179,6 @@ char* get_dns_servers() {
 static int read_net_stats(NetStat stats[], int *count) {
     FILE *fp = fopen("/proc/net/dev", "r");
     if (!fp) {
-        perror("Failed to open /proc/net/dev");
         return -1;
     }
 
@@ -240,14 +238,12 @@ char** get_bandwidth_usage(int *num_interfaces) {
 
     char **data = (char **)malloc(curr_count * sizeof(char *));
     if (!data) {
-        perror("Memory allocation failed");
         exit(1);
     }
 
     for (int i = 0; i < curr_count; i++) {
         data[i] = (char *)malloc(128 * sizeof(char));
         if (!data[i]) {
-            perror("Memory allocation failed");
             exit(1);
         }
 

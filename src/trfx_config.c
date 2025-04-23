@@ -13,7 +13,6 @@ int temp_warn_red = 80;
 void read_config(const char *config_file) {
   FILE *file = fopen(config_file, "r");
   if (!file) {
-    perror("Error opening config file");
     return;
   }
 

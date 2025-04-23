@@ -7,21 +7,21 @@
 #include "trfx_config.h"
 #include "trfx_dashboard.h"
 
-void print_usage(const char *prog_name) {
+/*void print_usage(const char *prog_name) {
     printf("Usage: %s [-c] [-b] [-t] [-d] [-h]\n", prog_name);
     printf("  -c  Show active network connections\n");
     printf("  -b  Show bandwidth usage\n");
     printf("  -t  Show top talkers\n");
     printf("  -d  Show interactive dashboard\n");
     printf("  -h  Show this help message\n");
-}
+    }*/
 
-int main(int argc, char *argv[]) {
+int main() {
     srand(time(NULL));
 
     read_config(CONFIG_FILE);
 
-    int opt;
+    /*int opt;
     int show_connections = 0, show_bandwidth = 0, show_top_talkers = 0, show_dashboard = 1;
 
     while ((opt = getopt(argc, argv, "cbtdh")) != -1) {
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
             case 'h': print_usage(argv[0]); return 0;
             default: print_usage(argv[0]); return 1;
         }
-    }
+	}
 
     if (show_dashboard) {
         start_dashboard();
@@ -42,7 +42,8 @@ int main(int argc, char *argv[]) {
             print_usage(argv[0]);
             return 1;
         }
-    }
+	}*/
 
+    start_dashboard();
     return 0;
 }

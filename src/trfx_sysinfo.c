@@ -30,7 +30,7 @@ SystemOverview get_system_overview() {
     }
 
     // Kernel Version
-    fp = popen("uname -r", "r");
+    fp = popen("uname -r 2>/dev/null", "r");
     if (fp) {
         fgets(info.kernel_version, sizeof(info.kernel_version), fp);
         info.kernel_version[strcspn(info.kernel_version, "\n")] = 0;

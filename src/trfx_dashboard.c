@@ -589,6 +589,7 @@ void start_dashboard() {
   initscr();
   noecho();
   curs_set(FALSE);
+  mousemask(0, NULL);
   start_color();
   use_default_colors();
   init_pair(COLOR_HEADER, COLOR_CYAN, -1);
@@ -658,6 +659,9 @@ void start_dashboard() {
   sleep(1);
   ready = 1;
 
-  getch();
+  int ch;
+  while ((ch = getch()) != 'q' && ch != 'Q') {
+    // Just wait for q or Q
+  }
   endwin();
 }

@@ -28,7 +28,7 @@ $(BIN_DIR):
 
 # Install
 
-install: install-bin install-doc
+install: install-bin #install-doc#
 
 install-bin:
 	mkdir -p $(DESTDIR)/usr/bin

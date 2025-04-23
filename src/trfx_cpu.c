@@ -4,37 +4,6 @@
 #include <unistd.h>
 #include "trfx_cpu.h"
 
-/*static void read_proc_stat(unsigned long long *total, unsigned long long *idle, int *ncores) {
-    FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return;
-
-    char line[256];
-    int core_idx = -1;
-
-    *total = 0;
-    *idle = 0;
-
-    while (fgets(line, sizeof(line), fp)) {
-        if (strncmp(line, "cpu", 3) != 0) break;
-
-        unsigned long long user, nice, system, idle_, iowait, irq, softirq, steal;
-        sscanf(line, "%*s %llu %llu %llu %llu %llu %llu %llu %llu",
-               &user, &nice, &system, &idle_, &iowait, &irq, &softirq, &steal);
-
-        unsigned long long total_time = user + nice + system + idle_ + iowait + irq + softirq + steal;
-
-        if (core_idx >= 0) { // per-core
-            (*total) += total_time;
-            (*idle) += idle_;
-        }
-
-        core_idx++;
-    }
-
-    *ncores = core_idx;
-    fclose(fp);
-    }*/
-
 CPUInfo get_cpu_info() {
     CPUInfo info = {0};
     unsigned long long prev_total[MAX_CPU_CORES + 1], prev_idle[MAX_CPU_CORES + 1];
@@ -125,29 +94,4 @@ CPUInfo get_cpu_info() {
     }
 
     return info;
-}
-
-int get_top_processes_by_cpu(CPUProcessInfo *list, int max) {
-    FILE *fp = popen("ps -eo pid,user,pcpu,pmem,time,comm --sort=-pcpu", "r");
-    if (!fp) return 0;
-
-    char line[512];
-    int count = 0;
-
-    // Skip header
-    fgets(line, sizeof(line), fp);
-
-    while (fgets(line, sizeof(line), fp) && count < max) {
-        sscanf(line, "%15s %31s %7s %7s %15s %63s",
-               list[count].pid,
-               list[count].user,
-               list[count].cpu,
-               list[count].mem,
-               list[count].time,
-               list[count].command);
-        count++;
-    }
-
-    pclose(fp);
-    return count;
 }

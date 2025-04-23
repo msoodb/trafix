@@ -32,7 +32,7 @@ MemoryInfo get_memory_info() {
     info.mem_percent = mem_total ? (100.0f * info.used_ram / mem_total) : 0.0f;
 
     // Get top 3 memory-consuming processes
-    fp = popen("ps -eo pid,comm,%mem --sort=-%mem | head -n 4", "r");
+    fp = popen("ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 4", "r");
     if (fp) {
         char line[128];
         fgets(line, sizeof(line), fp);  // Skip header

@@ -4,7 +4,7 @@
 #include <string.h>
 
 int get_top_processes_by_mem(ProcessInfo *list, int max_count) {
-    char cmd[256] = "ps -eo pid,user,pri,ni,vsize,rss,stat,pcpu,pmem,time,comm --sort=-pmem | head -n 30";
+    char cmd[256] = "ps -eo pid,user,pri,ni,vsize,rss,stat,pcpu,pmem,time,comm --sort=-pmem  2>/dev/null | head -n 50";
     FILE *fp = popen(cmd, "r");
     if (!fp) return 0;
 

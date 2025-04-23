@@ -5,7 +5,7 @@
 WifiInfo get_wifi_info(const char *iface) {
     WifiInfo info = {"N/A", "N/A", "N/A", "N/A"};
     char cmd[128];
-    snprintf(cmd, sizeof(cmd), "iw dev %s link", iface);
+    snprintf(cmd, sizeof(cmd), "iw dev %s link 2>/dev/null", iface);
 
     FILE *fp = popen(cmd, "r");
     if (!fp) return info;
@@ -30,7 +30,7 @@ WifiInfo get_wifi_info(const char *iface) {
 char* get_mac_address(const char *iface) {
     static char mac[32] = "N/A";
     char cmd[128];
-    snprintf(cmd, sizeof(cmd), "ip link show %s", iface);
+    snprintf(cmd, sizeof(cmd), "ip link show %s 2>/dev/null", iface);
 
     FILE *fp = popen(cmd, "r");
     if (!fp) return mac;
