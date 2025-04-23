@@ -10,6 +10,11 @@ Source0:        trafix-1.0.tar.gz
 BuildRequires:  gcc
 BuildRequires:  ncurses-devel
 BuildRequires:  libpcap-devel
+BuildRequires:  lm_sensors
+
+Requires:       ncurses-libs
+Requires:       libpcap
+Requires:       lm_sensors
 
 %global debug_package %{nil}
 

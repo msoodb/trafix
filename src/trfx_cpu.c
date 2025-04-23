@@ -79,7 +79,7 @@ CPUInfo get_cpu_info() {
     }
 
     // Try to get CPU temperature
-    FILE *sensors = popen("sensors | grep 'Core 0:'", "r");
+    FILE *sensors = popen("sensors 2>/dev/null | grep 'Core 0:'", "r");
     if (sensors) {
         char line[128];
         if (fgets(line, sizeof(line), sensors)) {
