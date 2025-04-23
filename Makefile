@@ -26,9 +26,25 @@ $(BUILD_DIR):
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
+# Install
+
+install: install-bin install-doc
+
+install-bin:
+	mkdir -p $(DESTDIR)/usr/bin
+	cp bin/trafix $(DESTDIR)/usr/bin/
+
+install-doc:
+	mkdir -p $(DESTDIR)/usr/share/doc/trafix
+	cp LICENSE README.md $(DESTDIR)/usr/share/doc/trafix
+
+uninstall:
+	rm -f $(DESTDIR)/usr/bin/trafix
+	rm -rf $(DESTDIR)/usr/share/doc/trafix
+
 # Clean the build and binary directories
 clean:
-	rm -f $(BIN_DIR)/$(TARGET)
-	rm -rf $(BUILD_DIR)/*.o
+	rm -f $(TARGET)
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all clean
+.PHONY: all clean install install-bin install-doc uninstall
