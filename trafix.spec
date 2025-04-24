@@ -5,7 +5,7 @@ Summary:        A simple network monitoring tool for Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/msoodb/trafix
-Source0:        https://github.com/msoodb/%{name}/archive/refs/tags/v%{version}.tar.gz
+Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  ncurses-devel
@@ -15,12 +15,12 @@ BuildRequires:  lm_sensors
 %global have_libpcap %(pkg-config --exists libpcap && echo yes || echo no)
 %global have_ncurses %(pkg-config --exists ncurses && echo yes || echo no)
 
-%if %{have_libpcap} == yes
-Requires:       libpcap
+%if "%{have_libpcap}" == "yes"
+Requires: libpcap
 %endif
 
-%if %{have_ncurses} == yes
-Requires:       ncurses-libs
+%if "%{have_ncurses}" == "yes"
+Requires: ncurses-libs
 %endif
 
 Requires:       lm_sensors
@@ -42,14 +42,10 @@ make
 %install
 make install DESTDIR=%{buildroot}
 
-# Install man page
-install -D -m 644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
-
 %files
 %license LICENSE
 %doc README.md
 %{_bindir}/trafix
-%{_mandir}/man1/trafix.1
 
 %changelog
 * Thu Apr 24 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.3-1
