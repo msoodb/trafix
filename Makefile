@@ -8,7 +8,13 @@ SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 TARGET = $(BIN_DIR)/trafix
 VERSION := $(shell cat VERSION)
+TAG := v$(VERSION)
+TARBALL := trafix-$(VERSION).tar.gz
+PREFIX := trafix-$(VERSION)
+SOURCEDIR := $(HOME)/rpmbuild/SOURCES
+SPECDIR := $(HOME)/rpmbuild/SPECS
 
+# Default build
 all: $(BIN_DIR) $(TARGET)
 
 $(TARGET): $(OBJ)
@@ -23,6 +29,36 @@ $(BUILD_DIR):
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
+# Version bumping script
+bump:
+	./scripts/bump-version.sh
+
+# Git tag from version file
+tag:
+	@if git rev-parse $(TAG) >/dev/null 2>&1; then \
+		echo "Tag $(TAG) already exists."; \
+	else \
+		git tag -a $(TAG) -m "Release $(TAG)"; \
+		git push origin $(TAG); \
+	fi
+
+# Create tarball from Git tag
+tarball:
+	git archive --format=tar.gz --prefix=$(PREFIX)/ $(TAG) > $(SOURCEDIR)/$(TARBALL)
+
+# Copy spec to rpmbuild
+copy-spec:
+	cp trafix.spec $(SPECDIR)/
+
+# Build RPM
+rpm: tarball copy-spec
+	rpmbuild -ba $(SPECDIR)/trafix.spec
+	rpmbuild -bs $(SPECDIR)/trafix.spec
+
+# Full release process
+release: tag rpm
+
+# Installation
 install: install-bin install-doc
 
 install-bin:
@@ -36,18 +72,9 @@ uninstall:
 	rm -f $(DESTDIR)/usr/bin/trafix
 	rm -rf $(DESTDIR)/usr/share/doc/trafix
 
+# Clean build files
 clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-tarball:
-	git archive --format=tar.gz --prefix=trafix-$(VERSION)/ HEAD > $(HOME)/rpmbuild/SOURCES/trafix-$(VERSION).tar.gz
-
-copy-spec:
-	cp trafix.spec $(HOME)/rpmbuild/SPECS/
-
-rpm: tarball copy-spec
-	rpmbuild -ba $(HOME)/rpmbuild/SPECS/trafix.spec
-	rpmbuild -bs $(HOME)/rpmbuild/SPECS/trafix.spec
-
-.PHONY: all clean install install-bin install-doc uninstall tarball copy-spec rpm
+.PHONY: all clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm release
