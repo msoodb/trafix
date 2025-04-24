@@ -60,7 +60,7 @@ rpm: tarball copy-spec
 release: tag rpm
 
 # Installation
-install: install-bin install-doc
+install: install-bin #install-doc
 
 install-bin:
 	install -D -m 0755 $(TARGET) $(DESTDIR)/usr/bin/trafix
