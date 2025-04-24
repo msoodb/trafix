@@ -1,11 +1,11 @@
 Name:           trafix
 Version:        1.0
 Release:        1%{?dist}
-Summary:        A simple monitoring tool for Linux
+Summary:        A simple network monitoring tool for Linux
 
 License:        MIT
 URL:            https://github.com/msoodb/trafix
-Source0:        trafix-1.0.tar.gz
+Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  ncurses-devel
@@ -16,10 +16,11 @@ Requires:       ncurses-libs
 Requires:       libpcap
 Requires:       lm_sensors
 
+
 %global debug_package %{nil}
 
 %description
-Trafix is a lightweight monitoring tool for Linux that provides real-time insights into active connections, and gain quick visibility into your network performance through an intuitive command-line interface. This package is built for Fedora.
+Trafix is a lightweight monitoring tool for Linux that provides real-time insights into active connections and offers quick visibility into your network performance through an intuitive command-line interface.
 
 %prep
 %autosetup
@@ -33,7 +34,7 @@ make install DESTDIR=%{buildroot}
 %files
 %license LICENSE
 %doc README.md
-/usr/bin/trafix
+%{_bindir}/trafix
 
 %changelog
 * Mon Apr 22 2024 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0-1
