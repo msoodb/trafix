@@ -49,7 +49,7 @@ tarball:
 
 # Copy spec to rpmbuild
 copy-spec:
-	cp trafix.spec $(SPECDIR)/
+	./scripts/copy-spec.sh $(SPECDIR)/
 
 # Build RPM
 rpm: tarball copy-spec

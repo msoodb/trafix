@@ -1,5 +1,5 @@
 Name:           trafix
-Version:        1.0
+Version:        __VERSION__
 Release:        1%{?dist}
 Summary:        A simple network monitoring tool for Linux
 
@@ -37,8 +37,5 @@ make install DESTDIR=%{buildroot}
 %{_bindir}/trafix
 
 %changelog
-* Thu Apr 24 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.1-1
-- Bump version to 1.1
-
 * Mon Apr 22 2024 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0-1
 - Initial RPM release
