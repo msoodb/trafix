@@ -1,10 +1,23 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include "trfx_wifi.h"
+
+int is_valid_iface(const char *iface) {
+    if (!iface || strlen(iface) > 15) return 0; // max iface name length
+    for (size_t i = 0; iface[i]; ++i) {
+        if (!isalnum(iface[i]) && iface[i] != '_')
+            return 0;
+    }
+    return 1;
+}
 
 WifiInfo get_wifi_info(const char *iface) {
     WifiInfo info = {"N/A", "N/A", "N/A", "N/A"};
-    char cmd[128];
+    if (!is_valid_iface(iface)) return info;
+
+    char cmd[160];
     snprintf(cmd, sizeof(cmd), "iw dev %s link 2>/dev/null", iface);
 
     FILE *fp = popen(cmd, "r");
@@ -12,15 +25,15 @@ WifiInfo get_wifi_info(const char *iface) {
 
     char line[256];
     while (fgets(line, sizeof(line), fp)) {
-        char *p;
-        if ((p = strstr(line, "SSID:")))
-            sscanf(p + 5, " %63[^\n]", info.ssid);
-        else if ((p = strstr(line, "signal:")))
-            sscanf(p + 7, " %31[^\n]", info.signal_strength);
-        else if ((p = strstr(line, "tx bitrate:")))
-            sscanf(p + 11, " %31[^\n]", info.bitrate);
-        else if ((p = strstr(line, "freq:")))
-            sscanf(p + 5, " %31[^\n]", info.freq);
+        if (strstr(line, "SSID:")) {
+            sscanf(line, "SSID: %63[^\n]", info.ssid);
+        } else if (strstr(line, "signal:")) {
+            sscanf(line, "signal: %31[^\n]", info.signal_strength);
+        } else if (strstr(line, "tx bitrate:")) {
+            sscanf(line, "tx bitrate: %31[^\n]", info.bitrate);
+        } else if (strstr(line, "freq:")) {
+            sscanf(line, "freq: %31[^\n]", info.freq);
+        }
     }
 
     pclose(fp);
@@ -29,7 +42,10 @@ WifiInfo get_wifi_info(const char *iface) {
 
 char* get_mac_address(const char *iface) {
     static char mac[32] = "N/A";
-    char cmd[128];
+
+    if (!is_valid_iface(iface)) return mac;
+
+    char cmd[160];
     snprintf(cmd, sizeof(cmd), "ip link show %s 2>/dev/null", iface);
 
     FILE *fp = popen(cmd, "r");
@@ -39,7 +55,12 @@ char* get_mac_address(const char *iface) {
     while (fgets(line, sizeof(line), fp)) {
         char *ptr = strstr(line, "link/ether");
         if (ptr) {
-            sscanf(ptr, "link/ether %31s", mac);
+            // sscanf reads after "link/ether ", so skip it manually
+            char temp[32] = {0};
+            if (sscanf(ptr + 11, "%31s", temp) == 1) {
+                strncpy(mac, temp, sizeof(mac) - 1);
+                mac[sizeof(mac) - 1] = '\0'; // ensure null-termination
+            }
             break;
         }
     }

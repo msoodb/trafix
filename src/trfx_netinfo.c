@@ -47,12 +47,21 @@ char *get_wifi_ssid(const char *ifname) {
     FILE *fp;
     char cmd[256], line[256];
 
+    // Check if input is NULL
+    if (ifname == NULL || strlen(ifname) == 0) {
+        return NULL;
+    }
+
+    // Build the command safely
     snprintf(cmd, sizeof(cmd), "iw dev %s link 2>/dev/null", ifname);
+
+    // Execute the command
     fp = popen(cmd, "r");
     if (!fp) return NULL;
 
     ssid[0] = '\0';
 
+    // Read output and search for SSID
     while (fgets(line, sizeof(line), fp)) {
         char *p = strstr(line, "SSID:");
         if (p) {
