@@ -37,6 +37,9 @@ make install DESTDIR=%{buildroot}
 %{_bindir}/trafix
 
 %changelog
+* Thu Apr 24 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.2-1
+- Bump version to 1.0.2
+
 * Thu Apr 24 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
 - Bump version to 1.0.1
 
