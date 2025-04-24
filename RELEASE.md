@@ -21,7 +21,7 @@ Ensure you have the following installed:
 ```
 2. Bump the Version: Update the VERSION file and changelog automatically.
 ```sh
-	make bump
+	make bump patch/minor/major
 ```
 3. 3. Create a Git Tag: Tag the release using the version from the VERSION file.
 ```sh
