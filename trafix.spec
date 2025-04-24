@@ -37,5 +37,8 @@ make install DESTDIR=%{buildroot}
 %{_bindir}/trafix
 
 %changelog
+* Thu Apr 24 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
+- Bump version to 1.0.1
+
 * Mon Apr 22 2024 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0-1
 - Initial RPM release
