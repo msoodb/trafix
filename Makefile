@@ -31,7 +31,8 @@ $(BIN_DIR):
 
 # Version bumping script
 bump:
-	./scripts/bump-version.sh
+	@read -p "Enter version bump type (patch, minor, major): " bump_type; \
+	./scripts/bump-version.sh $$bump_type
 
 # Git tag from version file
 tag:
