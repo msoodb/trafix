@@ -5,7 +5,7 @@ Summary:        A simple monitoring tool for Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/msoodb/%{name}
-Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
+Source0:        %{url}/releases/download/v%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make

@@ -55,12 +55,12 @@ copy-spec:
 	./scripts/copy-spec.sh $(SPECDIR)/
 
 # Build RPM
-rpm: tarball copy-spec
+rpm:
 	rpmbuild -ba $(SPECDIR)/trafix.spec
 	rpmbuild -bs $(SPECDIR)/trafix.spec
 
 # Full release process
-release: tag rpm
+release: tag tarball copy-spec rpm
 
 # Installation
 install: install-bin
