@@ -28,7 +28,6 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
 
     char line[512];
     fgets(line, sizeof(line), fp); // skip header
-
     while (fgets(line, sizeof(line), fp) && count < max) {
         char local[64], remote[64], state[16];
         char local_hex[128], remote_hex[128];

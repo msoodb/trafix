@@ -2,6 +2,7 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -I./include
+CFLAGS += -Wunused-result
 LDFLAGS = -lpcap -lncurses
 SRC_DIR = src
 BUILD_DIR = build

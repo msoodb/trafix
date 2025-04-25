@@ -25,7 +25,10 @@ system connections, CPU, and network activity.
 %autosetup
 
 %build
-%make_build CFLAGS="%{optflags} -fPIE -I./include" LDFLAGS="-pie"
+export CFLAGS="%{optflags} -fPIE -Wall -Wextra -Wunused-result -I./include"
+export LDFLAGS="-pie"
+make CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" 2>&1 | tee build.log
+
 
 %install
 make install DESTDIR=%{buildroot}

@@ -43,7 +43,10 @@ MemoryInfo get_memory_info() {
     fp = popen("ps -eo pid,comm,%mem --sort=-%mem 2>/dev/null | head -n 4", "r");
     if (fp) {
         char line[128];
-        fgets(line, sizeof(line), fp);  // Skip header
+        if (fgets(line, sizeof(line), fp) == NULL) {
+          pclose(fp);
+          return info;
+        }
         info.top_processes[0] = '\0';
         while (fgets(line, sizeof(line), fp)) {
             strncat(info.top_processes, line, sizeof(info.top_processes) - strlen(info.top_processes) - 1);

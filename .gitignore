@@ -56,3 +56,6 @@ dkms.conf
 
 # The bin directory
 /bin/
+
+# Log
+build.log
