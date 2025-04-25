@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -I./include
 LDFLAGS = -lpcap -lncurses

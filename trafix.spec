@@ -13,8 +13,6 @@ BuildRequires:  ncurses-devel
 BuildRequires:  libpcap-devel
 BuildRequires:  lm_sensors
 
-Requires:       libpcap
-Requires:       ncurses-libs
 Requires:       lm_sensors
 
 %global debug_package %{nil}
@@ -27,14 +25,15 @@ system connections, CPU, and network activity.
 %autosetup
 
 %build
-make
+make CFLAGS="%{optflags} -fPIE" LDFLAGS="-pie"
 
 %install
 make install DESTDIR=%{buildroot}
+strip %{buildroot}%{_bindir}/trafix
 install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 
 %check
-# No test suite is available for this package. The package is manually tested.
+# No test suite upstream; basic functionality tested manually.
 
 %files
 %license LICENSE

@@ -1,3 +1,5 @@
+<!--- SPDX-License-Identifier: GPL-3.0-only -->
+
 ## Trafix Release Workflow
 
 This document describes how to make a new release of the trafix project, including versioning, tagging, and RPM packaging for Fedora.
@@ -10,6 +12,10 @@ Ensure you have the following installed:
 - A proper ~/rpmbuild structure:
 ```sh
 	rpmdev-setuptree
+```
+- License check
+```sh
+	licensecheck -r .
 ```
 
 ## Workflow
