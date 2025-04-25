@@ -42,5 +42,8 @@ install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 %{_mandir}/man1/trafix.1*
 
 %changelog
+* Fri Apr 25 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
+- Bump version to 1.0.1
+
 * Fri Apr 25 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.0-1
 - Initial RPM release
