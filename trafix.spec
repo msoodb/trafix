@@ -5,7 +5,7 @@ Summary:        A simple monitoring tool for Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/msoodb/%{name}
-Source0:        %{name}-%{version}.tar.gz
+Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -26,7 +26,6 @@ system connections, CPU, and network activity.
 
 %build
 make
-
 
 %install
 make install DESTDIR=%{buildroot}
