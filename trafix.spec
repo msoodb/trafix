@@ -24,7 +24,7 @@ Trafix is a lightweight command-line tool that provides real-time insights into
 system connections, CPU, and network activity.
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup
 
 %build
 make
@@ -43,3 +43,8 @@ install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 %{_mandir}/man1/trafix.1*
 
 %changelog
+* Fri Apr 25 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
+- Bump version to 1.0.1
+
+* Thu Apr 25 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.3-1
+- Initial RPM release
