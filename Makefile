@@ -63,14 +63,10 @@ rpm: tarball copy-spec
 release: tag rpm
 
 # Installation
-install: install-bin #install-doc
+install: install-bin
 
 install-bin:
 	install -D -m 0755 $(TARGET) $(DESTDIR)/usr/bin/trafix
-
-install-doc:
-	install -D -m 0644 LICENSE $(DESTDIR)/usr/share/doc/trafix/LICENSE
-	install -D -m 0644 README.md $(DESTDIR)/usr/share/doc/trafix/README.md
 
 uninstall:
 	rm -f $(DESTDIR)/usr/bin/trafix
