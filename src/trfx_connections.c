@@ -35,6 +35,11 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
 
         sscanf(line, "%*d: %64[0-9A-Fa-f]:%*x %64[0-9A-Fa-f]:%*x %x", local_hex, remote_hex, &state_num);
 
+	// Skip unwanted states
+        if (state_num == 6 || state_num == 7 || state_num == 8 || state_num == 9 || state_num == 11) {
+            continue; // Skip TIME_WAIT, CLOSE, CLOSE_WAIT, LAST_ACK, CLOSING
+        }
+	
         parse_ip_port(local, local_hex, 0);
         parse_ip_port(remote, remote_hex, 0);
 
@@ -65,9 +70,29 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
     return count;
 }
 
+// Only ONE state_priority function
+static int state_priority(const char *state) {
+    if (strcmp(state, "ESTABLISHED") == 0) return 0;
+    if (strcmp(state, "LISTEN") == 0) return 1;
+    if (strcmp(state, "TIME_WAIT") == 0) return 2;
+    // Add more if you want...
+    return 100; // unknown states last
+}
+
+// Add THIS function
+static int compare_connections(const void *a, const void *b) {
+    const ConnectionInfo *conn_a = (const ConnectionInfo *)a;
+    const ConnectionInfo *conn_b = (const ConnectionInfo *)b;
+
+    return state_priority(conn_a->state) - state_priority(conn_b->state);
+}
+
 int get_connection_info(ConnectionInfo *connections, int max_conns) {
     int count = 0;
     count = load_connections("/proc/net/tcp", "TCP", connections, count, max_conns);
     count = load_connections("/proc/net/udp", "UDP", connections, count, max_conns);
+
+    qsort(connections, count, sizeof(ConnectionInfo), compare_connections);
+
     return count;
 }

@@ -10,6 +10,12 @@
 #ifndef TRFX_DASHBOARD_H
 #define TRFX_DASHBOARD_H
 
+typedef struct {
+    int key;
+    const char *description;
+} Hotkey;
+
+void handle_keypress(int ch, int screen_height, int screen_width);
 void start_dashboard();
 
 #endif
