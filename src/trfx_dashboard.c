@@ -688,7 +688,7 @@ void *help_info_thread(void *arg) {
         int help_start_col = title_col + 20; // after "Trafix - Hotkeys:"
 
         // Print title
-        mvwprintw(win, row, title_col, "Trafix - Hotkeys:");
+        mvwprintw(win, row, title_col, " Hotkeys:");
 
         // Define starting column for each column
         int col_spacing = 25; // space between columns
@@ -790,7 +790,7 @@ void start_dashboard() {
 
   // Fixed heights for each row
   const int row1_height = 11;
-  const int row3_height = 6;
+  const int row3_height = 4;
   const int row2_height = screen_height - row1_height - row3_height;
   
   // Row 1 widths (4 columns)
