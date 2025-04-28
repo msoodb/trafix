@@ -15,7 +15,6 @@ typedef struct {
     const char *description;
 } Hotkey;
 
-void *system_info_thread(void *arg);
 void *cpu_info_thread(void *arg);
 void *memory_info_thread(void *arg);
 void *disk_info_thread(void *arg);
