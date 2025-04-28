@@ -98,6 +98,8 @@ typedef struct {
   WINDOW *window;
 } ThreadArg;
 
+static SortType current_sort_type = SORT_BY_MEM;
+
 void wait_until_ready() {
   pthread_mutex_lock(&ready_mutex); // Lock before checking the ready flag
   while (!ready) {
@@ -430,7 +432,7 @@ void *process_info_thread(void *arg) {
     pthread_mutex_unlock(&ncurses_mutex);
 
     ProcessInfo list[MAX_PROCESSES];
-    int count = get_top_processes_by_mem(list, MAX_PROCESSES);
+    int count = get_top_processes(list, MAX_PROCESSES, current_sort_type);
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -494,6 +496,23 @@ void *process_info_thread(void *arg) {
     free(arg);
     return NULL;
   }
+}
+
+void start_process_info_thread(WINDOW *win, int module_index) {
+    ThreadArg *arg = malloc(sizeof(ThreadArg));
+    if (!arg) {
+        perror("malloc");
+        return;
+    }
+
+    arg->window = win;
+    arg->module_index = module_index;
+
+    pthread_t tid;
+    if (pthread_create(&tid, NULL, process_info_thread, arg) != 0) {
+        perror("pthread_create");
+        free(arg);
+    }
 }
 
 void *connection_info_thread(void *arg) {
@@ -737,11 +756,19 @@ void *help_info_thread(void *arg) {
   WINDOW *win = (WINDOW *)arg;
   wait_until_ready();
 
-  const char *help_text[] = {
-      "[1-3] Switch Panel", "[z] Zoom Focus", "[p] Pause",
+  /*const char *help_text[] = {
+    "[1-3] Switch Panel", "[z] Zoom Focus", "[p] Pause",
       "[s] Sort",           "[r] Refresh",    "[f] Filter",
-      "[h] Help",           "[q] Quit",       NULL};
-
+      "[h] Help",           "[q] Quit",       NULL};*/
+  
+  const char *help_text[] = {
+    "[1-3] Switch Panel",
+    "[s] Sort Processes",
+    "[r] Refresh",
+    "[p] Pause",
+    "[q] Quit",
+    NULL};
+  
   while (1) {
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -763,20 +790,17 @@ void *help_info_thread(void *arg) {
     int col1 = help_start_col;
     int col2 = help_start_col + col_spacing;
     int col3 = help_start_col + 2 * col_spacing;
-    int col4 = help_start_col + 3 * col_spacing;
 
     // First row
     mvwprintw(win, row, col1, "%s", help_text[0]);
     mvwprintw(win, row, col2, "%s", help_text[1]);
-    mvwprintw(win, row, col3, "%s", help_text[2]);
-    mvwprintw(win, row, col4, "%s", help_text[3]);
 
     // Second row
     row++;
-    mvwprintw(win, row, col1, "%s", help_text[4]);
-    mvwprintw(win, row, col2, "%s", help_text[5]);
-    mvwprintw(win, row, col3, "%s", help_text[6]);
-    mvwprintw(win, row, col4, "%s", help_text[7]);
+    mvwprintw(win, row, col1, "%s", help_text[2]);
+    mvwprintw(win, row, col2, "%s", help_text[3]);
+    mvwprintw(win, row, col3, "%s", help_text[4]);
+
 
     wrefresh(win);
 
@@ -866,8 +890,49 @@ done:
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
-  screen_paused = 0; // <--- RESUME background threads
+  screen_paused = 0;
   return selected;
+}
+
+void pause_screen() {
+  screen_paused = 1; // Pause background threads
+
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  const char *message = "Paused. Press ESC to continue.";
+  int popup_height = 5;
+  int popup_width = strlen(message) + 4;
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
+  if (!popup) {
+    screen_paused = 0; // Resume if window creation fails
+    return;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  wattron(popup, COLOR_PAIR(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+
+  mvwprintw(popup, 2, 2, "%s", message);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  int ch;
+  while ((ch = getch()) != 27) { // 27 is ESC
+    // Wait until ESC is pressed
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  screen_paused = 0; // Resume background threads
 }
 
 void change_window_module(int slot_idx) {
@@ -893,9 +958,7 @@ void change_window_module(int slot_idx) {
 }
 
 void handle_keypress(int ch, int screen_height, int screen_width,
-                     WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                     WINDOW *disk_win, WINDOW *conn_win, WINDOW *net_win,
-                     WINDOW *proc_win) {
+                     WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win, WINDOW *disk_win, WINDOW *proc_win) {
   Hotkey hotkeys[] = {
       {'1', "Switch Panel 1"},       {'2', "Switch Panel 2"},
       {'3', "Switch Panel 3"},       {'z', "Zoom Focus"},
@@ -906,7 +969,19 @@ void handle_keypress(int ch, int screen_height, int screen_width,
       {'S', "Sort Processes"},       {'p', "Pause/Resume Updates"},
       {'P', "Pause/Resume Updates"}, {0, NULL}};
 
-  if (ch == 'r' || ch == 'R') {
+  if (ch == '1' || ch == '2' || ch == '3') {
+    int slot_idx = ch - '1';
+    change_window_module(slot_idx);
+    return;
+  }
+
+  else if (ch == 's' || ch == 'S') {
+    current_sort_type = (current_sort_type + 1) % SORT_MAX;
+    start_process_info_thread(proc_win, 2);
+    return;
+  }
+  
+  else if (ch == 'r' || ch == 'R') {
     for (int i = 0; i < NUM_MODULES; i++) {
       force_refresh_flags[i] = 1;
     }
@@ -914,41 +989,42 @@ void handle_keypress(int ch, int screen_height, int screen_width,
     return;
   }
 
-  if (ch == '1' || ch == '2' || ch == '3') {
-    int slot_idx = ch - '1';
-    change_window_module(slot_idx);
+  else if (ch == 'p' || ch == 'P') {
+    pause_screen();
     return;
-  }
+  } 
 
-  for (int i = 0; hotkeys[i].key != 0; i++) {
-    if (ch == hotkeys[i].key) {
-      int popup_height = 5;
-      int popup_width = 50;
-      int popup_y = (screen_height - popup_height) / 2;
-      int popup_x = (screen_width - popup_width) / 2;
+  else {
+    for (int i = 0; hotkeys[i].key != 0; i++) {
+      if (ch == hotkeys[i].key) {
+	int popup_height = 5;
+	int popup_width = 50;
+	int popup_y = (screen_height - popup_height) / 2;
+	int popup_x = (screen_width - popup_width) / 2;
 
-      WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
-      if (!popup)
-        return;
+	WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
+	if (!popup)
+	  return;
 
-      pthread_mutex_lock(&ncurses_mutex);
-      wattron(popup, COLOR_PAIR(COLOR_BORDER));
-      box(popup, 0, 0);
-      wattroff(popup, COLOR_PAIR(COLOR_BORDER));
-      mvwprintw(popup, 1, 2, "Hotkey Pressed:");
-      mvwprintw(popup, 2, 2, "[%c] %s", ch, hotkeys[i].description);
-      wrefresh(popup);
-      pthread_mutex_unlock(&ncurses_mutex);
+	pthread_mutex_lock(&ncurses_mutex);
+	wattron(popup, COLOR_PAIR(COLOR_BORDER));
+	box(popup, 0, 0);
+	wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+	mvwprintw(popup, 1, 2, "Hotkey Pressed:");
+	mvwprintw(popup, 2, 2, "[%c] %s", ch, hotkeys[i].description);
+	wrefresh(popup);
+	pthread_mutex_unlock(&ncurses_mutex);
 
-      napms(1000);
+	napms(1000);
 
-      pthread_mutex_lock(&ncurses_mutex);
-      werase(popup);
-      wrefresh(popup);
-      delwin(popup);
-      pthread_mutex_unlock(&ncurses_mutex);
+	pthread_mutex_lock(&ncurses_mutex);
+	werase(popup);
+	wrefresh(popup);
+	delwin(popup);
+	pthread_mutex_unlock(&ncurses_mutex);
 
-      break;
+	break;
+      }
     }
   }
 }
@@ -1008,12 +1084,11 @@ void start_dashboard() {
   WINDOW *proc_win = newwin(row2_height, row2_widths[2], row2_y,
                             row2_widths[0] + row2_widths[1]);
 
-  // Create row 3 window (help box)
+  // Create row 3 window
   WINDOW *help_win = newwin(row3_height, row3_widths[0], row3_y, 0);
 
   // Launch threads
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
-  // pthread_t net_tid, conn_tid, proc_tid;
   pthread_t help_tid;
 
   pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
@@ -1021,24 +1096,20 @@ void start_dashboard() {
   pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
   pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
-  // pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
-  // pthread_create(&net_tid, NULL, network_info_thread, net_win);
-  // pthread_create(&proc_tid, NULL, process_info_thread, proc_win);
   row2_slots[0].window = conn_win;
   row2_slots[1].window = net_win;
   row2_slots[2].window = proc_win;
 
   for (int i = 0; i < 3; i++) {
-    row2_slots[i].module_index = i; // Default to Connection, Network, Process
+    row2_slots[i].module_index = i;
 
     ThreadArg *arg = malloc(sizeof(ThreadArg));
     arg->module_index = i;
     arg->window = row2_slots[i].window;
 
     pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
-                   arg); // <-- pass the `arg`, not `window`
+                   arg);
   }
-  //  Launch the help thread
   pthread_create(&help_tid, NULL, help_info_thread, help_win);
 
   sleep(1);
@@ -1046,11 +1117,7 @@ void start_dashboard() {
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {
-    /*for (int i = 0; i < NUM_MODULES; i++) {
-      force_refresh_flags[i] = 1;
-      }*/
-    handle_keypress(ch, screen_height, screen_width, sys_win, cpu_win, mem_win,
-                    disk_win, conn_win, net_win, proc_win);
+    handle_keypress(ch, screen_height, screen_width, sys_win, cpu_win, mem_win, disk_win, proc_win);
   }
   endwin();
 }

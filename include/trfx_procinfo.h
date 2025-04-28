@@ -11,7 +11,8 @@
 #define TRFX_PROCINFO_H
 
 #define MAX_PROCESSES 128
-#define MAX_LINE_LEN 256
+#define MAX_LINE_LEN 512
+
 
 typedef struct {
     char pid[16];
@@ -28,6 +29,12 @@ typedef struct {
     char command[64];
 } ProcessInfo;
 
-int get_top_processes_by_mem(ProcessInfo *list, int max_count);
+typedef enum { SORT_BY_MEM, SORT_BY_CPU, SORT_BY_PID, SORT_MAX } SortType;
+#define SORT_BY_MEM 0
+#define SORT_BY_CPU 1
+#define SORT_BY_PID 2
 
-#endif
+int get_top_processes(ProcessInfo *list, int max_count, SortType sort_type);
+void sort_processes(ProcessInfo *list, int count, SortType sort_type);
+
+#endif /* TRFX_PROCINFO_H */
