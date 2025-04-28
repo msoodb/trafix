@@ -7,7 +7,7 @@
  * See LICENSE file for details.
  */
 
-#include "trfx_connections_2.h"
+#include "trfx_bandwidth.h"
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -51,7 +51,7 @@ static void get_process_name_by_pid(const char *pid, char *name,
 }
 
 static int parse_proc_net(const char *path, const char *proto,
-                          ConnectionInfo *list, int max_count) {
+                          BandwidthInfo *list, int max_count) {
   FILE *fp = fopen(path, "r");
   if (!fp)
     return 0;
@@ -111,7 +111,7 @@ static int parse_proc_net(const char *path, const char *proto,
           char inode_str[32];
           snprintf(inode_str, sizeof(inode_str), "socket:[%u]", inode);
           if (strstr(target, inode_str)) {
-            ConnectionInfo *c = &list[count];
+            BandwidthInfo *c = &list[count];
             snprintf(c->pid, sizeof(c->pid), "%.*s", (int)(sizeof(c->pid) - 1),
                      entry->d_name);
             get_process_name_by_pid(c->pid, c->process, sizeof(c->process));
@@ -140,11 +140,11 @@ static int parse_proc_net(const char *path, const char *proto,
   return count;
 }
 
-int get_connection_2_info(ConnectionInfo *connections, int max_conns) {
+int get_bandwidth_info(BandwidthInfo *bandwidths, int max_conns) {
   int count = 0;
   count +=
-      parse_proc_net("/proc/net/tcp", "TCP", connections + count, max_conns - count);
+      parse_proc_net("/proc/net/tcp", "TCP", bandwidths + count, max_conns - count);
   count +=
-      parse_proc_net("/proc/net/udp", "UDP", connections + count, max_conns - count);
+      parse_proc_net("/proc/net/udp", "UDP", bandwidths + count, max_conns - count);
   return count;
 }

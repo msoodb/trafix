@@ -15,7 +15,16 @@ typedef struct {
     const char *description;
 } Hotkey;
 
-void handle_keypress(int ch, int screen_height, int screen_width);
+void *system_info_thread(void *arg);
+void *cpu_info_thread(void *arg);
+void *memory_info_thread(void *arg);
+void *disk_info_thread(void *arg);
+void *connection_info_thread(void *arg);
+void *network_info_thread(void *arg);
+void *process_info_thread(void *arg);
+void *bandwidth_info_thread(void *arg);
+void *help_info_thread(void *arg);
+
 void start_dashboard();
 
 #endif

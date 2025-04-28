@@ -9,13 +9,15 @@
 
 #include "trfx_dashboard.h"
 
+#include "trfx_connections.h"
 #include <ncurses.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "trfx_connections.h"
-//#include "trfx_connections_2.h"
+#include <ctype.h>
+#include "trfx_bandwidth.h"
 #include "trfx_cpu.h"
 #include "trfx_disk.h"
 #include "trfx_meminfo.h"
@@ -48,12 +50,53 @@
 #define KPI_USAGE_CRIT 90.0
 #define BAR_WIDTH 16
 
+#define NUM_MODULES 8
+
+volatile int force_refresh_flags[NUM_MODULES] = {1, 1, 1, 1, 1, 1, 1, 1};
+enum ModuleIndex {
+  MODULE_SYSINFO = 0,
+  MODULE_CPUINFO,
+  MODULE_MEMINFO,
+  MODULE_DISKINFO,
+  MODULE_CONNINFO,
+  MODULE_NETINFO,
+  MODULE_PROCINFO,
+  MODULE_HELPINFO
+};
+
+typedef struct {
+  const char *name;
+  void *(*thread_func)(void *); // Pointer to thread function
+} Module;
+
+Module modules[] = {
+    {"Connections", connection_info_thread},
+    {"Network", network_info_thread},
+    {"Processes", process_info_thread},
+    {"Banswidths", bandwidth_info_thread},
+    {NULL, NULL} // Sentinel
+};
+
+typedef struct {
+  pthread_t thread_id;
+  int module_index; // -1 = none
+  WINDOW *window;
+} WindowSlot;
+
+WindowSlot row2_slots[3]; // 3 windows in row 2
+
 volatile int ready = 0;
 pthread_mutex_t ready_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t global_var_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t memory_info_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t disk_info_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+volatile sig_atomic_t screen_paused = 0;
+typedef struct {
+  int module_index;
+  WINDOW *window;
+} ThreadArg;
 
 void wait_until_ready() {
   pthread_mutex_lock(&ready_mutex); // Lock before checking the ready flag
@@ -100,7 +143,13 @@ void *system_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    sleep(5);
+    for (int i = 0; i < 50; i++) {
+      if (force_refresh_flags[MODULE_SYSINFO]) {
+        force_refresh_flags[MODULE_SYSINFO] = 0;
+        break;
+      }
+      sleep(1);
+    }
   }
   return NULL;
 }
@@ -205,9 +254,14 @@ void *cpu_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(1);
-  }
-
+    for (int i = 0; i < 2; i++) {
+      if (force_refresh_flags[MODULE_CPUINFO]) {
+        force_refresh_flags[MODULE_CPUINFO] = 0;
+        break;
+      }
+      sleep(1);
+    }
+  }  
   return NULL;
 }
 
@@ -255,8 +309,14 @@ void *memory_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
+    for (int i = 0; i < 2; i++) {
+      if (force_refresh_flags[MODULE_MEMINFO]) {
+        force_refresh_flags[MODULE_MEMINFO] = 0;
+        break;
+      }
+      sleep(1);
+    }
 
-    sleep(2);
   }
 
   return NULL;
@@ -331,15 +391,21 @@ void *disk_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-
-    sleep(3);
+    for (int i = 0; i < 10; i++) {
+      if (force_refresh_flags[MODULE_DISKINFO]) {
+        force_refresh_flags[MODULE_DISKINFO] = 0;
+        break;
+      }
+      sleep(1);
+    }
   }
-
   return NULL;
 }
 
 void *process_info_thread(void *arg) {
-  WINDOW *win = (WINDOW *)arg;
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
   wait_until_ready();
 
   while (1) {
@@ -371,7 +437,7 @@ void *process_info_thread(void *arg) {
     int row = 0;
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [3] Process Information ");
+    mvwprintw(win, row++, 2, " [%d] Processes ", my_index + 1);
     wattroff(win, A_BOLD);
 
     int compact_mode = 1; // 0 = full, 1 = compact
@@ -424,19 +490,22 @@ void *process_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-
     sleep(2);
+    free(arg);
+    return NULL;
   }
-
-  return NULL;
 }
 
 void *connection_info_thread(void *arg) {
-  WINDOW *win = (WINDOW *)arg;
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
+
+  free(arg);
   wait_until_ready();
 
+  ConnectionInfo connections[MAX_CONNECTIONS];
   while (1) {
-    ConnectionInfo connections[MAX_CONNECTIONS];
     int nconn = get_connection_info(connections, MAX_CONNECTIONS);
 
     pthread_mutex_lock(&ncurses_mutex);
@@ -448,7 +517,7 @@ void *connection_info_thread(void *arg) {
     wattroff(win, COLOR_PAIR(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, 0, 2, " [1] Active Connections ");
+    mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
     wattroff(win, A_BOLD);
 
     wattron(win, COLOR_PAIR(COLOR_HEADER));
@@ -465,84 +534,83 @@ void *connection_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
+    sleep(2);
+    return NULL;
+  }
+}
+void *bandwidth_info_thread(void *arg) {
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
 
-    sleep(1);
+  free(arg);
+  wait_until_ready();
+
+  while (1) {
+    // Array of connections (max limit)
+    BandwidthInfo bandwidths[MAX_BANDWIDTH_CONNECTIONS];
+    int nconn = get_bandwidth_info(bandwidths, MAX_BANDWIDTH_CONNECTIONS);
+
+    pthread_mutex_lock(&ncurses_mutex);
+
+    werase(win); // Clear the window
+
+    // Draw the border
+    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    box(win, 0, 0);
+    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+
+    // Print the title
+    wattron(win, A_BOLD);
+    mvwprintw(win, 0, 2, " [%d] Bandwidth Usage ", my_index + 1);
+    wattroff(win, A_BOLD);
+
+    // Print column headers (updated)
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(win, 1, 2, "%-10s %-6s %-22s %-22s %-5s %-5s", "Proto", "PID",
+              "Local", "Remote", "Sent", "Recv");
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+    // Display connection info
+    int y = 2;
+    for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
+      // Format local address as IP:Port
+      char local_info[64];
+      snprintf(local_info, sizeof(local_info), "%s:%s", bandwidths[i].laddr,
+               bandwidths[i].lport);
+
+      // Format remote address as IP:Port
+      char remote_info[64];
+      snprintf(remote_info, sizeof(remote_info), "%s:%s", bandwidths[i].raddr,
+               bandwidths[i].rport);
+
+      // Display the connection info in the window
+      mvwprintw(win, y++, 2, "%-10s %-6s %-22s %-22s %-5lu %-5lu",
+                bandwidths[i].proto, bandwidths[i].pid, local_info,
+                remote_info, bandwidths[i].sent_kb, bandwidths[i].recv_kb);
+    }
+
+    wrefresh(win); // Refresh the window to show new data
+    pthread_mutex_unlock(&ncurses_mutex);
+
+    sleep(1); // Sleep for a second before refreshing
   }
 
   return NULL;
 }
 
-/*void *connection_2_info_thread(void *arg) {
-    WINDOW *win = (WINDOW *)arg;
-    wait_until_ready();  // Wait for initialization (e.g., system data)
-
-    while (1) {
-        // Array of connections (max limit)
-        ConnectionInfo connections[MAX_CONNECTIONS];
-        int nconn = get_connection_2_info(connections, MAX_CONNECTIONS);  //
-   Function to populate connections
-
-        pthread_mutex_lock(&ncurses_mutex);
-
-        werase(win);  // Clear the window
-
-        // Draw the border
-        wattron(win, COLOR_PAIR(COLOR_BORDER));
-        box(win, 0, 0);
-        wattroff(win, COLOR_PAIR(COLOR_BORDER));
-
-        // Print the title
-        wattron(win, A_BOLD);
-        mvwprintw(win, 0, 2, " Active Connections ");
-        wattroff(win, A_BOLD);
-
-        // Print column headers (updated)
-        wattron(win, COLOR_PAIR(COLOR_HEADER));
-        mvwprintw(win, 1, 2, "%-10s %-6s %-22s %-22s %-5s %-5s",
-                  "Proto", "PID", "Local", "Remote", "Sent", "Recv");
-        wattroff(win, COLOR_PAIR(COLOR_HEADER));
-
-        // Display connection info
-        int y = 2;
-        for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-            // Format local address as IP:Port
-            char local_info[64];
-            snprintf(local_info, sizeof(local_info), "%s:%s",
-   connections[i].laddr, connections[i].lport);
-
-            // Format remote address as IP:Port
-            char remote_info[64];
-            snprintf(remote_info, sizeof(remote_info), "%s:%s",
-   connections[i].raddr, connections[i].rport);
-
-            // Display the connection info in the window
-            mvwprintw(win, y++, 2, "%-10s %-6s %-22s %-22s %-5lu %-5lu",
-                      connections[i].proto,
-                      connections[i].pid,
-                      local_info,
-                      remote_info,
-                      connections[i].sent_kb,
-                      connections[i].recv_kb);
-        }
-
-        wrefresh(win);  // Refresh the window to show new data
-        pthread_mutex_unlock(&ncurses_mutex);
-
-        sleep(1);  // Sleep for a second before refreshing
-    }
-
-    return NULL;
-    }*/
-
 void *network_info_thread(void *arg) {
-  WINDOW *win = (WINDOW *)arg;
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
+
   wait_until_ready();
 
   while (1) {
     int num_interfaces = 0;
     int max_rows, max_cols;
 
-    char **bandwidth_usage = get_bandwidth_usage(&num_interfaces);
+    char **interfaces_usage = get_interfaces_usage(&num_interfaces);
 
     const char *connected_if = NULL;
     const char *ssid = NULL;
@@ -550,7 +618,7 @@ void *network_info_thread(void *arg) {
 
     for (int i = 0; i < num_interfaces; i++) {
       char name[32];
-      sscanf(bandwidth_usage[i], " %31s", name);
+      sscanf(interfaces_usage[i], " %31s", name);
 
       if (strcmp(name, "lo") == 0 || strncmp(name, "br-", 3) == 0 ||
           strncmp(name, "docker", 6) == 0 || strncmp(name, "veth", 4) == 0 ||
@@ -571,7 +639,7 @@ void *network_info_thread(void *arg) {
 
     for (int i = 0; i < num_interfaces; i++) {
       char name[32];
-      sscanf(bandwidth_usage[i], " %31s", name);
+      sscanf(interfaces_usage[i], " %31s", name);
 
       if (is_vpn_interface(name)) {
         char *vip = get_ip_address(name);
@@ -606,7 +674,7 @@ void *network_info_thread(void *arg) {
     wattroff(win, COLOR_PAIR(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [2] Network Information ");
+    mvwprintw(win, row++, 2, " [%d] Network Information ", my_index + 1);
     wattroff(win, A_BOLD);
 
     mvwprintw(win, row++, line, "Default Gateway: %s | Metric: %s", gateway,
@@ -651,134 +719,247 @@ void *network_info_thread(void *arg) {
               "---------------------------------------------");
 
     for (int i = 0; i < num_interfaces && row < max_lines; i++) {
-      mvwprintw(win, row++, line, "%s", bandwidth_usage[i]);
+      mvwprintw(win, row++, line, "%s", interfaces_usage[i]);
     }
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
 
-    free_bandwidth_usage(bandwidth_usage, num_interfaces);
-    sleep(3);
-  }
+    free_interfaces_usage(interfaces_usage, num_interfaces);
 
-  return NULL;
+    sleep(2);
+    free(arg);
+    return NULL;
+  }
 }
 
 void *help_info_thread(void *arg) {
-    WINDOW *win = (WINDOW *)arg;
-    wait_until_ready();
+  WINDOW *win = (WINDOW *)arg;
+  wait_until_ready();
 
-    const char *help_text[] = {
-        "[1-3] Switch Panel", "[z] Zoom Focus", "[p] Pause", "[s] Sort",
-        "[r] Refresh", "[f] Filter", "[h] Help", "[q] Quit",
-        NULL
-    };
+  const char *help_text[] = {
+      "[1-3] Switch Panel", "[z] Zoom Focus", "[p] Pause",
+      "[s] Sort",           "[r] Refresh",    "[f] Filter",
+      "[h] Help",           "[q] Quit",       NULL};
 
-    while (1) {
-        pthread_mutex_lock(&ncurses_mutex);
+  while (1) {
+    pthread_mutex_lock(&ncurses_mutex);
 
-        werase(win);
+    werase(win);
 
-        wattron(win, COLOR_PAIR(COLOR_BORDER));
-        box(win, 0, 0);
-        wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    box(win, 0, 0);
+    wattroff(win, COLOR_PAIR(COLOR_BORDER));
 
-        int row = 1;
-        int title_col = 2;
-        int help_start_col = title_col + 20; // after "Trafix - Hotkeys:"
+    int row = 1;
+    int title_col = 2;
+    int help_start_col = title_col + 20; // after "Trafix - Hotkeys:"
 
-        // Print title
-        mvwprintw(win, row, title_col, " Hotkeys:");
+    // Print title
+    mvwprintw(win, row, title_col, " Hotkeys:");
 
-        // Define starting column for each column
-        int col_spacing = 25; // space between columns
-        int col1 = help_start_col;
-        int col2 = help_start_col + col_spacing;
-        int col3 = help_start_col + 2 * col_spacing;
-        int col4 = help_start_col + 3 * col_spacing;
+    // Define starting column for each column
+    int col_spacing = 25; // space between columns
+    int col1 = help_start_col;
+    int col2 = help_start_col + col_spacing;
+    int col3 = help_start_col + 2 * col_spacing;
+    int col4 = help_start_col + 3 * col_spacing;
 
-        // First row
-        mvwprintw(win, row, col1, "%s", help_text[0]);
-        mvwprintw(win, row, col2, "%s", help_text[1]);
-        mvwprintw(win, row, col3, "%s", help_text[2]);
-        mvwprintw(win, row, col4, "%s", help_text[3]);
+    // First row
+    mvwprintw(win, row, col1, "%s", help_text[0]);
+    mvwprintw(win, row, col2, "%s", help_text[1]);
+    mvwprintw(win, row, col3, "%s", help_text[2]);
+    mvwprintw(win, row, col4, "%s", help_text[3]);
 
-        // Second row
-        row++;
-        mvwprintw(win, row, col1, "%s", help_text[4]);
-        mvwprintw(win, row, col2, "%s", help_text[5]);
-        mvwprintw(win, row, col3, "%s", help_text[6]);
-        mvwprintw(win, row, col4, "%s", help_text[7]);
+    // Second row
+    row++;
+    mvwprintw(win, row, col1, "%s", help_text[4]);
+    mvwprintw(win, row, col2, "%s", help_text[5]);
+    mvwprintw(win, row, col3, "%s", help_text[6]);
+    mvwprintw(win, row, col4, "%s", help_text[7]);
 
-        wrefresh(win);
+    wrefresh(win);
 
-        pthread_mutex_unlock(&ncurses_mutex);
+    pthread_mutex_unlock(&ncurses_mutex);
 
-        sleep(5);
-    }
-    return NULL;
+    sleep(1000);
+  }
+  return NULL;
 }
 
-void handle_keypress(int ch, int screen_height, int screen_width) {
-    Hotkey hotkeys[] = {
-        {'1', "Switch Panel 1"},
-        {'2', "Switch Panel 2"},
-        {'3', "Switch Panel 3"},
-        {'z', "Zoom Focus"},
-        {'Z', "Zoom Focus"},
-        {'h', "Show/Hide Help"},
-        {'H', "Show/Hide Help"},
-        {'r', "Refresh Now"},
-        {'R', "Refresh Now"},
-        {'f', "Filter Connections"},
-        {'F', "Filter Connections"},
-        {'s', "Sort Processes"},
-        {'S', "Sort Processes"},
-        {'p', "Pause/Resume Updates"},
-        {'P', "Pause/Resume Updates"},
-        {0, NULL} // Sentinel
-    };
+void refresh_all_windows(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win, WINDOW *disk_win) {
+  pthread_mutex_lock(&ncurses_mutex);
 
-    for (int i = 0; hotkeys[i].key != 0; i++) {
-        if (ch == hotkeys[i].key) {
-            int popup_height = 5;
-            int popup_width = 50;
-            int popup_y = (screen_height - popup_height) / 2;
-            int popup_x = (screen_width - popup_width) / 2;
+  werase(sys_win);
+  werase(cpu_win);
+  werase(mem_win);
+  werase(disk_win);
 
-            WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
+  box(sys_win, 0, 0);
+  box(cpu_win, 0, 0);
+  box(mem_win, 0, 0);
+  box(disk_win, 0, 0);
 
-            pthread_mutex_lock(&ncurses_mutex);
-            wattron(popup, COLOR_PAIR(COLOR_BORDER));
-            box(popup, 0, 0);
-            wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+  wrefresh(sys_win);
+  wrefresh(cpu_win);
+  wrefresh(mem_win);
+  wrefresh(disk_win);
 
-            mvwprintw(popup, 1, 2, "Hotkey Pressed:");
-            mvwprintw(popup, 2, 2, "[%c] %s", ch, hotkeys[i].description);
-
-            wrefresh(popup);
-            pthread_mutex_unlock(&ncurses_mutex);
-
-            napms(1000);
-
-            pthread_mutex_lock(&ncurses_mutex);
-            werase(popup);
-            wrefresh(popup);
-            delwin(popup);
-            pthread_mutex_unlock(&ncurses_mutex);
-
-            break;
-        }
-    }
+  pthread_mutex_unlock(&ncurses_mutex);
 }
 
-void start_dashboard() {
+int select_module() {
+  screen_paused = 1; // <--- PAUSE background threads
+
+  const char *module_names[] = {" Connections ", " Network Information ",
+                                " Processes ", " Bandwidths ", };
+  const char module_keys[] = {'C', 'N', 'P', 'B'};
+  int module_count = sizeof(module_names) / sizeof(module_names[0]);
+
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  int popup_height = module_count + 4;
+  int popup_width = 40;
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
+  if (!popup) {
+    screen_paused = 0; // resume if failed
+    return -1;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  wattron(popup, COLOR_PAIR(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+
+  mvwprintw(popup, 1, 2, "Select a module:");
+  for (int i = 0; i < module_count; i++) {
+    mvwprintw(popup, i + 2, 4, "[%c] %s", module_keys[i], module_names[i]);
+  }
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  int ch;
+  int selected = -1;
+  while (1) {
+    ch = getch();
+    ch = toupper(ch); // Accept lower or upper case
+    for (int i = 0; i < module_count; i++) {
+      if (ch == module_keys[i]) {
+        selected = i;
+        goto done;
+      }
+    }
+    if (ch == 27) { // ESC
+      selected = -1;
+      break;
+    }
+  }
+
+done:
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  screen_paused = 0; // <--- RESUME background threads
+  return selected;
+}
+
+void change_window_module(int slot_idx) {
+  if (row2_slots[slot_idx].module_index != -1) {
+    pthread_cancel(row2_slots[slot_idx].thread_id);
+    pthread_join(row2_slots[slot_idx].thread_id, NULL);
+    row2_slots[slot_idx].module_index = -1;
+  }
+
+  int selected_module = select_module();
+  if (selected_module == -1) {
+    return; // User canceled
+  }
+
+  row2_slots[slot_idx].module_index = selected_module;
+
+  ThreadArg *arg = malloc(sizeof(ThreadArg));
+  arg->module_index = selected_module;
+  arg->window = row2_slots[slot_idx].window;
+
+  pthread_create(&row2_slots[slot_idx].thread_id, NULL,
+                 modules[selected_module].thread_func, arg);
+}
+
+void handle_keypress(int ch, int screen_height, int screen_width,
+                     WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
+                     WINDOW *disk_win, WINDOW *conn_win, WINDOW *net_win,
+                     WINDOW *proc_win) {
+  Hotkey hotkeys[] = {
+      {'1', "Switch Panel 1"},       {'2', "Switch Panel 2"},
+      {'3', "Switch Panel 3"},       {'z', "Zoom Focus"},
+      {'Z', "Zoom Focus"},           {'h', "Show/Hide Help"},
+      {'H', "Show/Hide Help"},       {'r', "Refresh Now"},
+      {'R', "Refresh Now"},          {'f', "Filter Connections"},
+      {'F', "Filter Connections"},   {'s', "Sort Processes"},
+      {'S', "Sort Processes"},       {'p', "Pause/Resume Updates"},
+      {'P', "Pause/Resume Updates"}, {0, NULL}};
+
+  if (ch == 'r' || ch == 'R') {
+    for (int i = 0; i < NUM_MODULES; i++) {
+      force_refresh_flags[i] = 1;
+    }
+    refresh_all_windows(sys_win, cpu_win, mem_win, disk_win);    
+    return;
+  }
+
+  if (ch == '1' || ch == '2' || ch == '3') {
+    int slot_idx = ch - '1';
+    change_window_module(slot_idx);
+    return;
+  }
+
+  for (int i = 0; hotkeys[i].key != 0; i++) {
+    if (ch == hotkeys[i].key) {
+      int popup_height = 5;
+      int popup_width = 50;
+      int popup_y = (screen_height - popup_height) / 2;
+      int popup_x = (screen_width - popup_width) / 2;
+
+      WINDOW *popup = newwin(popup_height, popup_width, popup_y, popup_x);
+      if (!popup)
+        return;
+
+      pthread_mutex_lock(&ncurses_mutex);
+      wattron(popup, COLOR_PAIR(COLOR_BORDER));
+      box(popup, 0, 0);
+      wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+      mvwprintw(popup, 1, 2, "Hotkey Pressed:");
+      mvwprintw(popup, 2, 2, "[%c] %s", ch, hotkeys[i].description);
+      wrefresh(popup);
+      pthread_mutex_unlock(&ncurses_mutex);
+
+      napms(1000);
+
+      pthread_mutex_lock(&ncurses_mutex);
+      werase(popup);
+      wrefresh(popup);
+      delwin(popup);
+      pthread_mutex_unlock(&ncurses_mutex);
+
+      break;
+    }
+  }
+}
+
+void start_dashboard() { 
   initscr();
   noecho();
   curs_set(FALSE);
   mousemask(0, NULL);
   start_color();
-   use_default_colors();
+  use_default_colors();
   init_pair(COLOR_HEADER, COLOR_CYAN, -1);
   init_pair(COLOR_DATA_GREEN, COLOR_GREEN, -1);
   init_pair(COLOR_DATA_RED, COLOR_RED, -1);
@@ -792,26 +973,21 @@ void start_dashboard() {
   const int row1_height = 11;
   const int row3_height = 4;
   const int row2_height = screen_height - row1_height - row3_height;
-  
+
   // Row 1 widths (4 columns)
-  int row1_widths[4] = {
-    (int)(screen_width * 0.25), 
-    (int)(screen_width * 0.20),
-    (int)(screen_width * 0.25),
-    screen_width - ((int)(screen_width * 0.25) +
-                    (int)(screen_width * 0.20) +
-                    (int)(screen_width * 0.25))
-  };
-  
+  int row1_widths[4] = {(int)(screen_width * 0.25), (int)(screen_width * 0.20),
+                        (int)(screen_width * 0.25),
+                        screen_width - ((int)(screen_width * 0.25) +
+                                        (int)(screen_width * 0.20) +
+                                        (int)(screen_width * 0.25))};
+
   // Row 2 widths (3 columns)
   int row2_widths[3] = {
-    screen_width / 3, 
-    screen_width / 3,
-    screen_width - ((int)(screen_width / 3) + (int)(screen_width / 3))
-  };
+      screen_width / 3, screen_width / 3,
+      screen_width - ((int)(screen_width / 3) + (int)(screen_width / 3))};
 
   // Row 3 widths (1 column — full width)
-  int row3_widths[1] = { screen_width };
+  int row3_widths[1] = {screen_width};
 
   // Y offsets
   int row1_y = 0;
@@ -837,17 +1013,31 @@ void start_dashboard() {
 
   // Launch threads
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
-  pthread_t net_tid, conn_tid, proc_tid, help_tid;
+  // pthread_t net_tid, conn_tid, proc_tid;
+  pthread_t help_tid;
 
   pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
   pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
   pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
   pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
-  pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
-  pthread_create(&net_tid, NULL, network_info_thread, net_win);
-  pthread_create(&proc_tid, NULL, process_info_thread, proc_win);
-  
+  // pthread_create(&conn_tid, NULL, connection_info_thread, conn_win);
+  // pthread_create(&net_tid, NULL, network_info_thread, net_win);
+  // pthread_create(&proc_tid, NULL, process_info_thread, proc_win);
+  row2_slots[0].window = conn_win;
+  row2_slots[1].window = net_win;
+  row2_slots[2].window = proc_win;
+
+  for (int i = 0; i < 3; i++) {
+    row2_slots[i].module_index = i; // Default to Connection, Network, Process
+
+    ThreadArg *arg = malloc(sizeof(ThreadArg));
+    arg->module_index = i;
+    arg->window = row2_slots[i].window;
+
+    pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
+                   arg); // <-- pass the `arg`, not `window`
+  }
   //  Launch the help thread
   pthread_create(&help_tid, NULL, help_info_thread, help_win);
 
@@ -856,7 +1046,11 @@ void start_dashboard() {
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {
-    handle_keypress(ch, screen_height, screen_width);
+    /*for (int i = 0; i < NUM_MODULES; i++) {
+      force_refresh_flags[i] = 1;
+      }*/
+    handle_keypress(ch, screen_height, screen_width, sys_win, cpu_win, mem_win,
+                    disk_win, conn_win, net_win, proc_win);
   }
   endwin();
 }

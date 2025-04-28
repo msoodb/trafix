@@ -7,10 +7,10 @@
  * See LICENSE file for details.
  */
 
-#ifndef TRFX_CONNECTIONS_2_H
-#define TRFX_CONNECTIONS_2_H
+#ifndef TRFX_BANDWIDTH_H
+#define TRFX_BANDWIDTH_H
 
-#define MAX_CONNECTIONS 256
+#define MAX_BANDWIDTH_CONNECTIONS 256
 
 typedef struct {
     char pid[16];
@@ -22,8 +22,8 @@ typedef struct {
     char proto[8]; // "TCP" or "UDP"
     unsigned long sent_kb;
     unsigned long recv_kb;
-} ConnectionInfo;
+} BandwidthInfo;
 
-int get_connection_2_info(ConnectionInfo *connections, int max_conns);
+int get_bandwidth_info(BandwidthInfo *bandwidths, int max_conns);
 
-#endif // TRFX_CONNECTIONS_2_H
+#endif // TRFX_BANDWIDTH_H

@@ -245,7 +245,7 @@ const char* internal_format_bytes(double bytes) {
 }
 
 // Function to get bandwidth usage, modified to use format_bytes
-char** get_bandwidth_usage(int *num_interfaces) {
+char** get_interfaces_usage(int *num_interfaces) {
     NetStat curr_stats[MAX_INTERFACES];
     int curr_count = 0;
 
@@ -293,7 +293,7 @@ char** get_bandwidth_usage(int *num_interfaces) {
     return data;
 }
 
-void free_bandwidth_usage(char **data, int num_interfaces) {
+void free_interfaces_usage(char **data, int num_interfaces) {
     for (int i = 0; i < num_interfaces; i++) {
         free(data[i]);
     }
