@@ -30,6 +30,8 @@ typedef struct {
 } ProcessInfo;
 
 typedef enum { SORT_BY_MEM, SORT_BY_CPU, SORT_BY_PID, SORT_MAX } SortType;
+extern SortType current_sort_type;
+
 #define SORT_BY_MEM 0
 #define SORT_BY_CPU 1
 #define SORT_BY_PID 2
