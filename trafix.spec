@@ -28,11 +28,11 @@ system connections, CPU, and network activity.
 %autosetup
 
 %build
-make
+%set_build_flags
+make_build
 
 %install
-make install DESTDIR=%{buildroot}
-strip %{buildroot}%{_bindir}/trafix
+%make_install PREFIX=%{_prefix}
 install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 
 %check
