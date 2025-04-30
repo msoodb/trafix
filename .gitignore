@@ -55,7 +55,12 @@ dkms.conf
 *~
 
 # The bin directory
-/bin/
+build/
+bin/
+*.o
+trafix
+*.tar.gz
+
 
 # Log
 build.log
