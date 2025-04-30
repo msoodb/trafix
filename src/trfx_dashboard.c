@@ -9,11 +9,8 @@
 
 #include "trfx_dashboard.h"
 
-#include "trfx_connections.h"
-#include <ctype.h>
 #include <ncurses.h>
 #include <pthread.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -21,7 +18,6 @@
 #include "trfx_globals.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
-#include "trfx_utils.h"
 
 #define TOTAL_ROWS 3
 #define ROW1_MODULES 4

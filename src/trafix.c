@@ -7,12 +7,9 @@
  * See LICENSE file for details.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <time.h>
-#include "trafix.h"
 #include "trfx_config.h"
 #include "trfx_dashboard.h"
 

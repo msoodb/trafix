@@ -7,7 +7,6 @@
  * See LICENSE file for details.
  */
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "trfx_meminfo.h"
 
