@@ -1,5 +1,8 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-3.0-only
+
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2025 Masoud Bolhassani.
+
 set -e
 
 VERSION_FILE="VERSION"

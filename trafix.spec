@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2025 Masoud Bolhassani
+
 Name:           trafix
 Version:        __VERSION__
 Release:        1%{?dist}

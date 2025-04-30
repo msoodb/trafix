@@ -1,4 +1,8 @@
 
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2025 Masoud Bolhassani. -->
+
+
 # Trafix - Technical Documentation
 
 ## Overview
@@ -199,4 +203,4 @@ We welcome contributions to **Trafix**! If you'd like to contribute, please fork
 
 ## License
 
-**Trafix** is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+**Trafix** is licensed under the GPL-3.0-or-later License. See the [LICENSE](LICENSE) file for more details.

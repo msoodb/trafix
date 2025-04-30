@@ -1,4 +1,7 @@
 
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2025 Masoud Bolhassani. -->
+
 # Trafix - Technical Features
 
 > That sounds like an awesome project — a kind of all-in-one system monitoring dashboard for Linux. 
@@ -73,3 +76,5 @@
 	stress-ng --cpu 4 --timeout 30s
 	stress-ng --vm 2 --vm-bytes 1G --vm-method all --verify --timeout 30s
 ```
+
+**Trafix** is licensed under the GPL-3.0-or-later License. See the [LICENSE](LICENSE) file for more details.
