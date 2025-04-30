@@ -10,7 +10,7 @@
 #ifndef TRFX_DISK_H
 #define TRFX_DISK_H
 
-#define MAX_DISKS 16
+#define MAX_DISKS 100
 
 typedef struct {
     char mount_point[64];

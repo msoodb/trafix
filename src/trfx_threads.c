@@ -240,16 +240,30 @@ void *memory_info_thread(void *arg) {
     wattron(win, A_BOLD);
     mvwprintw(win, row++, 2, " Memory Usage ");
     wattroff(win, A_BOLD);
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, row++, line, "%-12s  %-10s  %-10s  %-10s", "Type",
-              "Total(MiB)", "Used(MiB)", "Free(MiB)");
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, row++, line, "%-12s  %-10.1f  %-10.1f  %-10.1f", "RAM",
-              total, used, free);
-    mvwprintw(win, row++, line, "%-12s  %-10.1f  %-10.1f  %-10s", "Swap",
-              swap_total, swap_used, "-");
 
-    // Additional percentage
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(win, row++, line, "%-10s %10s %10s %10s", "Type", "Total", "Used",
+              "Free");
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+    // Format memory values
+    char total_buf[16], used_buf[16], free_buf[16];
+    format_bytes(total, total_buf, sizeof(total_buf));
+    format_bytes(used, used_buf, sizeof(used_buf));
+    format_bytes(free, free_buf, sizeof(free_buf));
+
+    // RAM row
+    mvwprintw(win, row++, line, "%-10s %10s %10s %10s", "RAM", total_buf,
+              used_buf, free_buf);
+
+    // Swap row
+    char swap_total_buf[16], swap_used_buf[16];
+    format_bytes(swap_total, swap_total_buf, sizeof(swap_total_buf));
+    format_bytes(swap_used, swap_used_buf, sizeof(swap_used_buf));
+    mvwprintw(win, row++, line, "%-10s %10s %10s %10s", "Swap", swap_total_buf,
+              swap_used_buf, "-");
+
+    // RAM usage percent
     mvwprintw(win, row++, 2, "RAM used: %.1f%%", mem.mem_percent);
 
     wrefresh(win);
@@ -307,7 +321,7 @@ void *disk_info_thread(void *arg) {
     // Header
     wattron(win, COLOR_PAIR(COLOR_HEADER));
     mvwprintw(win, row++, col, "%.*s", usable_width,
-              "Mount      Filesystem              Used     Total    Usage");
+              "Mount      Filesystem                  Total    Used    Usage");
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     // Disk rows
@@ -319,8 +333,8 @@ void *disk_info_thread(void *arg) {
       format_bytes(disks[i].used_mb, used_buf, sizeof(used_buf));
       format_bytes(disks[i].total_mb, total_buf, sizeof(total_buf));
 
-      snprintf(line, sizeof(line), "%-10.10s %-20.20s %7s %8s  %5.1f%%",
-               disks[i].mount_point, disks[i].filesystem, used_buf, total_buf,
+      snprintf(line, sizeof(line), "%-10.10s %-24.24s %8s %8s  %5.1f%%",
+               disks[i].mount_point, disks[i].filesystem, total_buf, used_buf,
                disks[i].usage_percent);
 
       mvwprintw(win, row++, col, "%.*s", usable_width, line);
@@ -329,12 +343,12 @@ void *disk_info_thread(void *arg) {
     // Totals
     if (row < h - 1 && total_total > 0.0) {
       char used_buf[16], total_buf[16], line[256];
-      format_bytes(total_used, used_buf, sizeof(used_buf));
       format_bytes(total_total, total_buf, sizeof(total_buf));
+      format_bytes(total_used, used_buf, sizeof(used_buf));
       double usage_percent = (total_used / total_total) * 100.0;
 
-      snprintf(line, sizeof(line), "%-10s %-20s %7s %8s  %5.1f%%", "Total", "-",
-               used_buf, total_buf, usage_percent);
+      snprintf(line, sizeof(line), "%-10s %-24s %8s %8s  %5.1f%%", "Total", "-",
+               total_buf, used_buf, usage_percent);
 
       mvwprintw(win, row++, col, "%.*s", usable_width, line);
     }
