@@ -29,7 +29,7 @@ system connections, CPU, and network activity.
 
 %build
 %set_build_flags
-make_build
+%make_build
 
 %install
 %make_install PREFIX=%{_prefix}
@@ -45,9 +45,6 @@ install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 %{_mandir}/man1/trafix.1*
 
 %changelog
-* Wed Apr 30 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.5-1
-- Bump version to 1.0.5
-
 * Wed Apr 30 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.4-1
 - Bump version to 1.0.4
 
