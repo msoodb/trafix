@@ -20,7 +20,7 @@ if [ ! -f "$VERSION_FILE" ]; then
 fi
 
 # Read the old version
-OLD_VERSION=$(cat "$VERSION_FILE")
+OLD_VERSION=$(grep -v '^#' "$VERSION_FILE" | head -n 1)
 IFS='.' read -ra PARTS <<< "$OLD_VERSION"
 
 # Determine which part to bump
@@ -54,7 +54,11 @@ esac
 NEW_VERSION=$(IFS='.'; echo "${PARTS[*]}")
 
 # Update VERSION file with the new version
-echo "$NEW_VERSION" > "$VERSION_FILE"
+cat > "$VERSION_FILE" <<EOF
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2025 Masoud Bolhassani.
+$NEW_VERSION
+EOF
 echo "Bumped version: $OLD_VERSION → $NEW_VERSION"
 
 # Optionally update the changelog in trafix.spec

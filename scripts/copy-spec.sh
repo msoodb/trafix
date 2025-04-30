@@ -30,7 +30,7 @@ if [[ ! -f "$SPEC_SOURCE" ]]; then
 fi
 
 # Read version
-VERSION=$(cat "$VERSION_FILE")
+VERSION=$(grep -v '^#' "$VERSION_FILE" | head -n 1)
 
 # Create destination directory if needed
 mkdir -p "$DEST_DIR"
