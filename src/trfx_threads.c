@@ -742,6 +742,7 @@ void *help_info_thread(void *arg) {
     "[r] Refresh",
     "[p] Pause",
     "[q] Quit",
+    "Config: Edit /etc/trafix/config.cfg to customize settings",
     NULL};
   
   while (1) {
@@ -774,13 +775,13 @@ void *help_info_thread(void *arg) {
     // First row
     mvwprintw(win, row, col1, "%s", help_text[0]);
     mvwprintw(win, row, col2, "%s", help_text[1]);
-
+    mvwprintw(win, row, col3, "%s", help_text[2]);
+    
     // Second row
-    row++;
-    mvwprintw(win, row, col1, "%s", help_text[2]);
-    mvwprintw(win, row, col2, "%s", help_text[3]);
-    mvwprintw(win, row, col3, "%s", help_text[4]);
-
+    row++;    
+    mvwprintw(win, row, col1, "%s", help_text[3]);
+    mvwprintw(win, row, col2, "%s", help_text[4]);
+    mvwprintw(win, row, col3, "%s", help_text[5]);
 
     wrefresh(win);
 
