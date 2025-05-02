@@ -34,6 +34,7 @@ system connections, CPU, and network activity.
 %install
 %make_install PREFIX=%{_prefix}
 install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
+install -Dm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 
 %check
 # No test suite upstream; basic functionality tested manually.
@@ -43,6 +44,7 @@ install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 %doc README.md
 %{_bindir}/trafix
 %{_mandir}/man1/trafix.1*
+%config(noreplace) /etc/trafix/config.cfg
 
 %changelog
 * Wed Apr 30 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
