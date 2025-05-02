@@ -47,6 +47,9 @@ install -Dm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 %config(noreplace) /etc/trafix/config.cfg
 
 %changelog
+* Fri May 02 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.3-1
+- Bump version to 1.0.3
+
 * Fri May 02 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.2-1
 - Bump version to 1.0.2
 
