@@ -27,19 +27,27 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
     if (!fp) return count;
 
     char line[512];
-    fgets(line, sizeof(line), fp); // skip header
+
+    // Safely skip header line
+    if (fgets(line, sizeof(line), fp) == NULL) {
+        fclose(fp);
+        return count;
+    }
+
     while (fgets(line, sizeof(line), fp) && count < max) {
         char local[64], remote[64], state[16];
         char local_hex[128], remote_hex[128];
         int state_num;
 
-        sscanf(line, "%*d: %64[0-9A-Fa-f]:%*x %64[0-9A-Fa-f]:%*x %x", local_hex, remote_hex, &state_num);
+        if (sscanf(line, "%*d: %64[0-9A-Fa-f]:%*x %64[0-9A-Fa-f]:%*x %x", local_hex, remote_hex, &state_num) != 3) {
+            continue; // skip malformed lines
+        }
 
-	// Skip unwanted states
+        // Skip unwanted states
         if (state_num == 6 || state_num == 7 || state_num == 8 || state_num == 9 || state_num == 11) {
             continue; // Skip TIME_WAIT, CLOSE, CLOSE_WAIT, LAST_ACK, CLOSING
         }
-	
+
         parse_ip_port(local, local_hex, 0);
         parse_ip_port(remote, remote_hex, 0);
 
@@ -53,12 +61,7 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
             case 3: strcpy(state, "SYN_RECV"); break;
             case 4: strcpy(state, "FIN_WAIT1"); break;
             case 5: strcpy(state, "FIN_WAIT2"); break;
-            case 6: strcpy(state, "TIME_WAIT"); break;
-            case 7: strcpy(state, "CLOSE"); break;
-            case 8: strcpy(state, "CLOSE_WAIT"); break;
-            case 9: strcpy(state, "LAST_ACK"); break;
             case 10: strcpy(state, "LISTEN"); break;
-            case 11: strcpy(state, "CLOSING"); break;
             default: strcpy(state, "UNKNOWN"); break;
         }
 

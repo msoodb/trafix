@@ -58,8 +58,10 @@ static int parse_proc_net(const char *path, const char *proto,
   char line[512];
   int count = 0;
 
-  // Skip header
-  fgets(line, sizeof(line), fp);
+  if (fgets(line, sizeof(line), fp) == NULL) {
+    fclose(fp);
+    return 0;
+  }
 
   while (fgets(line, sizeof(line), fp) && count < max_count) {
     char local_ip_hex[9], local_port_hex[5];

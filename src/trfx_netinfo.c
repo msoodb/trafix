@@ -203,9 +203,15 @@ static int read_net_stats(NetStat stats[], int *count) {
     char line[LINE_BUFFER];
     *count = 0;
 
-    // Skip headers
-    fgets(line, LINE_BUFFER, fp);
-    fgets(line, LINE_BUFFER, fp);
+    // Skip headers safely
+    if (fgets(line, LINE_BUFFER, fp) == NULL) {
+        fclose(fp);
+        return -1;
+    }
+    if (fgets(line, LINE_BUFFER, fp) == NULL) {
+        fclose(fp);
+        return -1;
+    }
 
     while (fgets(line, LINE_BUFFER, fp) && *count < MAX_INTERFACES) {
         NetStat *stat = &stats[*count];

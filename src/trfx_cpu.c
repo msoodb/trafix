@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com>
  *
+ * Copyright (C) 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com>
  * This file is part of Trafix.
  *
  * Trafix is released under the GNU General Public License v3 (GPL-3.0).
@@ -75,16 +75,21 @@ CPUInfo get_cpu_info() {
 
     // Read CPU frequencies
     for (int i = 0; i < info.num_cores; ++i) {
-        char path[128];
-        snprintf(path, sizeof(path),
-                 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
-        FILE *f = fopen(path, "r");
-        if (f) {
-            int khz;
-            fscanf(f, "%d", &khz);
-            info.frequency_per_core[i] = khz / 1000.0f;
-            fclose(f);
+      char path[128];
+      snprintf(path, sizeof(path),
+               "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+      FILE *f = fopen(path, "r");
+      if (f) {
+        int khz;
+        if (fscanf(f, "%d", &khz) == 1) {
+          info.frequency_per_core[i] = khz / 1000.0f;
+        } else {
+          info.frequency_per_core[i] = 0.0f; // fallback on parse failure
         }
+        fclose(f);
+      } else {
+        info.frequency_per_core[i] = 0.0f; // fallback on open failure
+      }
     }
 
     // Try to get CPU temperature

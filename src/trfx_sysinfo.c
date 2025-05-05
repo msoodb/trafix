@@ -30,8 +30,9 @@ SystemOverview get_system_overview() {
         char line[256];
         while (fgets(line, sizeof(line), fp)) {
             if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
-                sscanf(line, "PRETTY_NAME=\"%127[^\"]\"", info.os_version);
-                break;
+                if (sscanf(line, "PRETTY_NAME=\"%127[^\"]\"", info.os_version) == 1) {
+                    break;
+                }
             }
         }
         fclose(fp);
@@ -40,8 +41,9 @@ SystemOverview get_system_overview() {
     // Kernel Version
     fp = popen("uname -r 2>/dev/null", "r");
     if (fp) {
-        fgets(info.kernel_version, sizeof(info.kernel_version), fp);
-        info.kernel_version[strcspn(info.kernel_version, "\n")] = 0;
+        if (fgets(info.kernel_version, sizeof(info.kernel_version), fp) != NULL) {
+            info.kernel_version[strcspn(info.kernel_version, "\n")] = 0;
+        }
         pclose(fp);
     }
 
@@ -71,8 +73,9 @@ SystemOverview get_system_overview() {
     // Logged-in users
     fp = popen("who | awk '{print $1}' | sort | uniq | tr '\\n' ' '", "r");
     if (fp) {
-        fgets(info.logged_in_users, sizeof(info.logged_in_users), fp);
-        info.logged_in_users[strcspn(info.logged_in_users, "\n")] = 0;
+        if (fgets(info.logged_in_users, sizeof(info.logged_in_users), fp) != NULL) {
+            info.logged_in_users[strcspn(info.logged_in_users, "\n")] = 0;
+        }
         pclose(fp);
     }
 
