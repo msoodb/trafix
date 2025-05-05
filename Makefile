@@ -2,8 +2,9 @@
 # Copyright (C) 2025 Masoud Bolhassani
 
 
-CC = gcc
-CFLAGS = -Wall -Wextra -O2 -I./include
+CC ?= gcc
+CFLAGS ?= -Wall -Wextra -O2 -I./include
+CFLAGS += $(RPM_OPT_FLAGS)
 CFLAGS += -Wunused-result
 LDFLAGS = -lpcap -lncurses
 SRC_DIR = src
