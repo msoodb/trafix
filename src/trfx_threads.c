@@ -374,6 +374,8 @@ void *process_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+
+  free(arg);
   wait_until_ready();
 
   while (1) {
@@ -463,10 +465,9 @@ void *process_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(2);
-    free(arg);
-    return NULL;
+    sleep(1);
   }
+  return NULL;
 }
 
 void *connection_info_thread(void *arg) {
@@ -477,13 +478,14 @@ void *connection_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  ConnectionInfo connections[MAX_CONNECTIONS];
   while (1) {
+
     if (screen_paused) {
       usleep(100000);
       continue;
     }
 
+    ConnectionInfo connections[MAX_CONNECTIONS];
     int nconn = get_connection_info(connections, MAX_CONNECTIONS);
 
     pthread_mutex_lock(&ncurses_mutex);
@@ -512,9 +514,9 @@ void *connection_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(2);
-    return NULL;
+    sleep(1);
   }
+  return NULL;
 }
 
 void *bandwidth_info_thread(void *arg) {
@@ -589,6 +591,7 @@ void *network_info_thread(void *arg) {
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
 
+  free(arg);
   wait_until_ready();
 
   while (1) {
@@ -718,10 +721,10 @@ void *network_info_thread(void *arg) {
 
     free_interfaces_usage(interfaces_usage, num_interfaces);
 
-    sleep(2);
-    free(arg);
-    return NULL;
+    sleep(1);
   }
+  return NULL;
+
 }
 
 /*
@@ -740,9 +743,10 @@ void *help_info_thread(void *arg) {
     "[1-3] Switch Panel",
     "[s] Sort Processes",
     "[r] Refresh",
+    "[c] Columns",
     "[p] Pause",
     "[q] Quit",
-    "Config: Edit /etc/trafix/config.cfg to customize settings",
+    "edit /etc/trafix/config.cfg to customize all settings.",
     NULL};
   
   while (1) {
@@ -771,6 +775,7 @@ void *help_info_thread(void *arg) {
     int col1 = help_start_col;
     int col2 = help_start_col + col_spacing;
     int col3 = help_start_col + 2 * col_spacing;
+    int col4 = help_start_col + 5 * col_spacing;
 
     // First row
     mvwprintw(win, row, col1, "%s", help_text[0]);
@@ -782,6 +787,7 @@ void *help_info_thread(void *arg) {
     mvwprintw(win, row, col1, "%s", help_text[3]);
     mvwprintw(win, row, col2, "%s", help_text[4]);
     mvwprintw(win, row, col3, "%s", help_text[5]);
+    mvwprintw(win, row, col4, "%s", help_text[6]);
 
     wrefresh(win);
 

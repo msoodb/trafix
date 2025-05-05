@@ -21,13 +21,15 @@
 
 #define TOTAL_ROWS 3
 #define ROW1_MODULES 4
-#define ROW2_MODULES 3
+#define MAX_ROW2_MODULES 3
 #define ROW3_MODULES 1
 
 #define FIXED_ROW1_HEIGHT 11
 #define FIXED_ROW3_HEIGHT 4
 
 #define KEY_ESC 27
+
+extern int ROW2_MODULES;
 
 typedef struct {
   const char *name;
@@ -51,7 +53,8 @@ typedef struct {
   int module_index; // -1 = none
   WINDOW *window;
 } WindowSlot;
-WindowSlot row2_slots[ROW2_MODULES];
+// WindowSlot row2_slots[ROW2_MODULES];
+WindowSlot *row2_slots = NULL;
 
 /*
   Functions dashboard
@@ -230,26 +233,12 @@ void change_window_module(int slot_idx) {
   if (!arg)
     return;
   arg->module_index = slot_idx; //selected_module;
+  //arg->module_index = selected_module;
   arg->window = row2_slots[slot_idx].window;
 
   if (pthread_create(&row2_slots[slot_idx].thread_id, NULL,
                      modules[selected_module].thread_func, arg) != 0) {
     free(arg);
-  }
-}
-
-void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                     WINDOW *disk_win) {
-  if (ch >= '1' && ch <= '3') {
-    change_window_module(ch - '1');
-  } else if (ch == 's' || ch == 'S') {
-    current_sort_type = (current_sort_type + 1) % SORT_MAX;
-  } else if (ch == 'r' || ch == 'R') {
-    for (int i = 0; i < STATIC_MODULE_COUNT; i++)
-      force_refresh_flags[i] = 1;
-    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
-  } else if (ch == 'p' || ch == 'P') {
-    pause_screen();
   }
 }
 
@@ -261,7 +250,6 @@ int get_module_index_by_name(const char *name) {
   return -1;
 }
 
-
 void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
   int x_offset = 0;
   for (int i = 0; i < ROW2_MODULES; i++) {
@@ -272,6 +260,49 @@ void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
     x_offset += row2_widths[i];
   }
 }
+
+void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
+                     WINDOW *disk_win) {
+  switch (ch) {
+  case '1':
+  case '2':
+  case '3': {
+    int slot = ch - '1';
+    if (slot < ROW2_MODULES) {
+      change_window_module(slot);
+    }
+    break;
+  }
+    
+  case 's':
+  case 'S':
+    current_sort_type = (current_sort_type + 1) % SORT_MAX;
+    break;
+
+  case 'c':
+  case 'C':
+    ROW2_MODULES = (ROW2_MODULES % MAX_ROW2_MODULES) + 1;
+    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+    break;
+
+  case 'r':
+  case 'R':
+    for (int i = 0; i < STATIC_MODULE_COUNT; i++)
+      force_refresh_flags[i] = 1;
+    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+    break;
+
+  case 'p':
+  case 'P':
+    pause_screen();
+    break;
+
+  default:
+    // Do nothing or handle other keys if needed
+    break;
+ }
+}
+
 
 void start_dashboard() {
   initscr();
@@ -290,6 +321,13 @@ void start_dashboard() {
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);
 
+  row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
+  if (!row2_slots) {
+    endwin();
+    fprintf(stderr, "Failed to allocate memory for row2_slots\n");
+    exit(EXIT_FAILURE);
+  }
+
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row3_height = FIXED_ROW3_HEIGHT;
   const int row2_height = screen_height - row1_height - row3_height;
@@ -299,8 +337,25 @@ void start_dashboard() {
       (int)(screen_width * 0.25),
       screen_width - (int)(screen_width * 0.25) - (int)(screen_width * 0.20) -
           (int)(screen_width * 0.25)};
-  int row2_widths[ROW2_MODULES] = {screen_width / 3, screen_width / 3,
-                                   screen_width - 2 * (screen_width / 3)};
+  /*int row2_widths[ROW2_MODULES] = {screen_width / 3, screen_width / 3,
+    screen_width - 2 * (screen_width / 3)};*/
+  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  if (!row2_widths) {
+    endwin();
+    fprintf(stderr, "Failed to allocate memory for row2_widths\n");
+    exit(EXIT_FAILURE);
+  }
+  if (ROW2_MODULES == 1) {
+    row2_widths[0] = screen_width;
+  } else if (ROW2_MODULES == 2) {
+    row2_widths[0] = screen_width / 2;
+    row2_widths[1] = screen_width - row2_widths[0];
+  } else if (ROW2_MODULES == 3) {
+    row2_widths[0] = screen_width / 3;
+    row2_widths[1] = screen_width / 3;
+    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
+  }
+
   int row3_widths[ROW3_MODULES] = {screen_width};
 
   int row1_y = 0, row2_y = row1_height, row3_y = row1_height + row2_height;
@@ -328,6 +383,7 @@ void start_dashboard() {
       exit(EXIT_FAILURE);
     }
     arg->module_index = i;
+    //arg->module_index = row2_slots[i].module_index;
     arg->window = row2_slots[i].window;
     if (pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
                        arg) != 0) {
@@ -344,5 +400,6 @@ void start_dashboard() {
     handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win);
   }
 
+  free(row2_widths);
   endwin();
 }
