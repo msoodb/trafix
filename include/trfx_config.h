@@ -12,8 +12,8 @@
 
 #define CONFIG_FILE "/etc/trafix/config.cfg"
 
-extern int temp_warn_red;
-extern int temp_warn_red;
+extern int TEMP_WARN_RED;
+extern int TEMP_WARN_RED;
 
 void read_config(const char *config_file);
 

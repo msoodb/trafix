@@ -94,8 +94,8 @@ void *cpu_info_thread(void *arg) {
   WINDOW *win = (WINDOW *)arg;
   wait_until_ready();
 
-  extern int temp_warn_yellow;
-  extern int temp_warn_red;
+  extern int TEMP_WARN_YELLOW;
+  extern int TEMP_WARN_RED;
 
   while (1) {
     if (screen_paused) {
@@ -130,9 +130,9 @@ void *cpu_info_thread(void *arg) {
 
     pthread_mutex_lock(&global_var_mutex);
     int temp_color = 0;
-    if (cpu.temperature >= temp_warn_red) {
+    if (cpu.temperature >= TEMP_WARN_RED) {
       temp_color = COLOR_DATA_RED;
-    } else if (cpu.temperature >= temp_warn_yellow) {
+    } else if (cpu.temperature >= TEMP_WARN_YELLOW) {
       temp_color = COLOR_DATA_YELLOW;
     }
     pthread_mutex_unlock(&global_var_mutex);

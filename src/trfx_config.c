@@ -11,8 +11,8 @@
 #include <string.h>
 #include "trfx_config.h"
 
-int temp_warn_yellow = 50;
-int temp_warn_red = 75;
+int TEMP_WARN_YELLOW = 50;
+int TEMP_WARN_RED = 75;
 
 // Global configuration variables
 void read_config(const char *config_file) {
@@ -26,10 +26,10 @@ void read_config(const char *config_file) {
     line[strcspn(line, "\n")] = 0;
     if (line[0] == '#' || line[0] == '\0')
       continue;
-    if (strncmp(line, "temp_warn_yellow", 16) == 0) {
-      sscanf(line, "temp_warn_yellow = %d", &temp_warn_yellow);
-    } else if (strncmp(line, "temp_warn_red", 13) == 0) {
-      sscanf(line, "temp_warn_red = %d", &temp_warn_red);
+    if (strncmp(line, "TEMP_WARN_YELLOW", 16) == 0) {
+      sscanf(line, "TEMP_WARN_YELLOW = %d", &TEMP_WARN_YELLOW);
+    } else if (strncmp(line, "TEMP_WARN_RED", 13) == 0) {
+      sscanf(line, "TEMP_WARN_RED = %d", &TEMP_WARN_RED);
     }
   }
   fclose(file);
