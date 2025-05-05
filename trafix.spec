@@ -18,8 +18,6 @@ BuildRequires:  lm_sensors
 
 Requires:       lm_sensors
 
-%global debug_package %{nil}
-
 %description
 Trafix is a lightweight command-line tool that provides real-time insights into
 system connections, CPU, and network activity.
@@ -28,7 +26,6 @@ system connections, CPU, and network activity.
 %autosetup
 
 %build
-%set_build_flags
 %make_build
 
 %install
@@ -37,16 +34,13 @@ strip %{buildroot}%{_bindir}/trafix
 install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 install -Dm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 
-%check
-# No test suite upstream; basic functionality tested manually.
-
 %files
 %license LICENSE
 %doc README.md
 %{_bindir}/trafix
 %{_mandir}/man1/trafix.1*
-%dir /etc/trafix
-%config(noreplace) /etc/trafix/config.cfg
+%dir %{_sysconfdir}/trafix
+%config(noreplace) %{_sysconfdir}/trafix/config.cfg
 
 %changelog
 * Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.7-1
