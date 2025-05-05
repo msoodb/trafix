@@ -30,7 +30,6 @@ system connections, CPU, and network activity.
 
 %install
 %make_install PREFIX=%{_prefix}
-strip %{buildroot}%{_bindir}/trafix
 install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 install -Dm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 
