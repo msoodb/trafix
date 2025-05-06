@@ -91,7 +91,7 @@ All default settings can be customized by editing the configuration file:
 sudo nano /etc/trafix/config.cfg
 ```
 
-Example Configuration File
+### Example Configuration File
 ```
 # config/config.cfg
 
