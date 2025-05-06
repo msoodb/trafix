@@ -9,6 +9,18 @@
 
 Trafix is a high-performance, user-friendly monitoring tool for Linux systems. It enables real-time tracking of active network connections and provides insights into top traffic sources, all via a streamlined command-line interface.
 
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Installation and Usage](#installation-and-usage)
+  - [Install from Source](#install-from-source)
+  - [Install from Fedora Repository](#install-from-fedora-repository)
+- [User Manual](#user-manual)
+  - [Hotkeys](#hotkeys)
+  - [Configuration](#configuration)
+    - [Example Configuration File](#example-configuration-file)
+    - [Configuration Options](#configuration-options)
+
 ## Key Features:
 
 - **Monitor Active Connections:** View detailed information about all active TCP/UDP connections, including local and remote addresses, ports, and connection states.
@@ -105,4 +117,3 @@ ROW2_MODULES = 3
   Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (e.g., 1 to 4).
 
 > After modifying the configuration, simply exit and run Trafix again to apply the changes:
-
