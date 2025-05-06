@@ -76,7 +76,7 @@ Trafix offers an interactive command-line interface with real-time controls. You
 All default settings can be customized by editing the configuration file:
 
 ```sh
-	sudo nano /etc/trafix/config.cfg
+sudo nano /etc/trafix/config.cfg
 ```
 
 Example Configuration File
