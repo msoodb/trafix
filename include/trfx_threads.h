@@ -23,6 +23,7 @@ void *disk_info_thread(void *arg);
 void *cpu_info_thread(void *arg);
 
 void *process_info_thread(void *arg);
+void *process_compact_info_thread(void *arg);
 void *connection_info_thread(void *arg);
 void *bandwidth_info_thread(void *arg);
 void *network_info_thread(void *arg);

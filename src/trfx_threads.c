@@ -415,52 +415,102 @@ void *process_info_thread(void *arg) {
     mvwprintw(win, row++, 2, " [%d] Processes ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    int compact_mode = 1; // 0 = full, 1 = compact
+
+    int max_rows = h - 2;
+    const char *header = "  PID    USER      PR  NI    VIRT    RES      SHR "
+                         "S   %%CPU %%MEM   TIME+     COMMAND               ";
+    char clipped_header[1024];
+    strncpy(clipped_header, header, w - 2);
+    clipped_header[w - 2] = '\0';
+
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(win, row++, 1, "%s", clipped_header);
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+
+    for (int i = 0; i < count && row < max_rows; i++) {
+      char line[1024];
+      snprintf(line, sizeof(line),
+               "%7.7s %-10.10s %2.2s %2.2s %8.8s %7.7s %7.7s %1.1s %5.5s "
+               "%5.5s %10.10s %-20.20s",
+               list[i].pid, list[i].user, list[i].pr, list[i].ni, list[i].virt,
+               list[i].res, list[i].shr, list[i].state, list[i].cpu,
+               list[i].mem, list[i].time, list[i].command);
+
+      line[w - 2] = '\0';
+      mvwprintw(win, row++, 1, "%s", line);
+    }
+
+    wrefresh(win);
+    pthread_mutex_unlock(&ncurses_mutex);
+    sleep(1);
+  }
+  return NULL;
+}
+
+void *process_compact_info_thread(void *arg) {
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
+
+  free(arg);
+  wait_until_ready();
+
+  while (1) {
+
+    if (screen_paused) {
+      usleep(100000);
+      continue;
+    }
+
+    pthread_mutex_lock(&ncurses_mutex);
+    int h, w;
+    getmaxyx(win, h, w);
+    werase(win);
+
+    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    box(win, 0, 0);
+    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+
+    if (h < 5) {
+      mvwprintw(win, 1, 2, "Window too small");
+      wrefresh(win);
+      pthread_mutex_unlock(&ncurses_mutex);
+      sleep(2);
+      continue;
+    }
+
+    pthread_mutex_unlock(&ncurses_mutex);
+
+    ProcessInfo list[MAX_PROCESSES];
+    int count = get_top_processes(list, MAX_PROCESSES, current_sort_type);
+
+    pthread_mutex_lock(&ncurses_mutex);
+
+    int row = 0;
+
+    wattron(win, A_BOLD);
+    mvwprintw(win, row++, 2, " [%d] Processes ", my_index + 1);
+    wattroff(win, A_BOLD);
+
     int max_rows = h - 2;
 
-    if (compact_mode) {
-      const char *header = "  PID    USER        %CPU  %MEM   COMMAND";
-      char clipped_header[1024];
-      strncpy(clipped_header, header, w - 2);
-      clipped_header[w - 2] = '\0';
+    const char *header = "  PID    USER        %CPU  %MEM   COMMAND";
+    char clipped_header[1024];
+    strncpy(clipped_header, header, w - 2);
+    clipped_header[w - 2] = '\0';
 
-      wattron(win, COLOR_PAIR(COLOR_HEADER));
-      mvwprintw(win, row++, 1, "%s", clipped_header);
-      wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    mvwprintw(win, row++, 1, "%s", clipped_header);
+    wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
-      for (int i = 0; i < count && row < max_rows; i++) {
-        char line[1024];
-        snprintf(line, sizeof(line), "%7.7s %-10.10s %5.5s %5.5s %-20.20s",
-                 list[i].pid, list[i].user, list[i].cpu, list[i].mem,
-                 list[i].command);
+    for (int i = 0; i < count && row < max_rows; i++) {
+      char line[1024];
+      snprintf(line, sizeof(line), "%7.7s %-10.10s %5.5s %5.5s %-20.20s",
+               list[i].pid, list[i].user, list[i].cpu, list[i].mem,
+               list[i].command);
 
-        line[w - 2] = '\0';
-        mvwprintw(win, row++, 1, "%s", line);
-      }
-
-    } else {
-      const char *header = "  PID    USER      PR  NI    VIRT    RES      SHR "
-                           "S   %%CPU %%MEM   TIME+     COMMAND               ";
-      char clipped_header[1024];
-      strncpy(clipped_header, header, w - 2);
-      clipped_header[w - 2] = '\0';
-
-      wattron(win, COLOR_PAIR(COLOR_HEADER));
-      mvwprintw(win, row++, 1, "%s", clipped_header);
-      wattroff(win, COLOR_PAIR(COLOR_HEADER));
-
-      for (int i = 0; i < count && row < max_rows; i++) {
-        char line[1024];
-        snprintf(line, sizeof(line),
-                 "%7.7s %-10.10s %2.2s %2.2s %8.8s %7.7s %7.7s %1.1s %5.5s "
-                 "%5.5s %10.10s %-20.20s",
-                 list[i].pid, list[i].user, list[i].pr, list[i].ni,
-                 list[i].virt, list[i].res, list[i].shr, list[i].state,
-                 list[i].cpu, list[i].mem, list[i].time, list[i].command);
-
-        line[w - 2] = '\0';
-        mvwprintw(win, row++, 1, "%s", line);
-      }
+      line[w - 2] = '\0';
+      mvwprintw(win, row++, 1, "%s", line);
     }
 
     wrefresh(win);
