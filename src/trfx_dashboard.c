@@ -261,8 +261,68 @@ void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
   }
 }
 
+void cleanup_row2_modules() {
+  if (row2_slots == NULL) return;
+
+  for (int i = 0; i < ROW2_MODULES; i++) {
+    if (row2_slots[i].thread_id) {
+      pthread_cancel(row2_slots[i].thread_id);
+      pthread_join(row2_slots[i].thread_id, NULL);
+    }
+    if (row2_slots[i].window) {
+      pthread_mutex_lock(&ncurses_mutex);
+      werase(row2_slots[i].window);
+      wrefresh(row2_slots[i].window);
+      delwin(row2_slots[i].window);
+      pthread_mutex_unlock(&ncurses_mutex);
+    }
+  }
+  free(row2_slots);
+  row2_slots = NULL;
+}
+
+void load_row2_modules(int row2_height, int screen_width, int row2_y) {
+  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  if (!row2_widths) {
+    endwin();
+    fprintf(stderr, "Failed to allocate memory for row2_widths\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (ROW2_MODULES == 1) {
+    row2_widths[0] = screen_width;
+  } else if (ROW2_MODULES == 2) {
+    row2_widths[0] = screen_width / 2;
+    row2_widths[1] = screen_width - row2_widths[0];
+  } else if (ROW2_MODULES == 3) {
+    row2_widths[0] = screen_width / 3;
+    row2_widths[1] = screen_width / 3;
+    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
+  }
+
+  create_row2_windows(row2_height, row2_widths, row2_y);
+
+  for (int i = 0; i < ROW2_MODULES; i++) {
+    ThreadArg *arg = malloc(sizeof(ThreadArg));
+    if (!arg) {
+      endwin();
+      fprintf(stderr, "Failed to allocate memory for ThreadArg\n");
+      exit(EXIT_FAILURE);
+    }
+    arg->module_index = i;
+    arg->window = row2_slots[i].window;
+    if (pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
+                       arg) != 0) {
+      free(arg);
+    }
+  }
+
+  free(row2_widths);
+}
+
 void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                     WINDOW *disk_win) {
+                     WINDOW *disk_win, int row2_height, int screen_width,
+                     int row2_y) {
   switch (ch) {
   case '1':
   case '2':
@@ -281,8 +341,21 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'c':
   case 'C':
-    ROW2_MODULES = (ROW2_MODULES % MAX_ROW2_MODULES) + 1;
-    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+    cleanup_row2_modules();
+
+    ROW2_MODULES++;
+    if (ROW2_MODULES > MAX_ROW2_MODULES) {
+      ROW2_MODULES = 1;
+    }
+
+    row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
+    if (!row2_slots) {
+      endwin();
+      fprintf(stderr, "Failed to allocate memory for row2_slots\n");
+      exit(EXIT_FAILURE);
+    }
+
+    load_row2_modules(row2_height, screen_width, row2_y);
     break;
 
   case 'r':
@@ -302,7 +375,6 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     break;
  }
 }
-
 
 void start_dashboard() {
   initscr();
@@ -374,7 +446,7 @@ void start_dashboard() {
   pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
   pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
-  create_row2_windows(row2_height, row2_widths, row2_y);
+  /*create_row2_windows(row2_height, row2_widths, row2_y);
   for (int i = 0; i < ROW2_MODULES; i++) {
     ThreadArg *arg = malloc(sizeof(ThreadArg));
     if (!arg) {
@@ -389,7 +461,8 @@ void start_dashboard() {
                        arg) != 0) {
       free(arg);
     }
-  }
+    }*/
+  load_row2_modules(row2_height, screen_width, row2_y);
   pthread_create(&help_tid, NULL, help_info_thread, help_win);
 
   sleep(1);
@@ -397,7 +470,7 @@ void start_dashboard() {
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {
-    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win);
+    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win, row2_height, screen_width, row2_y);
   }
 
   free(row2_widths);
