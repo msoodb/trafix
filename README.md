@@ -58,6 +58,7 @@ To install Trafix from the source, follow these steps:
     ```
 
 ### Install from Fedora Repository
+> This installation method is under development and not yet ready for use.
 
 1. If you're using Fedora or a compatible distribution, you can install Trafix directly from the Fedora repository:
 
@@ -116,4 +117,4 @@ ROW2_MODULES = 3
 - **ROW2_MODULES** *(default: 3)*  
   Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (e.g., 1 to 4).
 
-> After modifying the configuration, simply exit and run Trafix again to apply the changes:
+After modifying the configuration, simply exit and run Trafix again to apply the changes:
