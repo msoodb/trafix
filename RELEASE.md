@@ -35,21 +35,18 @@ Ensure you have the following installed:
 ```sh
 	make tag
 ```
-4. Generate the Source Tarball: Create a .tar.gz of the source code from the Git tag.
-```sh
-	make tarball
-```
-5. Copy the Spec File: Copy trafix.spec into the correct RPM build directory.
+4. Copy the Spec File: Copy trafix.spec into the correct RPM build directory.
 ```sh
 	make copy-spec
 ```
-6. Build the RPM: Build both the binary and source RPM packages.
+5. Build the RPM: Build both the binary and source RPM packages.
 ```sh
 	make rpm
 ```
 
+Note: Source tarball creation is no longer needed - GitHub automatically generates archives from git tags.
 
-# Workflow - Magic
+## Simplified Workflow
 1. Make Code Changes: Make your changes in the source code.
 ```sh
 	nano src/main.c
@@ -60,7 +57,7 @@ Ensure you have the following installed:
 ```sh
 	make bump
 ```
-3. One-Command Full Release: Use this to run tag, tarball, and rpm build all in one go.
+3. One-Command Full Release: Creates tag, copies spec, and builds RPM all in one go.
 ```sh
 	make release
 ```

@@ -49,9 +49,7 @@ tag:
 		git push origin $(TAG); \
 	fi
 
-# Create tarball from Git tag
-tarball:
-	git archive --format=tar.gz --prefix=$(PREFIX)/ $(TAG) > $(SOURCEDIR)/$(TARBALL)
+# Note: Tarball creation is no longer needed - GitHub auto-generates archives
 
 # Copy spec to rpmbuild
 copy-spec:
@@ -63,7 +61,7 @@ rpm:
 	rpmbuild -bs $(SPECDIR)/trafix.spec
 
 # Full release process
-release: tag tarball copy-spec rpm
+release: tag copy-spec rpm
 
 # Installation
 install: install-bin

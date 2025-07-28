@@ -8,7 +8,7 @@ Summary:        A simple monitoring tool for Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/msoodb/%{name}
-Source0:        %{url}/releases/download/v%{version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/%{version}/trafix-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -30,8 +30,8 @@ system connections, CPU, and network activity.
 
 %install
 %make_install PREFIX=%{_prefix}
-install -Dm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
-install -Dm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
+install -Dpm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
+install -Dpm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 
 %files
 %license LICENSE
