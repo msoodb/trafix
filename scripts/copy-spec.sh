@@ -35,7 +35,7 @@ VERSION=$(grep -v '^#' "$VERSION_FILE" | head -n 1)
 # Create destination directory if needed
 mkdir -p "$DEST_DIR"
 
-# Replace placeholder and write to destination
-sed "s/__VERSION__/$VERSION/g" "$SPEC_SOURCE" > "$SPEC_DEST"
+# Keep the copied spec in sync with VERSION.
+sed "s/^Version:[[:space:]]*.*/Version:        $VERSION/" "$SPEC_SOURCE" > "$SPEC_DEST"
 
 echo "Copied and updated spec to $SPEC_DEST with version $VERSION"

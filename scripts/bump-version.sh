@@ -61,7 +61,9 @@ $NEW_VERSION
 EOF
 echo "Bumped version: $OLD_VERSION → $NEW_VERSION"
 
-# Optionally update the changelog in trafix.spec
+# Update the packaged version and optionally update the changelog in trafix.spec.
+sed -i "s/^Version:[[:space:]]*.*/Version:        $NEW_VERSION/" trafix.spec
+
 if grep -q '%changelog' trafix.spec; then
     TODAY=$(LC_ALL=C date +"%a %b %d %Y")
     sed -i "0,/%changelog/!b;//a\\

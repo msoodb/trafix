@@ -1,63 +1,153 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Copyright (C) 2025 Masoud Bolhassani -->
 
+# Trafix Release Workflow
 
-## Trafix Release Workflow
+This document describes the release process for Trafix: test the code, bump the
+version, create the Git tag, and build Fedora RPM packages.
 
-This document describes how to make a new release of the trafix project, including versioning, tagging, and RPM packaging for Fedora.
-Ensure you have the following installed:
-- rpm-build
-- rpmdevtools
-- gcc, make
-- git
-- libpcap-devel, ncurses-devel, lm_sensors
-- A proper ~/rpmbuild structure:
+## Requirements
+
+Install the required Fedora build tools and runtime dependencies:
+
 ```sh
-	rpmdev-setuptree
-```
-- License check
-```sh
-	licensecheck -r .
+sudo dnf install gcc make git rpm-build rpmdevtools rpmlint ncurses-devel lm_sensors
 ```
 
-## Workflow
-1. Make Code Changes: Make your changes in the source code.
+Create the RPM build tree once per machine:
+
 ```sh
-	nano src/main.c
-	git add src/main.c
-	git commit -m "Fix: correct packet stats rendering"
-```
-2. Bump the Version: Update the VERSION file and changelog automatically.
-```sh
-	make bump patch/minor/major
-```
-3. Create a Git Tag: Tag the release using the version from the VERSION file.
-```sh
-	make tag
-```
-4. Copy the Spec File: Copy trafix.spec into the correct RPM build directory.
-```sh
-	make copy-spec
-```
-5. Build the RPM: Build both the binary and source RPM packages.
-```sh
-	make rpm
+rpmdev-setuptree
 ```
 
-Note: Source tarball creation is no longer needed - GitHub automatically generates archives from git tags.
+## Before Release
 
-## Simplified Workflow
-1. Make Code Changes: Make your changes in the source code.
+Start from a clean working tree:
+
 ```sh
-	nano src/main.c
-	git add src/main.c
-	git commit -m "Fix: correct packet stats rendering"
+git status --short
 ```
-2. Bump the Version: Update the VERSION file and changelog automatically.
+
+Build and run the test suite:
+
 ```sh
-	make bump
+make clean
+make
+make test
 ```
-3. One-Command Full Release: Creates tag, copies spec, and builds RPM all in one go.
+
+Run the packaging linter:
+
 ```sh
-	make release
+rpmlint trafix.spec
 ```
+
+If your local `gcc` command is wrapped by `ccache` and the cache is not
+writable, use the real compiler:
+
+```sh
+make clean
+make CC=/usr/bin/gcc
+make test CC=/usr/bin/gcc
+```
+
+Commit all functional changes before bumping the version:
+
+```sh
+git add <changed-files>
+git commit -m "Fix: describe the release change"
+```
+
+## Bump Version
+
+Use the Makefile target and choose `patch`, `minor`, or `major` when prompted:
+
+```sh
+make bump
+```
+
+For a non-interactive bump, call the script directly:
+
+```sh
+./scripts/bump-version.sh patch
+```
+
+The bump script updates:
+
+- `VERSION`
+- `Version:` in `trafix.spec`
+- `%changelog` in `trafix.spec`
+
+It then commits the version bump.
+
+## Build RPMs
+
+Create and push the release tag:
+
+```sh
+make tag
+```
+
+The tag name is built from `VERSION` as `v<version>`. The RPM spec uses this tag
+archive as its source.
+
+Build the source and binary RPM packages:
+
+```sh
+make rpm
+```
+
+The `rpm` target:
+
+- copies `trafix.spec` to `~/rpmbuild/SPECS/trafix.spec`
+- keeps the copied spec `Version:` field in sync with `VERSION`
+- downloads the GitHub tag archive with `spectool`
+- runs `rpmbuild -ba`
+- runs the `%check` section, which executes `make test`
+
+Generated packages are written under:
+
+```sh
+~/rpmbuild/RPMS/
+~/rpmbuild/SRPMS/
+```
+
+## One-Command Release
+
+After code changes are committed and the version bump commit exists, run:
+
+```sh
+make release
+```
+
+`make release` expands to:
+
+```sh
+make tag
+make rpm
+```
+
+## Final Validation
+
+Run `rpmlint` on the generated packages:
+
+```sh
+rpmlint ~/rpmbuild/SRPMS/trafix-*.src.rpm ~/rpmbuild/RPMS/*/trafix-*.rpm
+```
+
+For a stricter Fedora-style build, use `mock` on the generated SRPM:
+
+```sh
+mock -r fedora-rawhide-x86_64 ~/rpmbuild/SRPMS/trafix-*.src.rpm
+```
+
+## Notes
+
+- Source tarball creation is not needed in this repository. GitHub generates
+  release archives from Git tags.
+- Do not run `make tag` until the version bump commit is correct.
+- `make tag` pushes the created tag to `origin`.
+- `make rpm` depends on the release tag archive being available from GitHub, so
+  run it after `make tag` for a new release.
+- The checked-in `trafix.spec` should always contain the current real version,
+  not a placeholder.

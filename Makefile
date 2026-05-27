@@ -2,21 +2,23 @@
 # Copyright (C) 2025 Masoud Bolhassani
 
 
-CC = gcc
-CFLAGS = -Wall -Wextra -O2 -I./include
-CFLAGS += $(RPM_OPT_FLAGS)
-CFLAGS += -Wunused-result
-LDFLAGS = -lpcap -lncurses
+CC ?= gcc
+CPPFLAGS ?= -I./include
+CFLAGS ?= -O2
+CFLAGS += -Wall -Wextra -Wunused-result
+LDFLAGS ?=
+LDLIBS = -lncurses
 SRC_DIR = src
 BUILD_DIR = build
 BIN_DIR = bin
+TEST_BIN = $(BUILD_DIR)/test_trafix
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 TARGET = $(BIN_DIR)/trafix
 VERSION := $(shell grep -v '^#' VERSION | head -n 1)
 TAG := v$(VERSION)
 TARBALL := trafix-$(VERSION).tar.gz
-PREFIX := trafix-$(VERSION)
+PREFIX ?= /usr
 SOURCEDIR := $(HOME)/rpmbuild/SOURCES
 SPECDIR := $(HOME)/rpmbuild/SPECS
 
@@ -24,10 +26,16 @@ SPECDIR := $(HOME)/rpmbuild/SPECS
 all: $(BIN_DIR) $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(TARGET) $(LDLIBS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+test: $(TEST_BIN)
+	$(TEST_BIN)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -56,21 +64,21 @@ copy-spec:
 	./scripts/copy-spec.sh $(SPECDIR)/
 
 # Build RPM
-rpm:
+rpm: copy-spec
+	spectool -g -R $(SPECDIR)/trafix.spec
 	rpmbuild -ba $(SPECDIR)/trafix.spec
-	rpmbuild -bs $(SPECDIR)/trafix.spec
 
 # Full release process
-release: tag copy-spec rpm
+release: tag rpm
 
 # Installation
 install: install-bin
 
 install-bin:
-	install -D -m 0755 $(TARGET) $(DESTDIR)/usr/bin/trafix
+	install -D -m 0755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/trafix
 
 uninstall:
-	rm -f $(DESTDIR)/usr/bin/trafix
+	rm -f $(DESTDIR)$(PREFIX)/bin/trafix
 	rm -rf $(DESTDIR)/usr/share/doc/trafix
 
 # Clean build files
@@ -78,4 +86,4 @@ clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm release
+.PHONY: all test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm release

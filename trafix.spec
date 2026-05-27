@@ -2,36 +2,38 @@
 # Copyright (C) 2025 Masoud Bolhassani
 
 Name:           trafix
-Version:        __VERSION__
+Version:        0.1.0
 Release:        1%{?dist}
 Summary:        A simple monitoring tool for Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/msoodb/%{name}
-Source0:        %{url}/archive/%{version}/trafix-%{version}.tar.gz
+%global gittag v%{version}
+Source0:        %{url}/archive/%{gittag}/%{name}-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  ncurses-devel
-BuildRequires:  libpcap-devel
-BuildRequires:  lm_sensors
 
 Requires:       lm_sensors
 
 %description
-Trafix is a lightweight command-line tool that provides real-time insights into
-system connections, CPU, and network activity.
+Trafix is a lightweight terminal dashboard that provides real-time insights into
+Linux system, CPU, memory, disk, process, connection, and network activity.
 
 %prep
-%autosetup
+%autosetup -n %{name}-%{gittag}
 
 %build
 %make_build
 
+%check
+%make_build test
+
 %install
 %make_install PREFIX=%{_prefix}
 install -Dpm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
-install -Dpm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
+install -Dpm644 config/config.cfg %{buildroot}%{_sysconfdir}/trafix/config.cfg
 
 %files
 %license LICENSE
@@ -42,6 +44,9 @@ install -Dpm644 config/config.cfg %{buildroot}/etc/trafix/config.cfg
 %config(noreplace) %{_sysconfdir}/trafix/config.cfg
 
 %changelog
+* Wed May 27 2026 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 0.1.0-1
+- Align RPM packaging with Fedora guidelines
+
 * Mon Jul 28 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.1.1-1
 - Bump version to 1.1.1
 
