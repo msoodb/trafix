@@ -1,0 +1,159 @@
+Phase 3 Task List: Scriptable CLI and Structured Output
+
+Goal
+----
+Make Trafix useful outside the TUI by adding truthful, scriptable CLI commands
+backed by the tested collectors from Phase 2.
+
+Constraints
+-----------
+- Do not add commands until their collector data is tested.
+- Keep the TUI working.
+- Keep default `trafix` behavior as TUI launch.
+- Every command should support a predictable non-interactive output.
+- After every task, `make` and `make test` should pass.
+
+
+Task 1: Define CLI Command Contract
+-----------------------------------
+Write down the first supported subcommands and output rules.
+
+Initial commands:
+- `trafix interfaces`
+- `trafix connections`
+- `trafix system`
+
+Acceptance checks:
+- Phase task/docs describe exact columns and exit codes.
+- No implementation required in this task.
+- `make`
+- `make test`
+
+
+Task 2: Extend Parser for Subcommands
+-------------------------------------
+Teach the parser to recognize supported subcommands.
+
+Behavior:
+- `trafix` launches TUI.
+- `trafix interfaces` selects interfaces command.
+- `trafix connections` selects connections command.
+- `trafix system` selects system command.
+- Unknown commands remain invalid.
+
+Acceptance checks:
+- Parser tests cover all new commands.
+- `make`
+- `make test`
+
+
+Task 3: Add Plain Text Interfaces Command
+-----------------------------------------
+Implement `trafix interfaces` using the tested interface collector.
+
+Acceptance checks:
+- Prints interface name, rx bytes, tx bytes, and rate if available.
+- Does not initialize ncurses.
+- `make`
+- `make test`
+
+
+Task 4: Add Plain Text Connections Command
+------------------------------------------
+Implement `trafix connections` using the tested connection collector.
+
+Acceptance checks:
+- Prints protocol, local address, remote address, and state.
+- Does not claim per-connection bandwidth.
+- `make`
+- `make test`
+
+
+Task 5: Add Plain Text System Command
+-------------------------------------
+Implement `trafix system` using existing system/CPU/memory basics.
+
+Acceptance checks:
+- Prints hostname, OS, kernel, uptime, load average.
+- Does not initialize ncurses.
+- `make`
+- `make test`
+
+
+Task 6: Add JSON Output Flag
+----------------------------
+Add `--json` for supported non-TUI commands.
+
+Examples:
+- `trafix interfaces --json`
+- `trafix connections --json`
+- `trafix system --json`
+
+Acceptance checks:
+- Parser tests cover valid and invalid flag placement.
+- JSON output is valid and stable.
+- `make`
+- `make test`
+
+
+Task 7: Add Basic Filtering for Connections
+-------------------------------------------
+Add small filters that are easy to test.
+
+Suggested filters:
+- `--proto tcp`
+- `--proto udp`
+- `--state ESTABLISHED`
+- `--state LISTEN`
+
+Acceptance checks:
+- Filters apply to CLI command only.
+- Parser and command tests cover filters.
+- `make`
+- `make test`
+
+
+Task 8: Add Exit Code Rules
+---------------------------
+Make command success/failure behavior explicit.
+
+Expected rules:
+- `0`: successful command
+- `1`: invalid arguments or collector failure
+- `2`: reserved for permission/data unavailable if useful
+
+Acceptance checks:
+- Tests cover invalid command paths.
+- `make`
+- `make test`
+
+
+Task 9: Add CLI Snapshot Tests
+------------------------------
+Add tests for command formatting using fixture-backed collectors where possible.
+
+Acceptance checks:
+- Tests verify stable text output for at least one command.
+- Tests verify stable JSON output for at least one command.
+- `make`
+- `make test`
+
+
+Task 10: Update README and Man Page
+-----------------------------------
+Document only the implemented CLI commands.
+
+Acceptance checks:
+- README and man page include `interfaces`, `connections`, `system`, and `--json`.
+- No docs claim unimplemented alerts/top-talkers.
+- `make`
+- `make test`
+
+
+Definition of Done for Phase 3
+------------------------------
+- Trafix has real non-interactive CLI commands.
+- Default TUI behavior still works.
+- CLI commands do not initialize ncurses.
+- Text and JSON outputs are tested.
+- Docs match implemented commands.

@@ -1,0 +1,141 @@
+Phase 4 Task List: Real Network Observability
+
+Goal
+----
+Move Trafix from a dashboard of basic system files toward real network
+observability by improving connection ownership, interface rates, DNS/route
+visibility, and accurate network summaries.
+
+Constraints
+-----------
+- Avoid privileged packet capture unless explicitly chosen later.
+- Prefer `/proc`, `/sys`, netlink, and safe Linux APIs first.
+- Do not present estimated or unavailable data as exact.
+- After every task, `make` and `make test` should pass.
+
+
+Task 1: Add Connection PID/Process Ownership
+--------------------------------------------
+Map sockets to owning PID/process where permissions allow.
+
+Acceptance checks:
+- Works without root where visible.
+- Unknown owners display as `-` or `unknown`.
+- Tests cover inode-to-process mapping helper with fixtures or isolated input.
+- `make`
+- `make test`
+
+
+Task 2: Add UID/User to Connections
+-----------------------------------
+Expose socket UID and resolved username.
+
+Acceptance checks:
+- CLI and TUI can show UID/user where space allows.
+- Unknown user fallback is clear.
+- `make`
+- `make test`
+
+
+Task 3: Add IPv6 Connections
+----------------------------
+Parse `/proc/net/tcp6` and `/proc/net/udp6`.
+
+Acceptance checks:
+- IPv6 fixture tests cover local and remote address formatting.
+- CLI `connections` includes IPv4 and IPv6.
+- `make`
+- `make test`
+
+
+Task 4: Add Interface Rate Snapshots
+------------------------------------
+Make interface rate calculation explicit and reusable.
+
+Acceptance checks:
+- Rate calculation accepts previous/current snapshots and elapsed time.
+- Unit tests cover normal and counter-reset cases.
+- `make`
+- `make test`
+
+
+Task 5: Add Route Summary Collector
+-----------------------------------
+Create a structured route/default-gateway collector.
+
+Acceptance checks:
+- Default route, interface, gateway, and metric are parsed.
+- Fixture tests cover common `ip route` output.
+- `make`
+- `make test`
+
+
+Task 6: Add DNS Resolver Summary Collector
+------------------------------------------
+Parse DNS servers safely.
+
+Acceptance checks:
+- Handles `/etc/resolv.conf`.
+- Handles duplicate nameservers.
+- Tests cover empty and populated resolver files.
+- `make`
+- `make test`
+
+
+Task 7: Add Listening Ports View
+--------------------------------
+Add a truthful view/command for listening sockets.
+
+Possible command:
+- `trafix listeners`
+
+Acceptance checks:
+- Shows protocol, local address, PID/process when available.
+- Text and JSON output supported if Phase 3 JSON exists.
+- `make`
+- `make test`
+
+
+Task 8: Add Network Summary Panel Improvements
+----------------------------------------------
+Improve the existing network panel using structured collectors.
+
+Acceptance checks:
+- Panel uses collector data, not ad hoc strings.
+- Small terminal sizes degrade cleanly.
+- `make`
+- `make test`
+
+
+Task 9: Clarify Bandwidth Scope
+-------------------------------
+Decide what Trafix means by bandwidth in this release line.
+
+Options:
+- Interface bandwidth only.
+- Per-process/socket ownership without byte accounting.
+- Future privileged capture mode.
+
+Acceptance checks:
+- UI labels and docs match the decision.
+- No fake per-connection sent/recv values remain.
+- `make`
+- `make test`
+
+
+Task 10: Add Network Collector Benchmarks
+-----------------------------------------
+Add simple timing checks or a small benchmark target for heavy collectors.
+
+Acceptance checks:
+- Socket/process ownership scan has a measurable baseline.
+- Benchmark is optional and not required by normal `make test`.
+
+
+Definition of Done for Phase 4
+------------------------------
+- Connections are more complete: IPv4, IPv6, state, UID/user, PID/process where available.
+- Interface rates are accurate and tested.
+- Route and DNS data are structured and tested.
+- Bandwidth wording is truthful.
+- TUI and CLI use shared collectors.

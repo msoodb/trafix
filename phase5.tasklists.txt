@@ -1,0 +1,132 @@
+Phase 5 Task List: TUI Quality, Performance, and Reliability
+
+Goal
+----
+Make the Trafix TUI feel like a professional terminal application: stable,
+responsive, readable at different sizes, and robust during shutdown/resizing.
+
+Constraints
+-----------
+- Avoid large visual redesigns without tests/manual checks.
+- Keep keyboard behavior predictable.
+- Do not add new observability domains in this phase unless needed for TUI quality.
+- After every task, `make` and `make test` should pass.
+
+
+Task 1: Introduce App Runtime State
+-----------------------------------
+Replace scattered globals where practical with a small runtime state object.
+
+Acceptance checks:
+- Thread stop/pause/refresh state has a clear owner.
+- Existing behavior remains unchanged.
+- `make`
+- `make test`
+
+
+Task 2: Add Clean Shutdown Flag
+-------------------------------
+Replace infinite loops with loops that observe a stop flag.
+
+Acceptance checks:
+- Pressing `q` exits cleanly.
+- Worker threads can be joined.
+- No `pthread_cancel` needed for normal application shutdown.
+- `make`
+- `make test`
+
+
+Task 3: Clean Dynamic Panel Replacement
+---------------------------------------
+Make panel switching stop and join the old panel worker safely.
+
+Acceptance checks:
+- Switching panels repeatedly does not leave orphan workers.
+- No ncurses calls happen after a window is deleted.
+- `make`
+- `make test`
+
+
+Task 4: Handle Terminal Resize
+------------------------------
+Support `KEY_RESIZE` or resize detection.
+
+Acceptance checks:
+- TUI redraws windows after terminal resize.
+- Small terminal sizes show clear fallback messages.
+- `make`
+- `make test`
+
+
+Task 5: Add Safe Rendering Helpers
+----------------------------------
+Use consistent helpers for clipped text, tables, borders, and empty states.
+
+Acceptance checks:
+- No direct unsafe line clipping in new/updated rendering code.
+- Narrow windows do not write past boundaries.
+- `make`
+- `make test`
+
+
+Task 6: Improve Table Headers and Empty States
+----------------------------------------------
+Make panels readable when no data is available.
+
+Acceptance checks:
+- Connections panel handles zero rows clearly.
+- Interfaces panel handles missing data clearly.
+- Process panel handles collector failure clearly.
+- `make`
+- `make test`
+
+
+Task 7: Add Refresh Cadence Configuration
+-----------------------------------------
+Centralize refresh intervals.
+
+Acceptance checks:
+- Intervals are named and documented.
+- Existing defaults remain similar.
+- `make`
+- `make test`
+
+
+Task 8: Add Basic Color Capability Fallback
+-------------------------------------------
+Handle terminals without color support.
+
+Acceptance checks:
+- TUI still starts without color.
+- Color initialization failures do not crash the app.
+- `make`
+- `make test`
+
+
+Task 9: Add TUI Manual Test Checklist
+-------------------------------------
+Create a manual QA checklist for terminal sizes and common workflows.
+
+Acceptance checks:
+- Checklist covers launch, quit, help/version, panel switching, columns, pause, refresh, resize.
+- No code changes required.
+
+
+Task 10: Profile Heavy Collectors Under TUI
+-------------------------------------------
+Identify expensive update loops and reduce obvious waste.
+
+Acceptance checks:
+- Repeated `/proc/*/fd` scans are bounded or cached if still present.
+- TUI remains responsive on systems with many processes/connections.
+- `make`
+- `make test`
+
+
+Definition of Done for Phase 5
+------------------------------
+- TUI exits cleanly.
+- Panel workers have controlled lifecycle.
+- Resize and small terminal behavior are acceptable.
+- Rendering is safer and more consistent.
+- Heavy collectors have known performance characteristics.

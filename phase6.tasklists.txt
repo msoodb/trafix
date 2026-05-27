@@ -1,0 +1,126 @@
+Phase 6 Task List: Packaging, CI, Release Readiness, and Distribution
+
+Goal
+----
+Prepare Trafix for credible public releases: repeatable builds, CI, packaging,
+release notes, and user-facing documentation that matches the actual product.
+
+Constraints
+-----------
+- Do not ship claims that are not implemented.
+- Keep packaging scripts boring and reproducible.
+- CI should run without root.
+- After every task, `make` and `make test` should pass locally.
+
+
+Task 1: Add CI Build and Test Workflow
+--------------------------------------
+Add a Linux CI workflow that builds and runs tests.
+
+Acceptance checks:
+- CI runs `make CC=gcc` or equivalent.
+- CI runs `make test`.
+- No root-only tests.
+
+
+Task 2: Add CI Sanitizer Job
+----------------------------
+Run sanitizer builds/tests in CI if stable.
+
+Acceptance checks:
+- Address/undefined behavior sanitizer job passes or is documented as optional.
+- Failures are actionable.
+
+
+Task 3: Add Release Checklist
+-----------------------------
+Create a release checklist file.
+
+Expected items:
+- update `VERSION`
+- update man page version/date
+- update RPM spec version/changelog
+- run `make clean`
+- run `make`
+- run `make test`
+- run sanitizer target
+- review README/man/docs
+
+
+Task 4: Improve RPM Packaging
+-----------------------------
+Make the RPM spec match current dependencies and installed files.
+
+Acceptance checks:
+- Config is installed as noreplace.
+- Man page is packaged.
+- Runtime dependencies are accurate.
+- `%check` runs tests.
+
+
+Task 5: Add Debian Packaging Notes
+----------------------------------
+Document how Debian/Ubuntu packaging will be handled.
+
+Acceptance checks:
+- Either add packaging files or a clear roadmap note.
+- Do not claim apt availability until it exists.
+
+
+Task 6: Add Install/Uninstall Completeness
+------------------------------------------
+Ensure `make install` and `make uninstall` handle binary, config, man page, and docs consistently.
+
+Acceptance checks:
+- `DESTDIR` works.
+- Install paths respect `PREFIX`.
+- `make uninstall` removes installed project-owned files.
+
+
+Task 7: Add Dependency Documentation
+------------------------------------
+Document build and runtime dependencies accurately.
+
+Acceptance checks:
+- README includes compiler, make, ncurses development package.
+- Optional dependencies are marked optional.
+- No libpcap claim unless used.
+
+
+Task 8: Add Changelog or Release Notes
+--------------------------------------
+Create a simple release notes process.
+
+Acceptance checks:
+- Current release has a short accurate entry.
+- Future releases have a clear place for changes.
+
+
+Task 9: Audit Documentation Claims
+----------------------------------
+Review README, man page, technical docs, feature docs, and spec summary.
+
+Acceptance checks:
+- No unimplemented CLI commands are documented as available.
+- No unimplemented alerts/filters/top-talkers are documented as available.
+- Roadmap items are clearly marked.
+
+
+Task 10: Tag a Release Candidate
+--------------------------------
+Prepare a release candidate once code and docs are ready.
+
+Acceptance checks:
+- Clean worktree except intended release files.
+- Build/test/sanitizer checks pass.
+- Release checklist completed.
+
+
+Definition of Done for Phase 6
+------------------------------
+- CI builds and tests Trafix.
+- Packaging metadata is accurate.
+- Install/uninstall behavior is complete.
+- Documentation matches shipped behavior.
+- A release checklist exists.
+- Trafix is ready for a credible tagged release.
