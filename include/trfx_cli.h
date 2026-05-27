@@ -25,5 +25,6 @@ typedef struct {
 } TrfxCliOptions;
 
 TrfxCliOptions trfx_parse_cli(int argc, char **argv);
+void trfx_print_cli_help(void);
 
 #endif // TRFX_CLI_H

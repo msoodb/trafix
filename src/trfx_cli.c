@@ -43,3 +43,13 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
 
   return options;
 }
+
+void trfx_print_cli_help(void) {
+  printf("Usage: trafix [OPTION]\n");
+  printf("\n");
+  printf("Launch Trafix Linux monitoring TUI.\n");
+  printf("\n");
+  printf("Options:\n");
+  printf("  -h, --help       Show this help message\n");
+  printf("  -v, --version    Show version information\n");
+}
