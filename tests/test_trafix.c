@@ -10,11 +10,16 @@
 #include "trfx_config.h"
 #include "trfx_cli.h"
 #include "trfx_utils.h"
+#include "trfx_version.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifndef TRFX_VERSION
+#define TRFX_VERSION "unknown"
+#endif
 
 #define ASSERT_STR_EQ(actual, expected)                                        \
   do {                                                                        \
@@ -130,6 +135,11 @@ static int test_parse_cli(void) {
   return 0;
 }
 
+static int test_get_version(void) {
+  ASSERT_STR_EQ(trfx_get_version(), TRFX_VERSION);
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -138,6 +148,9 @@ int main(void) {
     return 1;
 
   if (test_parse_cli() != 0)
+    return 1;
+
+  if (test_get_version() != 0)
     return 1;
 
   return 0;

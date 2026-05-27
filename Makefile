@@ -16,6 +16,7 @@ SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 TARGET = $(BIN_DIR)/trafix
 VERSION := $(shell grep -v '^#' VERSION | head -n 1)
+CPPFLAGS += -DTRFX_VERSION=\"$(VERSION)\"
 TAG := v$(VERSION)
 TARBALL := trafix-$(VERSION).tar.gz
 PREFIX ?= /usr
@@ -31,7 +32,7 @@ $(TARGET): $(OBJ)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c src/trfx_cli.c | $(BUILD_DIR)
+$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 test: $(TEST_BIN)
