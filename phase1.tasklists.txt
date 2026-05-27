@@ -1,0 +1,210 @@
+Phase 1 Task List: CLI Skeleton and TUI Separation
+
+Goal
+----
+Create a clear, real CLI skeleton and separate "launch TUI" from command parsing.
+No new user-facing monitoring feature should be added or removed in this phase.
+After every task, the project should still build with `make` and pass `make test`.
+
+Constraints
+-----------
+- Keep current default behavior: running `trafix` starts the TUI.
+- Do not change dashboard behavior, panels, hotkeys, collectors, or config semantics.
+- Do not add new monitoring output modes yet.
+- Keep each task small enough to review independently.
+- Add or update tests where the task changes logic.
+
+
+Task 1: Add a CLI Options Type
+------------------------------
+Create a small struct that represents parsed command-line intent.
+
+Expected shape:
+- A mode enum with at least:
+  - default TUI mode
+  - help requested
+  - version requested
+  - invalid arguments
+- Optional error message storage for invalid arguments.
+
+Implementation notes:
+- Add a new header/source pair if appropriate, for example:
+  - `include/trfx_cli.h`
+  - `src/trfx_cli.c`
+- Do not wire it into `main()` yet except through tests if needed.
+
+Acceptance checks:
+- `make`
+- `make test`
+
+
+Task 2: Add Minimal CLI Parsing Function
+----------------------------------------
+Implement a pure parser function that accepts `argc` and `argv`.
+
+Behavior:
+- `trafix` resolves to TUI mode.
+- `trafix --help` resolves to help mode.
+- `trafix -h` resolves to help mode.
+- `trafix --version` resolves to version mode.
+- `trafix -v` resolves to version mode.
+- Any other argument resolves to invalid arguments.
+
+Important:
+- Do not print from the parser.
+- Do not start ncurses from the parser.
+- Do not add subcommands yet.
+
+Acceptance checks:
+- Add parser unit tests.
+- `make`
+- `make test`
+
+
+Task 3: Move Version Reading Behind a Function
+----------------------------------------------
+Add a small function that returns the compiled Trafix version string.
+
+Behavior:
+- The version should come from the build system or a single generated/compiled constant.
+- Avoid reading `VERSION` from the runtime working directory.
+- Keep the existing `VERSION` file as the source of truth for releases.
+
+Acceptance checks:
+- Version function is covered by a simple test.
+- `make`
+- `make test`
+
+
+Task 4: Wire Parser Into main()
+-------------------------------
+Update `main()` so it parses CLI arguments before starting the dashboard.
+
+Behavior:
+- `trafix` still reads config and starts the TUI exactly as before.
+- `trafix --help` prints help text and exits 0.
+- `trafix -h` prints help text and exits 0.
+- `trafix --version` prints version and exits 0.
+- `trafix -v` prints version and exits 0.
+- Invalid arguments print a short error plus help hint and exit non-zero.
+
+Important:
+- Do not initialize ncurses for help/version/invalid arguments.
+- Do not change dashboard startup behavior for the no-argument path.
+
+Acceptance checks:
+- Add tests for parser behavior.
+- Manual smoke checks:
+  - `bin/trafix --help`
+  - `bin/trafix --version`
+  - `bin/trafix --bad-option`
+- `make`
+- `make test`
+
+
+Task 5: Extract TUI Launch Into a Named Function
+------------------------------------------------
+Move the current startup sequence into a clearly named application-level function.
+
+Example:
+- `int trfx_run_tui(void);`
+
+Behavior:
+- `trfx_run_tui()` reads config and starts the dashboard.
+- `main()` only decides which command path to execute.
+- No dashboard behavior changes.
+
+Acceptance checks:
+- `make`
+- `make test`
+- Manual smoke check: running `bin/trafix` still starts the TUI.
+
+
+Task 6: Add CLI Help Text Function
+----------------------------------
+Create one function responsible for printing CLI help.
+
+Behavior:
+- Help text should describe only real behavior available at this phase:
+  - `trafix`
+  - `trafix --help`
+  - `trafix --version`
+- Do not document future subcommands or flags.
+
+Acceptance checks:
+- `bin/trafix --help` output is short and accurate.
+- `make`
+- `make test`
+
+
+Task 7: Add Invalid Argument Tests
+----------------------------------
+Add tests that prove unknown arguments do not silently start the TUI.
+
+Behavior:
+- Unknown flags produce invalid-argument parse result.
+- Unknown positional commands produce invalid-argument parse result.
+- Multiple arguments are invalid unless they are explicitly supported.
+
+Acceptance checks:
+- `make`
+- `make test`
+
+
+Task 8: Clean Up main() Includes and Naming
+-------------------------------------------
+Make `main()` small and readable after the CLI split.
+
+Expected outcome:
+- `main()` should contain little more than:
+  - parse arguments
+  - switch on selected CLI mode
+  - call the relevant action
+  - return an exit code
+
+Acceptance checks:
+- `make`
+- `make test`
+
+
+Task 9: Align README Usage With Real CLI Skeleton
+-------------------------------------------------
+Update only the usage section needed for the new skeleton.
+
+Behavior:
+- Document that `trafix` launches the TUI.
+- Document `--help` and `--version`.
+- Do not document unimplemented subcommands or alert/filter flags.
+- Avoid broader README rewrites in this phase.
+
+Acceptance checks:
+- Docs match actual behavior.
+- `make`
+- `make test`
+
+
+Task 10: Align Man Page With Real CLI Skeleton
+----------------------------------------------
+Update the man page so packaged CLI help matches actual behavior.
+
+Behavior:
+- Document the no-argument TUI launch.
+- Document `-h`, `--help`, `-v`, and `--version`.
+- Do not document unimplemented subcommands.
+
+Acceptance checks:
+- Man page matches actual behavior.
+- `make`
+- `make test`
+
+
+Definition of Done for Phase 1
+------------------------------
+- `main()` is a command dispatcher, not the place where app behavior is mixed together.
+- Running `trafix` still launches the existing TUI.
+- Help and version paths do not initialize ncurses.
+- Unknown arguments fail clearly instead of being ignored.
+- CLI parsing is covered by unit tests.
+- README and man page describe only real CLI behavior.
+- `make` succeeds.
+- `make test` succeeds.
