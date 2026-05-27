@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "trfx_version.h"
+
 TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
   TrfxCliOptions options = {TRFX_CLI_MODE_TUI, {0}};
 
@@ -52,4 +54,19 @@ void trfx_print_cli_help(void) {
   printf("Options:\n");
   printf("  -h, --help       Show this help message\n");
   printf("  -v, --version    Show version information\n");
+}
+
+void trfx_print_cli_version(void) {
+  printf("trafix %s\n", trfx_get_version());
+}
+
+void trfx_print_cli_error(const TrfxCliOptions *options) {
+  const char *message = "invalid arguments";
+
+  if (options && options->error[0] != '\0') {
+    message = options->error;
+  }
+
+  fprintf(stderr, "trafix: %s\n", message);
+  fprintf(stderr, "Try 'trafix --help' for usage.\n");
 }

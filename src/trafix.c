@@ -7,14 +7,8 @@
  * See LICENSE file for details.
  */
 
-#include <stdio.h>
 #include "trfx_app.h"
 #include "trfx_cli.h"
-#include "trfx_version.h"
-
-static void print_version(void) {
-    printf("trafix %s\n", trfx_get_version());
-}
 
 int main(int argc, char **argv) {
     TrfxCliOptions options = trfx_parse_cli(argc, argv);
@@ -24,11 +18,10 @@ int main(int argc, char **argv) {
         trfx_print_cli_help();
         return 0;
     case TRFX_CLI_MODE_VERSION:
-        print_version();
+        trfx_print_cli_version();
         return 0;
     case TRFX_CLI_MODE_INVALID:
-        fprintf(stderr, "trafix: %s\n", options.error);
-        fprintf(stderr, "Try 'trafix --help' for usage.\n");
+        trfx_print_cli_error(&options);
         return 1;
     case TRFX_CLI_MODE_TUI:
         break;
