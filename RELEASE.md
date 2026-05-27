@@ -150,6 +150,89 @@ If `rpmlint` and `mock` are clean, publish the release:
 
 The Git tag and RPM source archive should now be aligned.
 
+## Test Installed RPM
+
+Install the generated binary RPM locally:
+
+```sh
+sudo dnf install ~/rpmbuild/RPMS/x86_64/trafix-<version>-*.x86_64.rpm
+```
+
+Verify package metadata and installed files:
+
+```sh
+rpm -qi trafix
+rpm -ql trafix
+ls -l /etc/trafix/config.cfg
+man trafix
+```
+
+Run Trafix and verify that the dashboard opens, panels render, and `q` exits:
+
+```sh
+trafix
+```
+
+Remove the local test install when finished:
+
+```sh
+sudo dnf remove trafix
+```
+
+## Fedora Review Request
+
+After the GitHub release is published and the generated packages pass `rpmlint`
+and `mock`, submit a Fedora package review request in Bugzilla:
+
+```text
+https://bugzilla.redhat.com/bugzilla/enter_bug.cgi?product=Fedora&format=fedora-review
+```
+
+Use this summary format:
+
+```text
+Review Request: trafix - Lightweight Linux terminal dashboard for system and network monitoring
+```
+
+Use this description template:
+
+```text
+Spec URL: https://raw.githubusercontent.com/msoodb/trafix/v<version>/trafix.spec
+SRPM URL: https://github.com/msoodb/trafix/releases/download/v<version>/trafix-<version>-1.fc<fedora>.src.rpm
+
+Description:
+Trafix is a lightweight terminal dashboard for Linux. It provides real-time
+system, CPU, memory, disk, process, connection, and network activity monitoring
+through an ncurses interface.
+
+Fedora Account System Username: <your_fedora_username>
+
+rpmlint:
+0 errors, 0 warnings
+
+mock:
+Build completed successfully for fedora-rawhide-x86_64.
+
+License:
+GPL-3.0-or-later
+```
+
+If this is your first Fedora package, add the review request as blocking:
+
+```text
+FE-NEEDSPONSOR
+```
+
+The FE-NEEDSPONSOR tracker bug is:
+
+```text
+177841
+```
+
+After filing, wait for reviewer comments and update the spec or package as
+requested. If the review sits idle, ask politely for a review swap on Fedora
+packaging or development channels.
+
 ## Notes
 
 - Source tarball creation is not needed in this repository. GitHub generates
