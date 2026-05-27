@@ -8,6 +8,7 @@
  */
 
 #include "trfx_config.h"
+#include "trfx_cli.h"
 #include "trfx_utils.h"
 
 #include <stdio.h>
@@ -29,6 +30,15 @@
     if ((actual) != (expected)) {                                             \
       fprintf(stderr, "%s:%d: expected %d, got %d\n", __FILE__, __LINE__,     \
               (expected), (actual));                                          \
+      return 1;                                                               \
+    }                                                                         \
+  } while (0)
+
+#define ASSERT_MODE_EQ(actual, expected)                                       \
+  do {                                                                        \
+    if ((actual) != (expected)) {                                             \
+      fprintf(stderr, "%s:%d: expected CLI mode %d, got %d\n", __FILE__,     \
+              __LINE__, (expected), (actual));                                \
       return 1;                                                               \
     }                                                                         \
   } while (0)
@@ -81,11 +91,53 @@ static int test_read_config(void) {
   return 0;
 }
 
+static int test_parse_cli(void) {
+  char *default_argv[] = {"trafix"};
+  TrfxCliOptions options = trfx_parse_cli(1, default_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_TUI);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *help_long_argv[] = {"trafix", "--help"};
+  options = trfx_parse_cli(2, help_long_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_HELP);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *help_short_argv[] = {"trafix", "-h"};
+  options = trfx_parse_cli(2, help_short_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_HELP);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *version_long_argv[] = {"trafix", "--version"};
+  options = trfx_parse_cli(2, version_long_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_VERSION);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *version_short_argv[] = {"trafix", "-v"};
+  options = trfx_parse_cli(2, version_short_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_VERSION);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *bad_argv[] = {"trafix", "--bad-option"};
+  options = trfx_parse_cli(2, bad_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: --bad-option");
+
+  char *too_many_argv[] = {"trafix", "--help", "--version"};
+  options = trfx_parse_cli(3, too_many_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: --help");
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
 
   if (test_read_config() != 0)
+    return 1;
+
+  if (test_parse_cli() != 0)
     return 1;
 
   return 0;

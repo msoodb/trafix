@@ -24,4 +24,6 @@ typedef struct {
   char error[TRFX_CLI_ERROR_MAX];
 } TrfxCliOptions;
 
+TrfxCliOptions trfx_parse_cli(int argc, char **argv);
+
 #endif // TRFX_CLI_H
