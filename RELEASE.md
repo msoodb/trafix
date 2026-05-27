@@ -126,6 +126,30 @@ For a stricter Fedora-style build, use `mock` on the generated SRPM:
 mock -r fedora-rawhide-x86_64 ~/rpmbuild/SRPMS/trafix-*.src.rpm
 ```
 
+Confirm that the remote tag points to the intended release commit:
+
+```sh
+git ls-remote --tags origin v$(grep -v '^#' VERSION | head -n 1)
+```
+
+For annotated tags, the `refs/tags/v<version>^{}` line should resolve to the
+same commit as the release commit.
+
+## Publish GitHub Release
+
+If `rpmlint` and `mock` are clean, publish the release:
+
+1. Go to GitHub releases.
+2. Create a release from tag `v<version>`.
+3. Attach the generated RPM artifacts:
+
+```sh
+~/rpmbuild/SRPMS/trafix-<version>-*.src.rpm
+~/rpmbuild/RPMS/x86_64/trafix-<version>-*.x86_64.rpm
+```
+
+The Git tag and RPM source archive should now be aligned.
+
 ## Notes
 
 - Source tarball creation is not needed in this repository. GitHub generates
