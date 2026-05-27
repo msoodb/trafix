@@ -22,7 +22,7 @@ Trafix is a lightweight terminal dashboard that provides real-time insights into
 Linux system, CPU, memory, disk, process, connection, and network activity.
 
 %prep
-%autosetup -n %{name}-%{gittag}
+%autosetup -n %{name}-%{version}
 
 %build
 %make_build
