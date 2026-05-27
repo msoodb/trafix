@@ -54,8 +54,34 @@ To install Trafix from the source, follow these steps:
 3. After installation, you can run Trafix with:
 
     ```sh
+    trafix
+    ```
+
+    When running from the source tree without installing, use:
+
+    ```sh
     bin/trafix
     ```
+
+### Command-line Usage
+
+Launch the Trafix TUI:
+
+```sh
+trafix
+```
+
+Show help:
+
+```sh
+trafix --help
+```
+
+Show version information:
+
+```sh
+trafix --version
+```
 
 ### Install from Fedora Repository
 > This installation method is under development and not yet ready for use.
