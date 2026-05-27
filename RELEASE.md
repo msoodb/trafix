@@ -80,7 +80,7 @@ The bump script updates:
 
 It then commits the version bump.
 
-## Build RPMs
+## Tag And Build RPMs
 
 Create and push the release tag:
 
@@ -110,21 +110,6 @@ Generated packages are written under:
 ```sh
 ~/rpmbuild/RPMS/
 ~/rpmbuild/SRPMS/
-```
-
-## One-Command Release
-
-After code changes are committed and the version bump commit exists, run:
-
-```sh
-make release
-```
-
-`make release` expands to:
-
-```sh
-make tag
-make rpm
 ```
 
 ## Final Validation

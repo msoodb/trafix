@@ -68,9 +68,6 @@ rpm: copy-spec
 	spectool -g -R $(SPECDIR)/trafix.spec
 	rpmbuild -ba $(SPECDIR)/trafix.spec
 
-# Full release process
-release: tag rpm
-
 # Installation
 install: install-bin
 
@@ -86,4 +83,4 @@ clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm release
+.PHONY: all test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
