@@ -7,13 +7,47 @@
  * See LICENSE file for details.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include "trfx_cli.h"
 #include "trfx_config.h"
 #include "trfx_dashboard.h"
+#include "trfx_version.h"
 
-int main() {
+static void print_help(void) {
+    printf("Usage: trafix [OPTION]\n");
+    printf("\n");
+    printf("Launch Trafix Linux monitoring TUI.\n");
+    printf("\n");
+    printf("Options:\n");
+    printf("  -h, --help       Show this help message\n");
+    printf("  -v, --version    Show version information\n");
+}
+
+static void print_version(void) {
+    printf("trafix %s\n", trfx_get_version());
+}
+
+int main(int argc, char **argv) {
+    TrfxCliOptions options = trfx_parse_cli(argc, argv);
+
+    switch (options.mode) {
+    case TRFX_CLI_MODE_HELP:
+        print_help();
+        return 0;
+    case TRFX_CLI_MODE_VERSION:
+        print_version();
+        return 0;
+    case TRFX_CLI_MODE_INVALID:
+        fprintf(stderr, "trafix: %s\n", options.error);
+        fprintf(stderr, "Try 'trafix --help' for usage.\n");
+        return 1;
+    case TRFX_CLI_MODE_TUI:
+        break;
+    }
+
     srand(time(NULL));
     read_config(CONFIG_FILE);
     start_dashboard();
