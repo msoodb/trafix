@@ -8,12 +8,8 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
+#include "trfx_app.h"
 #include "trfx_cli.h"
-#include "trfx_config.h"
-#include "trfx_dashboard.h"
 #include "trfx_version.h"
 
 static void print_help(void) {
@@ -48,8 +44,5 @@ int main(int argc, char **argv) {
         break;
     }
 
-    srand(time(NULL));
-    read_config(CONFIG_FILE);
-    start_dashboard();
-    return 0;
+    return trfx_run_tui();
 }
