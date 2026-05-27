@@ -3,15 +3,24 @@
 .\" SPDX-License-Identifier: GPL-3.0-or-later
 .\" Copyright (C) 2025 Masoud Bolhassani.
 
-.TH TRAFIX 1 "April 2025" "1.0.2" "User Commands"
+.TH TRAFIX 1 "May 2026" "0.1.0" "User Commands"
 .SH NAME
 trafix \- Lightweight network monitoring tool for Linux
 .SH SYNOPSIS
 .B trafix
+.RI [ OPTION ]
 .SH DESCRIPTION
-Trafix is a lightweight tool that provides real-time insights into connections, CPU, and network activity via a command-line interface.
+Trafix is a lightweight terminal user interface that provides real-time insights into Linux system, connection, and network activity.
+
+Running
+.B trafix
+without options launches the interactive TUI.
 .SH OPTIONS
-.B -h, --help
+.TP
+.BR -h ", " --help
 Display this help message and exit.
+.TP
+.BR -v ", " --version
+Display version information and exit.
 .SH AUTHOR
 Written by Masoud Bolhassani.
