@@ -45,40 +45,4 @@ install -Dpm644 config/config.cfg %{buildroot}%{_sysconfdir}/trafix/config.cfg
 
 %changelog
 * Wed May 27 2026 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 0.1.0-1
-- Align RPM packaging with Fedora guidelines
-
-* Mon Jul 28 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.1.1-1
-- Bump version to 1.1.1
-
-* Wed May 07 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.1.0-1
-- Bump version to 1.1.0
-
-* Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.9-1
-- Bump version to 1.0.9
-
-* Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.8-1
-- Bump version to 1.0.8
-
-* Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.7-1
-- Bump version to 1.0.7
-
-* Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.6-1
-- Bump version to 1.0.6
-
-* Mon May 05 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.5-1
-- Bump version to 1.0.5
-
-* Fri May 02 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.4-1
-- Bump version to 1.0.4
-
-* Fri May 02 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.3-1
-- Bump version to 1.0.3
-
-* Fri May 02 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.2-1
-- Bump version to 1.0.2
-
-* Wed Apr 30 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.1-1
-- Bump version to 1.0.1
-
-* Fri Apr 25 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 1.0.0-1
-- Initial RPM release
+- Initial 0.1.0 RPM release
