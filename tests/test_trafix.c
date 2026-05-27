@@ -127,10 +127,25 @@ static int test_parse_cli(void) {
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
   ASSERT_STR_EQ(options.error, "unknown argument: --bad-option");
 
+  char *unknown_command_argv[] = {"trafix", "connections"};
+  options = trfx_parse_cli(2, unknown_command_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: connections");
+
   char *too_many_argv[] = {"trafix", "--help", "--version"};
   options = trfx_parse_cli(3, too_many_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
   ASSERT_STR_EQ(options.error, "unknown argument: --help");
+
+  char *default_plus_extra_argv[] = {"trafix", "tui", "--help"};
+  options = trfx_parse_cli(3, default_plus_extra_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: tui");
+
+  char *version_plus_extra_argv[] = {"trafix", "--version", "extra"};
+  options = trfx_parse_cli(3, version_plus_extra_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: --version");
 
   return 0;
 }
