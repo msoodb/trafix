@@ -1,0 +1,280 @@
+Phase 2 Task List: Collector Correctness and Testable Foundations
+
+Goal
+----
+Make Trafix more reliable as a Linux observability/network monitoring tool by
+separating data collection from rendering, adding parser tests, and making the
+current information more correct.
+
+This phase should not chase large new features. It should make existing panels
+more trustworthy and easier to evolve.
+
+Constraints
+-----------
+- Keep the current TUI layout and hotkeys working.
+- Keep `trafix`, `trafix --help`, and `trafix --version` behavior from Phase 1.
+- Prefer small, reviewable commits.
+- After every task, `make` and `make test` should pass.
+- Add tests for parser/data logic before or with behavior changes.
+- Avoid adding privileged packet capture, eBPF, libpcap, or daemon behavior in this phase.
+
+
+Task 1: Create Collector Fixture Directory
+------------------------------------------
+Add a small test fixture structure for Linux proc/sys-style files.
+
+Suggested layout:
+- `tests/fixtures/proc_net_tcp`
+- `tests/fixtures/proc_net_udp`
+- `tests/fixtures/proc_net_dev`
+- `tests/fixtures/proc_meminfo`
+- `tests/fixtures/proc_stat`
+
+Acceptance checks:
+- Fixtures are small and readable.
+- `make`
+- `make test`
+
+
+Task 2: Refactor Connection Parser to Accept FILE/Input Path
+------------------------------------------------------------
+Separate `/proc/net/tcp` parsing from direct file opening.
+
+Expected outcome:
+- A pure-ish parser can parse one proc-net socket file from a supplied path or stream.
+- `get_connection_info()` still reads the real system files.
+- No TUI behavior changes.
+
+Acceptance checks:
+- Add tests using TCP/UDP fixtures.
+- `make`
+- `make test`
+
+
+Task 3: Fix Connection Port Parsing
+-----------------------------------
+Ensure local and remote ports are parsed correctly from `/proc/net/tcp` and
+`/proc/net/udp`.
+
+Current risk:
+- Existing parsing strips the port before passing data to `parse_ip_port()`.
+
+Acceptance checks:
+- Fixture test proves `0100007F:1F90` becomes `127.0.0.1:8080`.
+- Fixture test proves remote addresses include their real port.
+- `make`
+- `make test`
+
+
+Task 4: Add Complete TCP State Mapping
+--------------------------------------
+Make connection states explicit and complete for standard Linux TCP states.
+
+Expected states:
+- `ESTABLISHED`
+- `SYN_SENT`
+- `SYN_RECV`
+- `FIN_WAIT1`
+- `FIN_WAIT2`
+- `TIME_WAIT`
+- `CLOSE`
+- `CLOSE_WAIT`
+- `LAST_ACK`
+- `LISTEN`
+- `CLOSING`
+- `NEW_SYN_RECV`
+- fallback `UNKNOWN`
+
+Acceptance checks:
+- Unit tests cover several states, including unknown state fallback.
+- `make`
+- `make test`
+
+
+Task 5: Decide and Document UDP State Display
+---------------------------------------------
+Make UDP display intentional instead of treating it like TCP.
+
+Expected outcome:
+- UDP rows should show a clear state such as `UNCONN`, `ESTABLISHED`, or `UNKNOWN`
+  depending on Linux proc state values.
+- The choice should be documented in a short code comment near the mapping.
+
+Acceptance checks:
+- UDP fixture test covers displayed state.
+- `make`
+- `make test`
+
+
+Task 6: Extract Interface Stats Parser
+--------------------------------------
+Separate `/proc/net/dev` parsing from formatting/rendering.
+
+Expected outcome:
+- A parser returns structured interface byte counters.
+- Existing network panel still renders the same information.
+- String formatting remains outside the parser.
+
+Acceptance checks:
+- Fixture test covers at least `lo` and one real interface name.
+- `make`
+- `make test`
+
+
+Task 7: Fix Interface Rate Formatting Bug
+-----------------------------------------
+Review `internal_format_bytes()` usage in network info and ensure sent/received
+values do not accidentally share the same static buffer.
+
+Expected outcome:
+- Sent and received columns are formatted independently and correctly.
+- Prefer caller-provided buffers over static internal buffers.
+
+Acceptance checks:
+- Unit test proves different TX/RX deltas render as different values.
+- `make`
+- `make test`
+
+
+Task 8: Rename Misleading Bandwidth Panel Internals
+---------------------------------------------------
+The current per-connection bandwidth panel does not measure sent/received
+traffic; it maps sockets to processes and displays zero byte counters.
+
+Expected outcome:
+- Internal function/type names should stop implying real bandwidth if no real
+  per-connection accounting exists yet.
+- User-facing panel title can remain unchanged only if it is accurate after the
+  task. Otherwise rename it to something truthful such as `Socket Owners`.
+
+Acceptance checks:
+- No fake sent/recv traffic values are presented as real measurements.
+- `make`
+- `make test`
+
+
+Task 9: Reduce popen Usage in System Info
+-----------------------------------------
+Replace simple shell-outs where direct system APIs/files are easy.
+
+Targets:
+- Kernel version: use `uname(2)` instead of `popen("uname -r")`.
+- Logged-in users: either keep as known limitation or isolate behind one helper.
+
+Acceptance checks:
+- Existing system info panel still works.
+- `make`
+- `make test`
+
+
+Task 10: Reduce popen Usage in Network Info
+-------------------------------------------
+Isolate or replace route and Wi-Fi shell-outs.
+
+Expected outcome:
+- `ip route` parsing is behind a helper that can be tested with fixture text.
+- `iw` usage remains optional and failure-safe.
+- No shell command construction should use unvalidated interface names.
+
+Acceptance checks:
+- Route parser test covers default gateway and metric.
+- `make`
+- `make test`
+
+
+Task 11: Add Collector Error Reporting Pattern
+----------------------------------------------
+Start returning collector status instead of silently returning empty data.
+
+Expected outcome:
+- At least one collector has a status enum or error field.
+- TUI can still degrade gracefully when data is unavailable.
+- Do not spam stderr from TUI update loops.
+
+Acceptance checks:
+- Test covers a missing/unreadable fixture path.
+- `make`
+- `make test`
+
+
+Task 12: Add Debug Build Target
+-------------------------------
+Add a Makefile target for local development diagnostics.
+
+Suggested target:
+- `make debug`
+
+Suggested flags:
+- `-O0`
+- `-g3`
+- existing warnings
+
+Acceptance checks:
+- `make debug CC=/usr/bin/gcc`
+- `make`
+- `make test`
+
+
+Task 13: Add Sanitizer Build Target
+-----------------------------------
+Add a separate sanitizer target for memory/undefined behavior checks.
+
+Suggested target:
+- `make asan`
+
+Suggested flags:
+- `-O1`
+- `-g`
+- `-fsanitize=address,undefined`
+- `-fno-omit-frame-pointer`
+
+Acceptance checks:
+- `make asan CC=/usr/bin/gcc`
+- `make test CC=/usr/bin/gcc`
+
+
+Task 14: Make Tests Easier to Extend
+------------------------------------
+Split the growing test file if it becomes hard to read.
+
+Possible layout:
+- `tests/test_cli.c`
+- `tests/test_config.c`
+- `tests/test_utils.c`
+- `tests/test_connections.c`
+- `tests/test_netinfo.c`
+
+Expected outcome:
+- Makefile can build and run all tests.
+- No test should require root.
+
+Acceptance checks:
+- `make test`
+
+
+Task 15: Update Technical Docs to Match Reality
+-----------------------------------------------
+Clean the technical docs that still describe unimplemented commands and alerts.
+
+Expected outcome:
+- Docs describe the current TUI and CLI skeleton truthfully.
+- Future ideas are clearly marked as roadmap, not current behavior.
+
+Acceptance checks:
+- No docs claim `trafix connections`, `trafix bandwidth`, alerts, filters, or
+  top-talkers are implemented unless they actually are.
+- `make`
+- `make test`
+
+
+Definition of Done for Phase 2
+------------------------------
+- Connection parsing is fixture-tested and more correct.
+- Interface counter parsing is fixture-tested and separated from rendering.
+- At least some shell-outs are removed or isolated behind testable helpers.
+- The fake per-connection bandwidth presentation is made truthful.
+- Tests are easier to extend.
+- Debug/sanitizer build targets exist.
+- Documentation does not promise unimplemented CLI features.
+- `make` succeeds.
+- `make test` succeeds.
