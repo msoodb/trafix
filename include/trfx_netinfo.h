@@ -34,6 +34,10 @@ int trfx_parse_interface_stats_file(FILE *fp, TrfxInterfaceStat stats[],
 int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
                                     int max_stats);
 int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats);
+void trfx_format_net_bytes(double bytes, char *buf, size_t bufsize);
+void trfx_format_interface_usage_line(const char *name, double tx_bytes,
+                                      double rx_bytes, char *buf,
+                                      size_t bufsize);
 char** get_interfaces_usage(int *num_interfaces);
 void free_interfaces_usage(char **data, int num_interfaces);
 

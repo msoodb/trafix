@@ -240,21 +240,29 @@ static TrfxInterfaceStat* find_prev_stat(const char *name) {
     return NULL;
 }
 
-// Function to format bytes into human-readable form (KB, MB, GB)
-const char* internal_format_bytes(double bytes) {
-    static char formatted[20];  // Static buffer to hold the formatted string
-
+void trfx_format_net_bytes(double bytes, char *buf, size_t bufsize) {
     if (bytes < 1024) {
-        snprintf(formatted, sizeof(formatted), "%.2f B", bytes);
+        snprintf(buf, bufsize, "%.2f B", bytes);
     } else if (bytes < 1024 * 1024) {
-        snprintf(formatted, sizeof(formatted), "%.2f KB", bytes / 1024);
+        snprintf(buf, bufsize, "%.2f KB", bytes / 1024);
     } else if (bytes < 1024 * 1024 * 1024) {
-        snprintf(formatted, sizeof(formatted), "%.2f MB", bytes / (1024 * 1024));
+        snprintf(buf, bufsize, "%.2f MB", bytes / (1024 * 1024));
     } else {
-        snprintf(formatted, sizeof(formatted), "%.2f GB", bytes / (1024 * 1024 * 1024));
+        snprintf(buf, bufsize, "%.2f GB", bytes / (1024 * 1024 * 1024));
     }
+}
 
-    return formatted;
+void trfx_format_interface_usage_line(const char *name, double tx_bytes,
+                                      double rx_bytes, char *buf,
+                                      size_t bufsize) {
+    char formatted_sent[20];
+    char formatted_recv[20];
+
+    trfx_format_net_bytes(tx_bytes, formatted_sent, sizeof(formatted_sent));
+    trfx_format_net_bytes(rx_bytes, formatted_recv, sizeof(formatted_recv));
+
+    snprintf(buf, bufsize, " %-15.15s | %10s | %10s", name, formatted_sent,
+             formatted_recv);
 }
 
 // Function to get bandwidth usage, modified to use format_bytes
@@ -289,12 +297,8 @@ char** get_interfaces_usage(int *num_interfaces) {
             }
         }
 
-        // Format the sent and received bytes using format_bytes
-        const char *formatted_sent = internal_format_bytes(delta_tx);
-        const char *formatted_recv = internal_format_bytes(delta_rx);
-
-        // Store formatted data
-        snprintf(data[i], 128, " %-15.15s | %10s | %10s", curr_stats[i].name, formatted_sent, formatted_recv);
+        trfx_format_interface_usage_line(curr_stats[i].name, delta_tx,
+                                         delta_rx, data[i], 128);
     }
 
     // Update previous state

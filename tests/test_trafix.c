@@ -227,6 +227,16 @@ static int test_parse_interface_stats_fixture(void) {
   return 0;
 }
 
+static int test_format_interface_usage_line(void) {
+  char line[128];
+
+  trfx_format_interface_usage_line("eth0", 2048.0, 1048576.0, line,
+                                   sizeof(line));
+  ASSERT_STR_EQ(line, " eth0            |    2.00 KB |    1.00 MB");
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -250,6 +260,9 @@ int main(void) {
     return 1;
 
   if (test_parse_interface_stats_fixture() != 0)
+    return 1;
+
+  if (test_format_interface_usage_line() != 0)
     return 1;
 
   return 0;
