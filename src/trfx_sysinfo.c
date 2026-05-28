@@ -9,8 +9,59 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/utsname.h>
+#include <utmpx.h>
 #include <unistd.h>
 #include "trfx_sysinfo.h"
+
+#define TRFX_LOGIN_NAME_MAX 32
+
+static void append_unique_user(char users[][TRFX_LOGIN_NAME_MAX], int *user_count,
+                               const char *user) {
+    if (!user || user[0] == '\0')
+        return;
+
+    for (int i = 0; i < *user_count; i++) {
+        if (strncmp(users[i], user, TRFX_LOGIN_NAME_MAX - 1) == 0)
+            return;
+    }
+
+    if (*user_count < 32) {
+        snprintf(users[*user_count], TRFX_LOGIN_NAME_MAX, "%.*s",
+                 TRFX_LOGIN_NAME_MAX - 1, user);
+        (*user_count)++;
+    }
+}
+
+static void get_logged_in_users(char *buf, size_t bufsize) {
+    char users[32][TRFX_LOGIN_NAME_MAX];
+    int user_count = 0;
+
+    if (!buf || bufsize == 0)
+        return;
+
+    buf[0] = '\0';
+
+    setutxent();
+    struct utmpx *entry;
+    while ((entry = getutxent()) != NULL) {
+        if (entry->ut_type == USER_PROCESS) {
+            append_unique_user(users, &user_count, entry->ut_user);
+        }
+    }
+    endutxent();
+
+    if (user_count == 0) {
+        snprintf(buf, bufsize, "N/A");
+        return;
+    }
+
+    for (int i = 0; i < user_count; i++) {
+        if (i > 0)
+            strncat(buf, " ", bufsize - strlen(buf) - 1);
+        strncat(buf, users[i], bufsize - strlen(buf) - 1);
+    }
+}
 
 SystemOverview get_system_overview() {
     SystemOverview info;
@@ -23,6 +74,7 @@ SystemOverview get_system_overview() {
 
     // Hostname
     gethostname(info.hostname, sizeof(info.hostname));
+    info.hostname[sizeof(info.hostname) - 1] = '\0';
 
     // OS Version
     FILE *fp = fopen("/etc/os-release", "r");
@@ -39,12 +91,11 @@ SystemOverview get_system_overview() {
     }
 
     // Kernel Version
-    fp = popen("uname -r 2>/dev/null", "r");
-    if (fp) {
-        if (fgets(info.kernel_version, sizeof(info.kernel_version), fp) != NULL) {
-            info.kernel_version[strcspn(info.kernel_version, "\n")] = 0;
-        }
-        pclose(fp);
+    struct utsname uts;
+    if (uname(&uts) == 0) {
+        strncpy(info.kernel_version, uts.release,
+                sizeof(info.kernel_version) - 1);
+        info.kernel_version[sizeof(info.kernel_version) - 1] = '\0';
     }
 
     // Uptime
@@ -71,13 +122,7 @@ SystemOverview get_system_overview() {
     }
 
     // Logged-in users
-    fp = popen("who | awk '{print $1}' | sort | uniq | tr '\\n' ' '", "r");
-    if (fp) {
-        if (fgets(info.logged_in_users, sizeof(info.logged_in_users), fp) != NULL) {
-            info.logged_in_users[strcspn(info.logged_in_users, "\n")] = 0;
-        }
-        pclose(fp);
-    }
+    get_logged_in_users(info.logged_in_users, sizeof(info.logged_in_users));
 
     return info;
 }
