@@ -16,13 +16,13 @@ int main(int argc, char **argv) {
     switch (options.mode) {
     case TRFX_CLI_MODE_HELP:
         trfx_print_cli_help();
-        return 0;
+        return TRFX_EXIT_OK;
     case TRFX_CLI_MODE_VERSION:
         trfx_print_cli_version();
-        return 0;
+        return TRFX_EXIT_OK;
     case TRFX_CLI_MODE_INVALID:
         trfx_print_cli_error(&options);
-        return 1;
+        return TRFX_EXIT_ERROR;
     case TRFX_CLI_MODE_INTERFACES:
         return trfx_run_interfaces_command(options.output_format);
     case TRFX_CLI_MODE_CONNECTIONS:

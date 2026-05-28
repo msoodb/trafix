@@ -29,6 +29,12 @@ typedef enum {
   TRFX_CLI_OUTPUT_JSON
 } TrfxCliOutputFormat;
 
+typedef enum {
+  TRFX_EXIT_OK = 0,
+  TRFX_EXIT_ERROR = 1,
+  TRFX_EXIT_DATA_UNAVAILABLE = 2
+} TrfxExitCode;
+
 typedef struct {
   TrfxCliMode mode;
   TrfxCliOutputFormat output_format;

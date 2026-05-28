@@ -63,7 +63,7 @@ int trfx_run_tui(void) {
   srand(time(NULL));
   read_config(CONFIG_FILE);
   start_dashboard();
-  return 0;
+  return TRFX_EXIT_OK;
 }
 
 int trfx_run_interfaces_command(TrfxCliOutputFormat output_format) {
@@ -73,7 +73,7 @@ int trfx_run_interfaces_command(TrfxCliOutputFormat output_format) {
   if (result.status != TRFX_COLLECTOR_OK) {
     fprintf(stderr, "trafix: failed to collect interfaces: %s\n",
             result.error[0] ? result.error : "unknown error");
-    return 1;
+    return TRFX_EXIT_DATA_UNAVAILABLE;
   }
 
   if (output_format == TRFX_CLI_OUTPUT_JSON) {
@@ -87,7 +87,7 @@ int trfx_run_interfaces_command(TrfxCliOutputFormat output_format) {
              result.stats[i].tx_bytes);
     }
     printf("]}\n");
-    return 0;
+    return TRFX_EXIT_OK;
   }
 
   printf("%-15s %12s %12s\n", "INTERFACE", "RX_BYTES", "TX_BYTES");
@@ -96,7 +96,7 @@ int trfx_run_interfaces_command(TrfxCliOutputFormat output_format) {
            result.stats[i].rx_bytes, result.stats[i].tx_bytes);
   }
 
-  return 0;
+  return TRFX_EXIT_OK;
 }
 
 static int connection_matches_filters(const ConnectionInfo *connection,
@@ -106,7 +106,7 @@ static int connection_matches_filters(const ConnectionInfo *connection,
 
   if (options->has_proto_filter &&
       strcmp(connection->protocol, options->proto_filter) != 0) {
-    return 0;
+    return TRFX_EXIT_OK;
   }
 
   if (options->has_state_filter &&
@@ -157,7 +157,7 @@ int trfx_run_connections_command(const TrfxCliOptions *options) {
            connections[i].state);
   }
 
-  return 0;
+  return TRFX_EXIT_OK;
 }
 
 int trfx_run_system_command(TrfxCliOutputFormat output_format) {
@@ -177,7 +177,7 @@ int trfx_run_system_command(TrfxCliOutputFormat output_format) {
     printf(",\"logged_in_users\":");
     print_json_string(overview.logged_in_users);
     printf("}\n");
-    return 0;
+    return TRFX_EXIT_OK;
   }
 
   printf("%-16s %s\n", "HOSTNAME", overview.hostname);
@@ -187,5 +187,5 @@ int trfx_run_system_command(TrfxCliOutputFormat output_format) {
   printf("%-16s %s\n", "LOAD_AVG", overview.load_avg);
   printf("%-16s %s\n", "LOGGED_IN_USERS", overview.logged_in_users);
 
-  return 0;
+  return TRFX_EXIT_OK;
 }

@@ -3,17 +3,8 @@
 
 # Trafix CLI Contract
 
-This document defines the first scriptable Trafix CLI commands planned for
-Phase 3. It is a contract for implementation work, not a statement that these
-commands are already available.
-
-Current implemented commands remain:
-
-```sh
-trafix
-trafix --help
-trafix --version
-```
+This document defines the scriptable Trafix CLI behavior implemented during
+Phase 3.
 
 ## General Rules
 
@@ -21,14 +12,14 @@ trafix --version
 - Scriptable commands must not initialize ncurses.
 - Output must be stable enough for simple shell parsing.
 - Text output is the default.
-- JSON output is planned later in Phase 3.
+- JSON output is available for scriptable commands with `--json`.
 - Unknown commands or invalid options exit non-zero.
 
 ## Exit Codes
 
 - `0`: command completed successfully.
-- `1`: invalid arguments or command failed.
-- `2`: reserved for unavailable data or permission-limited collection if later needed.
+- `1`: invalid arguments or general command failure.
+- `2`: required collector data is unavailable or permission-limited.
 
 ## Initial Subcommands
 
@@ -84,11 +75,9 @@ Rules:
 - Use the same system overview collector as the TUI.
 - Missing fields should display `N/A`.
 
-## Planned Later in Phase 3
+## JSON Output
 
-### JSON Output
-
-Planned form:
+Supported form:
 
 ```sh
 trafix interfaces --json
@@ -96,11 +85,11 @@ trafix connections --json
 trafix system --json
 ```
 
-JSON output must be valid JSON and should use stable field names.
+JSON output is valid JSON and uses stable field names.
 
-### Connection Filters
+## Connection Filters
 
-Planned filters:
+Supported filters:
 
 ```sh
 trafix connections --proto tcp
