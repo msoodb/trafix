@@ -11,5 +11,6 @@
 #define TRFX_APP_H
 
 int trfx_run_tui(void);
+int trfx_run_interfaces_command(void);
 
 #endif // TRFX_APP_H
