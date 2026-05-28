@@ -575,11 +575,11 @@ void trfx_format_interface_usage_line(const char *name, double tx_bytes,
     trfx_format_net_bytes(tx_bytes, formatted_sent, sizeof(formatted_sent));
     trfx_format_net_bytes(rx_bytes, formatted_recv, sizeof(formatted_recv));
 
-    snprintf(buf, bufsize, " %-15.15s | %10s | %10s", name, formatted_sent,
+    snprintf(buf, bufsize, " %-15.15s | %8s/s | %8s/s", name, formatted_sent,
              formatted_recv);
 }
 
-// Function to get bandwidth usage, modified to use format_bytes
+// Interface bandwidth in Trafix means byte rates from interface counters.
 char** get_interfaces_usage(int *num_interfaces) {
     TrfxInterfaceStat curr_stats[TRFX_MAX_INTERFACES];
     int curr_count = trfx_read_interface_stats(curr_stats, TRFX_MAX_INTERFACES);

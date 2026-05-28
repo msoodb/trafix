@@ -24,11 +24,15 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
 ## Key Features:
 
 - **Monitor Active Connections:** View detailed information about all active TCP/UDP connections, including local and remote addresses, ports, and connection states.
-- **Track Interface Activity:** Monitor sent and received interface counter deltas in real time.
+- **Track Interface Activity:** Monitor interface-level sent/received byte rates from Linux interface counters.
 - **Socket Owners:** Map visible sockets to owning PID/process where available.
 - **Scriptable CLI:** Print interface counters, active connections, and system overview data in text or JSON format.
 
 Trafix is designed to be lightweight, efficient, and to use minimal system resources, making it an ideal tool for monitoring network activity on Linux-based systems.
+
+## Bandwidth Scope
+
+In this release line, Trafix treats bandwidth as interface-level byte rates. Connection and socket-owner views show protocol, address, state, UID/user, PID, and process ownership where visible, but they do not claim per-connection, per-socket, or per-process byte accounting.
 
 ## Installation and Usage:
 
@@ -97,6 +101,13 @@ trafix connections
 trafix connections --json
 trafix connections --proto tcp
 trafix connections --state ESTABLISHED
+```
+
+Print local listeners:
+
+```sh
+trafix listeners
+trafix listeners --json
 ```
 
 Print a compact system overview:

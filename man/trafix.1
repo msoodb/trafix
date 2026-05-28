@@ -18,6 +18,9 @@ trafix \- Lightweight network monitoring tool for Linux
 .RI [ "--proto tcp|udp" ]
 .RI [ "--state STATE" ]
 .br
+.B trafix listeners
+.RI [ --json ]
+.br
 .B trafix system
 .RI [ --json ]
 .SH DESCRIPTION
@@ -35,6 +38,11 @@ for JSON output.
 .TP
 .B connections
 Print current TCP/UDP connections. Text output is the default; use
+.B --json
+for JSON output.
+.TP
+.B listeners
+Print local listening sockets. Text output is the default; use
 .B --json
 for JSON output.
 .TP

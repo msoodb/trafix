@@ -53,7 +53,8 @@ PROTO  LOCAL  REMOTE  STATE
 Rules:
 - Use the same tested connection parser as the TUI.
 - Do not show fake bandwidth columns.
-- IPv4 is expected first; IPv6 can be added later when the parser supports it.
+- IPv4 and IPv6 rows are supported.
+- Connections do not report per-connection byte counts.
 
 ### `trafix system`
 

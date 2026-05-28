@@ -17,6 +17,7 @@ read-only commands:
 - `trafix --version` or `trafix -v` prints version information.
 - `trafix interfaces` prints network interface counters.
 - `trafix connections` prints current TCP/UDP connection rows.
+- `trafix listeners` prints local TCP listeners and UDP unconnected sockets.
 - `trafix system` prints a compact system overview.
 - `--json` selects JSON output for scriptable commands.
 - `trafix connections --proto tcp|udp` filters by protocol.
@@ -113,14 +114,13 @@ Shows mounted filesystem usage and totals.
 
 ### Connections
 
-Shows current TCP/UDP connection rows parsed from `/proc/net/tcp` and
-`/proc/net/udp`. IPv4 is supported in the current parser. IPv6 is planned for a
-later phase.
+Shows current TCP/UDP connection rows parsed from `/proc/net/tcp`,
+`/proc/net/udp`, `/proc/net/tcp6`, and `/proc/net/udp6`.
 
 ### Network
 
 Shows default route information, DNS servers, active interface details, optional
-Wi-Fi details, VPN interface detection, and interface counter deltas.
+Wi-Fi details, VPN interface detection, and interface-level byte rates.
 
 ### Processes
 
@@ -130,6 +130,13 @@ Shows process data gathered from `ps`.
 
 Shows sockets mapped to owning PID/process where visible from `/proc/*/fd`.
 This panel does **not** measure per-socket bandwidth.
+
+## Bandwidth Scope
+
+Trafix currently reports bandwidth only as interface-level byte rates calculated
+from network interface counters. Connection, listener, and socket-owner views
+show ownership metadata where permissions allow; they do not report
+per-connection, per-socket, or per-process byte counts.
 
 ## Configuration
 
@@ -165,6 +172,8 @@ trafix connections
 trafix connections --json
 trafix connections --proto tcp
 trafix connections --state ESTABLISHED
+trafix listeners
+trafix listeners --json
 trafix system
 trafix system --json
 ```
@@ -176,8 +185,6 @@ The scriptable commands use text output by default and JSON output with
 
 Planned future work includes:
 
-- IPv6 connection parsing
-- route and DNS collectors
 - cleaner TUI lifecycle and resize handling
 - packaging and CI improvements
 

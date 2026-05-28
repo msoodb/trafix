@@ -52,7 +52,7 @@ static int test_format_interface_usage_line(void) {
 
   trfx_format_interface_usage_line("eth0", 2048.0, 1048576.0, line,
                                    sizeof(line));
-  ASSERT_STR_EQ(line, " eth0            |    2.00 KB |    1.00 MB");
+  ASSERT_STR_EQ(line, " eth0            |  2.00 KB/s |  1.00 MB/s");
 
   return 0;
 }
