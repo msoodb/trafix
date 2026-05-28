@@ -1,0 +1,155 @@
+/*
+ * Copyright (C) 2025 Masoud Bolhassani <masoud.bolhassani@gmail.com>
+ *
+ * This file is part of Trafix.
+ *
+ * Trafix is released under the GNU General Public License v3 (GPL-3.0).
+ * See LICENSE file for details.
+ */
+
+#include "trfx_cli_output.h"
+
+#include <string.h>
+
+static void print_json_string(FILE *out, const char *value) {
+  fputc('"', out);
+
+  for (const unsigned char *p = (const unsigned char *)value; p && *p; p++) {
+    switch (*p) {
+    case '"':
+      fputs("\\\"", out);
+      break;
+    case '\\':
+      fputs("\\\\", out);
+      break;
+    case '\b':
+      fputs("\\b", out);
+      break;
+    case '\f':
+      fputs("\\f", out);
+      break;
+    case '\n':
+      fputs("\\n", out);
+      break;
+    case '\r':
+      fputs("\\r", out);
+      break;
+    case '\t':
+      fputs("\\t", out);
+      break;
+    default:
+      if (*p < 0x20) {
+        fprintf(out, "\\u%04x", *p);
+      } else {
+        fputc(*p, out);
+      }
+      break;
+    }
+  }
+
+  fputc('"', out);
+}
+
+static int connection_matches_filters(const ConnectionInfo *connection,
+                                      const TrfxCliOptions *options) {
+  if (!connection || !options)
+    return 0;
+
+  if (options->has_proto_filter &&
+      strcmp(connection->protocol, options->proto_filter) != 0) {
+    return 0;
+  }
+
+  if (options->has_state_filter &&
+      strcmp(connection->state, options->state_filter) != 0) {
+    return 0;
+  }
+
+  return 1;
+}
+
+void trfx_print_interfaces_text(FILE *out,
+                                const TrfxInterfaceStatsResult *result) {
+  fprintf(out, "%-15s %12s %12s\n", "INTERFACE", "RX_BYTES", "TX_BYTES");
+  for (int i = 0; result && i < result->count; i++) {
+    fprintf(out, "%-15s %12lu %12lu\n", result->stats[i].name,
+            result->stats[i].rx_bytes, result->stats[i].tx_bytes);
+  }
+}
+
+void trfx_print_interfaces_json(FILE *out,
+                                const TrfxInterfaceStatsResult *result) {
+  fprintf(out, "{\"interfaces\":[");
+  for (int i = 0; result && i < result->count; i++) {
+    if (i > 0)
+      fputc(',', out);
+    fprintf(out, "{\"interface\":");
+    print_json_string(out, result->stats[i].name);
+    fprintf(out, ",\"rx_bytes\":%lu,\"tx_bytes\":%lu}",
+            result->stats[i].rx_bytes, result->stats[i].tx_bytes);
+  }
+  fprintf(out, "]}\n");
+}
+
+void trfx_print_connections_text(FILE *out, const ConnectionInfo connections[],
+                                 int count, const TrfxCliOptions *options) {
+  fprintf(out, "%-6s %-22s %-22s %-15s\n", "PROTO", "LOCAL", "REMOTE",
+          "STATE");
+  for (int i = 0; connections && i < count; i++) {
+    if (!connection_matches_filters(&connections[i], options))
+      continue;
+
+    fprintf(out, "%-6s %-22s %-22s %-15s\n", connections[i].protocol,
+            connections[i].local_addr, connections[i].remote_addr,
+            connections[i].state);
+  }
+}
+
+void trfx_print_connections_json(FILE *out, const ConnectionInfo connections[],
+                                 int count, const TrfxCliOptions *options) {
+  int written = 0;
+  fprintf(out, "{\"connections\":[");
+  for (int i = 0; connections && i < count; i++) {
+    if (!connection_matches_filters(&connections[i], options))
+      continue;
+
+    if (written > 0)
+      fputc(',', out);
+    fprintf(out, "{\"proto\":");
+    print_json_string(out, connections[i].protocol);
+    fprintf(out, ",\"local\":");
+    print_json_string(out, connections[i].local_addr);
+    fprintf(out, ",\"remote\":");
+    print_json_string(out, connections[i].remote_addr);
+    fprintf(out, ",\"state\":");
+    print_json_string(out, connections[i].state);
+    fputc('}', out);
+    written++;
+  }
+  fprintf(out, "]}\n");
+}
+
+void trfx_print_system_text(FILE *out, const SystemOverview *overview) {
+  fprintf(out, "%-16s %s\n", "HOSTNAME", overview->hostname);
+  fprintf(out, "%-16s %s\n", "OS", overview->os_version);
+  fprintf(out, "%-16s %s\n", "KERNEL", overview->kernel_version);
+  fprintf(out, "%-16s %s\n", "UPTIME", overview->uptime);
+  fprintf(out, "%-16s %s\n", "LOAD_AVG", overview->load_avg);
+  fprintf(out, "%-16s %s\n", "LOGGED_IN_USERS", overview->logged_in_users);
+}
+
+void trfx_print_system_json(FILE *out, const SystemOverview *overview) {
+  fprintf(out, "{\"hostname\":");
+  print_json_string(out, overview->hostname);
+  fprintf(out, ",\"os\":");
+  print_json_string(out, overview->os_version);
+  fprintf(out, ",\"kernel\":");
+  print_json_string(out, overview->kernel_version);
+  fprintf(out, ",\"uptime\":");
+  print_json_string(out, overview->uptime);
+  fprintf(out, ",\"load_avg\":");
+  print_json_string(out, overview->load_avg);
+  fprintf(out, ",\"logged_in_users\":");
+  print_json_string(out, overview->logged_in_users);
+  fprintf(out, "}\n");
+}

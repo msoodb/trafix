@@ -15,6 +15,7 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_utils \
 	$(BUILD_DIR)/test_config \
 	$(BUILD_DIR)/test_cli \
+	$(BUILD_DIR)/test_cli_output \
 	$(BUILD_DIR)/test_version \
 	$(BUILD_DIR)/test_connections \
 	$(BUILD_DIR)/test_netinfo
@@ -52,6 +53,9 @@ $(BUILD_DIR)/test_config: tests/test_config.c src/trfx_config.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_cli: tests/test_cli.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_cli_output: tests/test_cli_output.c src/trfx_cli_output.c src/trfx_netinfo.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_version: tests/test_version.c src/trfx_version.c | $(BUILD_DIR)
