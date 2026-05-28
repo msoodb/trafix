@@ -21,6 +21,8 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_version \
 	$(BUILD_DIR)/test_connections \
 	$(BUILD_DIR)/test_netinfo
+BENCH_BINS = \
+	$(BUILD_DIR)/bench_socket_owners
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 TARGET = $(BIN_DIR)/trafix
@@ -75,6 +77,14 @@ test: $(TEST_BINS)
 		$$test_bin || exit 1; \
 	done
 
+$(BUILD_DIR)/bench_socket_owners: benchmarks/bench_socket_owners.c src/trfx_socket_owners.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+benchmark: $(BENCH_BINS)
+	@for bench_bin in $(BENCH_BINS); do \
+		$$bench_bin || exit 1; \
+	done
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
@@ -121,4 +131,4 @@ clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_ROOT) $(BIN_DIR)
 
-.PHONY: all debug asan test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
+.PHONY: all debug asan test benchmark clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
