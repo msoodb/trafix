@@ -13,6 +13,7 @@
 #include <stdio.h>
 
 #define TRFX_MAX_INTERFACES 20
+#define TRFX_MAX_DNS_SERVERS 10
 
 typedef struct {
     char name[32];
@@ -48,6 +49,11 @@ typedef struct {
     char metric[32];
 } TrfxRouteSummary;
 
+typedef struct {
+    int count;
+    char servers[TRFX_MAX_DNS_SERVERS][64];
+} TrfxDnsSummary;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 int trfx_is_valid_interface_name(const char *ifname);
@@ -61,6 +67,12 @@ TrfxCollectorStatus trfx_collect_route_summary_path(const char *path,
                                                     TrfxRouteSummary *summary,
                                                     char *error,
                                                     size_t error_size);
+TrfxCollectorStatus trfx_collect_dns_summary_file(FILE *fp,
+                                                  TrfxDnsSummary *summary);
+TrfxCollectorStatus trfx_collect_dns_summary_path(const char *path,
+                                                  TrfxDnsSummary *summary,
+                                                  char *error,
+                                                  size_t error_size);
 void get_default_gateway_and_metric(char *gateway, char *metric);
 void get_routing_table_summary(char *routing_table);
 const char *generate_random_interface_name();

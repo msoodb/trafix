@@ -183,6 +183,35 @@ static int test_parse_route_summary_without_gateway_or_metric(void) {
   return 0;
 }
 
+static int test_dns_summary_collector(void) {
+  TrfxDnsSummary summary;
+  char error[128];
+  TrfxCollectorStatus status = trfx_collect_dns_summary_path(
+      "tests/fixtures/resolv_conf", &summary, error, sizeof(error));
+
+  ASSERT_INT_EQ(status, TRFX_COLLECTOR_OK);
+  ASSERT_INT_EQ(summary.count, 3);
+  ASSERT_STR_EQ(summary.servers[0], "1.1.1.1");
+  ASSERT_STR_EQ(summary.servers[1], "8.8.8.8");
+  ASSERT_STR_EQ(summary.servers[2], "2001:4860:4860::8888");
+  ASSERT_STR_EQ(error, "");
+
+  return 0;
+}
+
+static int test_dns_summary_empty_file(void) {
+  TrfxDnsSummary summary;
+  char error[128];
+  TrfxCollectorStatus status = trfx_collect_dns_summary_path(
+      "tests/fixtures/resolv_conf_empty", &summary, error, sizeof(error));
+
+  ASSERT_INT_EQ(status, TRFX_COLLECTOR_OK);
+  ASSERT_INT_EQ(summary.count, 0);
+  ASSERT_STR_EQ(error, "");
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -216,6 +245,12 @@ int main(void) {
     return 1;
 
   if (test_parse_route_summary_without_gateway_or_metric() != 0)
+    return 1;
+
+  if (test_dns_summary_collector() != 0)
+    return 1;
+
+  if (test_dns_summary_empty_file() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)

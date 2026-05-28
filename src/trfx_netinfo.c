@@ -240,6 +240,77 @@ TrfxCollectorStatus trfx_collect_route_summary_path(const char *path,
     return status;
 }
 
+static void init_dns_summary(TrfxDnsSummary *summary) {
+    if (!summary)
+        return;
+
+    summary->count = 0;
+    for (int i = 0; i < TRFX_MAX_DNS_SERVERS; i++)
+        summary->servers[i][0] = '\0';
+}
+
+static int dns_summary_contains(const TrfxDnsSummary *summary,
+                                const char *server) {
+    for (int i = 0; summary && server && i < summary->count; i++) {
+        if (strcmp(summary->servers[i], server) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+TrfxCollectorStatus trfx_collect_dns_summary_file(FILE *fp,
+                                                  TrfxDnsSummary *summary) {
+    char line[256];
+
+    if (!fp || !summary)
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+
+    init_dns_summary(summary);
+
+    while (fgets(line, sizeof(line), fp)) {
+        char server[64];
+        if (sscanf(line, " nameserver %63s", server) != 1)
+            continue;
+
+        if (dns_summary_contains(summary, server))
+            continue;
+
+        if (summary->count < TRFX_MAX_DNS_SERVERS) {
+            snprintf(summary->servers[summary->count],
+                     sizeof(summary->servers[summary->count]), "%.63s",
+                     server);
+            summary->count++;
+        }
+    }
+
+    return TRFX_COLLECTOR_OK;
+}
+
+TrfxCollectorStatus trfx_collect_dns_summary_path(const char *path,
+                                                  TrfxDnsSummary *summary,
+                                                  char *error,
+                                                  size_t error_size) {
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    if (!path || path[0] == '\0' || !summary) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "invalid argument");
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+    }
+
+    FILE *fp = fopen(path, "r");
+    if (!fp) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "open failed: %s", strerror(errno));
+        return TRFX_COLLECTOR_OPEN_FAILED;
+    }
+
+    TrfxCollectorStatus status = trfx_collect_dns_summary_file(fp, summary);
+    fclose(fp);
+    return status;
+}
+
 char* get_gateway_ip() {
     FILE *fp = popen("ip route 2>/dev/null", "r");
     if (!fp) return NULL;
