@@ -25,6 +25,11 @@ static int is_command(const char *arg, TrfxCliMode *mode) {
     return 1;
   }
 
+  if (strcmp(arg, "listeners") == 0) {
+    *mode = TRFX_CLI_MODE_LISTENERS;
+    return 1;
+  }
+
   if (strcmp(arg, "system") == 0) {
     *mode = TRFX_CLI_MODE_SYSTEM;
     return 1;
@@ -161,6 +166,12 @@ void trfx_print_cli_help(void) {
   printf("Options:\n");
   printf("  -h, --help       Show this help message\n");
   printf("  -v, --version    Show version information\n");
+  printf("\n");
+  printf("Commands:\n");
+  printf("  interfaces       Print interface counters\n");
+  printf("  connections      Print TCP/UDP connections\n");
+  printf("  listeners        Print listening sockets\n");
+  printf("  system           Print system overview\n");
 }
 
 void trfx_print_cli_version(void) {

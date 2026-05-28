@@ -78,11 +78,77 @@ static int test_interfaces_json_snapshot(void) {
   return 0;
 }
 
+static int test_listeners_text_snapshot(void) {
+  char output[1024];
+  ConnectionInfo connections[] = {
+      {"TCP", "0.0.0.0:22", "0.0.0.0:0", "LISTEN", 100, 0, "root", "42",
+       "sshd"},
+      {"TCP", "127.0.0.1:8080", "127.0.0.1:50000", "ESTABLISHED", 101, 1000,
+       "user", "99", "curl"},
+      {"UDP", "0.0.0.0:53", "0.0.0.0:0", "UNCONN", 102, 0, "root", "-",
+       "-"},
+  };
+  FILE *file = tmpfile();
+  if (!file) {
+    perror("tmpfile");
+    return 1;
+  }
+
+  trfx_print_listeners_text(file, connections, 3);
+  if (read_tmpfile(file, output, sizeof(output)) != 0) {
+    fclose(file);
+    return 1;
+  }
+  fclose(file);
+
+  ASSERT_STR_EQ(output,
+                "PROTO  LOCAL                  UID      USER             PID     PROCESS         \n"
+                "TCP    0.0.0.0:22             0        root             42      sshd            \n"
+                "UDP    0.0.0.0:53             0        root             -       -               \n");
+
+  return 0;
+}
+
+static int test_listeners_json_snapshot(void) {
+  char output[1024];
+  ConnectionInfo connections[] = {
+      {"TCP", "0.0.0.0:22", "0.0.0.0:0", "LISTEN", 100, 0, "root", "42",
+       "sshd"},
+      {"TCP", "127.0.0.1:8080", "127.0.0.1:50000", "ESTABLISHED", 101, 1000,
+       "user", "99", "curl"},
+  };
+  FILE *file = tmpfile();
+  if (!file) {
+    perror("tmpfile");
+    return 1;
+  }
+
+  trfx_print_listeners_json(file, connections, 2);
+  if (read_tmpfile(file, output, sizeof(output)) != 0) {
+    fclose(file);
+    return 1;
+  }
+  fclose(file);
+
+  ASSERT_STR_EQ(output,
+                "{\"listeners\":[{\"proto\":\"TCP\",\"local\":\"0.0.0.0:22\","
+                "\"uid\":0,\"user\":\"root\",\"pid\":\"42\","
+                "\"process\":\"sshd\"}]}\n");
+
+  return 0;
+}
+
 int main(void) {
   if (test_interfaces_text_snapshot() != 0)
     return 1;
 
   if (test_interfaces_json_snapshot() != 0)
+    return 1;
+
+  if (test_listeners_text_snapshot() != 0)
+    return 1;
+
+  if (test_listeners_json_snapshot() != 0)
     return 1;
 
   return 0;

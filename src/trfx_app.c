@@ -63,6 +63,19 @@ int trfx_run_connections_command(const TrfxCliOptions *options) {
   return TRFX_EXIT_OK;
 }
 
+int trfx_run_listeners_command(TrfxCliOutputFormat output_format) {
+  ConnectionInfo connections[MAX_CONNECTIONS];
+  int count = get_connection_info(connections, MAX_CONNECTIONS);
+
+  if (output_format == TRFX_CLI_OUTPUT_JSON) {
+    trfx_print_listeners_json(stdout, connections, count);
+    return TRFX_EXIT_OK;
+  }
+
+  trfx_print_listeners_text(stdout, connections, count);
+  return TRFX_EXIT_OK;
+}
+
 int trfx_run_system_command(TrfxCliOutputFormat output_format) {
   SystemOverview overview = get_system_overview();
 

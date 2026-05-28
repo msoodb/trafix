@@ -62,6 +62,12 @@ static int test_parse_cli(void) {
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
   ASSERT_STR_EQ(options.error, "");
 
+  char *listeners_argv[] = {"trafix", "listeners"};
+  options = trfx_parse_cli(2, listeners_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_LISTENERS);
+  ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
+  ASSERT_STR_EQ(options.error, "");
+
   char *interfaces_json_argv[] = {"trafix", "interfaces", "--json"};
   options = trfx_parse_cli(3, interfaces_json_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INTERFACES);
@@ -124,10 +130,16 @@ static int test_parse_cli(void) {
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_JSON);
   ASSERT_STR_EQ(options.error, "");
 
-  char *unknown_command_argv[] = {"trafix", "listeners"};
+  char *listeners_json_argv[] = {"trafix", "listeners", "--json"};
+  options = trfx_parse_cli(3, listeners_json_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_LISTENERS);
+  ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_JSON);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *unknown_command_argv[] = {"trafix", "routes"};
   options = trfx_parse_cli(2, unknown_command_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
-  ASSERT_STR_EQ(options.error, "unknown argument: listeners");
+  ASSERT_STR_EQ(options.error, "unknown argument: routes");
 
   char *too_many_argv[] = {"trafix", "--help", "--version"};
   options = trfx_parse_cli(3, too_many_argv);

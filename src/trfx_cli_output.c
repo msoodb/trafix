@@ -68,6 +68,17 @@ static int connection_matches_filters(const ConnectionInfo *connection,
   return 1;
 }
 
+static int connection_is_listener(const ConnectionInfo *connection) {
+  if (!connection)
+    return 0;
+
+  if (strcmp(connection->state, "LISTEN") == 0)
+    return 1;
+
+  return strcmp(connection->protocol, "UDP") == 0 &&
+         strcmp(connection->state, "UNCONN") == 0;
+}
+
 void trfx_print_interfaces_text(FILE *out,
                                 const TrfxInterfaceStatsResult *result) {
   fprintf(out, "%-15s %12s %12s\n", "INTERFACE", "RX_BYTES", "TX_BYTES");
@@ -125,6 +136,48 @@ void trfx_print_connections_json(FILE *out, const ConnectionInfo connections[],
     print_json_string(out, connections[i].remote_addr);
     fprintf(out, ",\"state\":");
     print_json_string(out, connections[i].state);
+    fprintf(out, ",\"uid\":%u", connections[i].uid);
+    fprintf(out, ",\"user\":");
+    print_json_string(out, connections[i].user);
+    fprintf(out, ",\"pid\":");
+    print_json_string(out, connections[i].pid);
+    fprintf(out, ",\"process\":");
+    print_json_string(out, connections[i].process);
+    fputc('}', out);
+    written++;
+  }
+  fprintf(out, "]}\n");
+}
+
+void trfx_print_listeners_text(FILE *out, const ConnectionInfo connections[],
+                               int count) {
+  fprintf(out, "%-6s %-22s %-8s %-16s %-7s %-16s\n", "PROTO", "LOCAL",
+          "UID", "USER", "PID", "PROCESS");
+  for (int i = 0; connections && i < count; i++) {
+    if (!connection_is_listener(&connections[i]))
+      continue;
+
+    fprintf(out, "%-6s %-22s %-8u %-16.16s %-7s %-16.16s\n",
+            connections[i].protocol, connections[i].local_addr,
+            connections[i].uid, connections[i].user, connections[i].pid,
+            connections[i].process);
+  }
+}
+
+void trfx_print_listeners_json(FILE *out, const ConnectionInfo connections[],
+                               int count) {
+  int written = 0;
+  fprintf(out, "{\"listeners\":[");
+  for (int i = 0; connections && i < count; i++) {
+    if (!connection_is_listener(&connections[i]))
+      continue;
+
+    if (written > 0)
+      fputc(',', out);
+    fprintf(out, "{\"proto\":");
+    print_json_string(out, connections[i].protocol);
+    fprintf(out, ",\"local\":");
+    print_json_string(out, connections[i].local_addr);
     fprintf(out, ",\"uid\":%u", connections[i].uid);
     fprintf(out, ",\"user\":");
     print_json_string(out, connections[i].user);

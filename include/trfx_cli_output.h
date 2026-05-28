@@ -25,6 +25,10 @@ void trfx_print_connections_text(FILE *out, const ConnectionInfo connections[],
                                  int count, const TrfxCliOptions *options);
 void trfx_print_connections_json(FILE *out, const ConnectionInfo connections[],
                                  int count, const TrfxCliOptions *options);
+void trfx_print_listeners_text(FILE *out, const ConnectionInfo connections[],
+                               int count);
+void trfx_print_listeners_json(FILE *out, const ConnectionInfo connections[],
+                               int count);
 void trfx_print_system_text(FILE *out, const SystemOverview *overview);
 void trfx_print_system_json(FILE *out, const SystemOverview *overview);
 

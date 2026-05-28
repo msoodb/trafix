@@ -83,6 +83,7 @@ Supported form:
 trafix interfaces --json
 trafix connections --json
 trafix system --json
+trafix listeners --json
 ```
 
 JSON output is valid JSON and uses stable field names.
@@ -99,3 +100,20 @@ trafix connections --state LISTEN
 ```
 
 Filters must not affect the TUI unless explicitly added later.
+
+### `trafix listeners`
+
+Purpose:
+- Print TCP listening sockets and UDP unconnected sockets that represent local
+  listeners.
+
+Default text columns:
+
+```text
+PROTO  LOCAL  UID  USER  PID  PROCESS
+```
+
+Rules:
+- Show PID/process where visible from `/proc`.
+- Use `-` for unknown owners.
+- Support JSON output with `--json`.
