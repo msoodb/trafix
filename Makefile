@@ -11,7 +11,13 @@ LDLIBS = -lncurses
 SRC_DIR = src
 BUILD_DIR = build
 BIN_DIR = bin
-TEST_BIN = $(BUILD_DIR)/test_trafix
+TEST_BINS = \
+	$(BUILD_DIR)/test_utils \
+	$(BUILD_DIR)/test_config \
+	$(BUILD_DIR)/test_cli \
+	$(BUILD_DIR)/test_version \
+	$(BUILD_DIR)/test_connections \
+	$(BUILD_DIR)/test_netinfo
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 TARGET = $(BIN_DIR)/trafix
@@ -39,11 +45,28 @@ $(TARGET): $(OBJ)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c src/trfx_cli.c src/trfx_version.c src/trfx_connections.c src/trfx_netinfo.c | $(BUILD_DIR)
+$(BUILD_DIR)/test_utils: tests/test_utils.c src/trfx_utils.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-test: $(TEST_BIN)
-	$(TEST_BIN)
+$(BUILD_DIR)/test_config: tests/test_config.c src/trfx_config.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_cli: tests/test_cli.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_version: tests/test_version.c src/trfx_version.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_connections: tests/test_connections.c src/trfx_connections.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_netinfo: tests/test_netinfo.c src/trfx_netinfo.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+test: $(TEST_BINS)
+	@for test_bin in $(TEST_BINS); do \
+		$$test_bin || exit 1; \
+	done
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
