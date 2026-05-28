@@ -53,6 +53,45 @@ static void format_dns_summary(const TrfxDnsSummary *summary, char *buf,
   }
 }
 
+static void trfx_format_endpoint_for_tui(const char *value, char *buf,
+                                         size_t bufsize) {
+  if (!buf || bufsize == 0)
+    return;
+
+  if (!value) {
+    snprintf(buf, bufsize, "-");
+    return;
+  }
+
+  size_t len = strlen(value);
+  if (len < bufsize) {
+    snprintf(buf, bufsize, "%s", value);
+    return;
+  }
+
+  if (bufsize <= 4) {
+    snprintf(buf, bufsize, "%.*s", (int)(bufsize - 1), value);
+    return;
+  }
+
+  snprintf(buf, bufsize, "%.*s...", (int)(bufsize - 4), value);
+}
+
+static void trfx_print_clipped_line(WINDOW *win, int y, int x, int max_cols,
+                                    const char *line) {
+  char clipped[256];
+  int available = max_cols - x - 1;
+
+  if (available <= 0)
+    return;
+
+  if (available >= (int)sizeof(clipped))
+    available = (int)sizeof(clipped) - 1;
+
+  snprintf(clipped, sizeof(clipped), "%.*s", available, line ? line : "");
+  mvwprintw(win, y, x, "%s", clipped);
+}
+
 void wait_until_ready() {
   pthread_mutex_lock(&ready_mutex); // Lock before checking the ready flag
   while (!ready) {
@@ -574,20 +613,30 @@ void *connection_info_thread(void *arg) {
     mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
     wattroff(win, A_BOLD);
 
+    int max_cols = getmaxx(win);
+    char header[256];
+    snprintf(header, sizeof(header), "%-6s %-21s %-21s %-13s %-7s %-10s %-6s %-14s",
+             "Proto", "Local", "Remote", "State", "UID", "User", "PID",
+             "Process");
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, 1, 2, "%-6s %-22s %-22s %-15s %-8s %-12s %-7s %-16s",
-              "Proto", "Local Address", "Remote Address", "State", "UID",
-              "User", "PID", "Process");
+    trfx_print_clipped_line(win, 1, 2, max_cols, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      mvwprintw(win, y++, 2,
-                "%-6s %-22s %-22s %-15s %-8u %-12.12s %-7s %-16.16s",
-                connections[i].protocol,
-                connections[i].local_addr, connections[i].remote_addr,
-                connections[i].state, connections[i].uid, connections[i].user,
-                connections[i].pid, connections[i].process);
+      char local[22];
+      char remote[22];
+      char line[256];
+      trfx_format_endpoint_for_tui(connections[i].local_addr, local,
+                                   sizeof(local));
+      trfx_format_endpoint_for_tui(connections[i].remote_addr, remote,
+                                   sizeof(remote));
+      snprintf(line, sizeof(line),
+               "%-6.6s %-21s %-21s %-13.13s %-7u %-10.10s %-6.6s %-14.14s",
+               connections[i].protocol, local, remote, connections[i].state,
+               connections[i].uid, connections[i].user, connections[i].pid,
+               connections[i].process);
+      trfx_print_clipped_line(win, y++, 2, max_cols, line);
     }
 
     wrefresh(win);
