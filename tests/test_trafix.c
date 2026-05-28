@@ -9,6 +9,7 @@
 
 #include "trfx_config.h"
 #include "trfx_cli.h"
+#include "trfx_connections.h"
 #include "trfx_utils.h"
 #include "trfx_version.h"
 
@@ -155,6 +156,24 @@ static int test_get_version(void) {
   return 0;
 }
 
+static int test_parse_connection_fixtures(void) {
+  ConnectionInfo connections[MAX_CONNECTIONS];
+
+  int count = trfx_parse_connection_path("tests/fixtures/proc_net_tcp", "TCP",
+                                         connections, 0, MAX_CONNECTIONS);
+  ASSERT_INT_EQ(count, 2);
+  ASSERT_STR_EQ(connections[0].protocol, "TCP");
+  ASSERT_STR_EQ(connections[0].state, "ESTABLISHED");
+  ASSERT_STR_EQ(connections[1].protocol, "TCP");
+  ASSERT_STR_EQ(connections[1].state, "LISTEN");
+
+  count = trfx_parse_connection_path("tests/fixtures/proc_net_udp", "UDP",
+                                     connections, count, MAX_CONNECTIONS);
+  ASSERT_INT_EQ(count, 2);
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -166,6 +185,9 @@ int main(void) {
     return 1;
 
   if (test_get_version() != 0)
+    return 1;
+
+  if (test_parse_connection_fixtures() != 0)
     return 1;
 
   return 0;

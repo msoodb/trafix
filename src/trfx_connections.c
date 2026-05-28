@@ -22,15 +22,15 @@ static void parse_ip_port(char *dest, const char *hex, int is_ipv6) {
     }
 }
 
-static int load_connections(const char *path, const char *proto, ConnectionInfo *list, int count, int max) {
-    FILE *fp = fopen(path, "r");
-    if (!fp) return count;
-
+int trfx_parse_connection_file(FILE *fp, const char *proto,
+                               ConnectionInfo *list, int count, int max) {
     char line[512];
+
+    if (!fp || !proto || !list || max <= 0)
+        return count;
 
     // Safely skip header line
     if (fgets(line, sizeof(line), fp) == NULL) {
-        fclose(fp);
         return count;
     }
 
@@ -69,6 +69,16 @@ static int load_connections(const char *path, const char *proto, ConnectionInfo 
         count++;
     }
 
+    return count;
+}
+
+int trfx_parse_connection_path(const char *path, const char *proto,
+                               ConnectionInfo *list, int count, int max) {
+    FILE *fp = fopen(path, "r");
+    if (!fp)
+        return count;
+
+    count = trfx_parse_connection_file(fp, proto, list, count, max);
     fclose(fp);
     return count;
 }
@@ -92,8 +102,10 @@ static int compare_connections(const void *a, const void *b) {
 
 int get_connection_info(ConnectionInfo *connections, int max_conns) {
     int count = 0;
-    count = load_connections("/proc/net/tcp", "TCP", connections, count, max_conns);
-    count = load_connections("/proc/net/udp", "UDP", connections, count, max_conns);
+    count = trfx_parse_connection_path("/proc/net/tcp", "TCP", connections,
+                                       count, max_conns);
+    count = trfx_parse_connection_path("/proc/net/udp", "UDP", connections,
+                                       count, max_conns);
 
     qsort(connections, count, sizeof(ConnectionInfo), compare_connections);
 

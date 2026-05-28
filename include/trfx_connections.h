@@ -10,6 +10,8 @@
 #ifndef TRFX_CONNECTIONS_H
 #define TRFX_CONNECTIONS_H
 
+#include <stdio.h>
+
 #define MAX_CONNECTIONS 512
 
 typedef struct {
@@ -19,6 +21,12 @@ typedef struct {
     char state[32];
 } ConnectionInfo;
 
+int trfx_parse_connection_file(FILE *fp, const char *proto,
+                               ConnectionInfo *connections, int count,
+                               int max_conns);
+int trfx_parse_connection_path(const char *path, const char *proto,
+                               ConnectionInfo *connections, int count,
+                               int max_conns);
 int get_connection_info(ConnectionInfo *connections, int max_conns);
 
 #endif // TRFX_CONNECTIONS_H

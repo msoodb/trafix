@@ -32,7 +32,7 @@ $(TARGET): $(OBJ)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)
+$(TEST_BIN): tests/test_trafix.c src/trfx_utils.c src/trfx_config.c src/trfx_cli.c src/trfx_version.c src/trfx_connections.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 test: $(TEST_BIN)
