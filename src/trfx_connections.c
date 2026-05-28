@@ -40,6 +40,36 @@ const char *trfx_tcp_state_name(int state_num) {
     }
 }
 
+const char *trfx_udp_state_name(int state_num) {
+    /*
+     * Linux exposes UDP socket states in the same hex field as TCP, but the
+     * common listening/unconnected UDP state is 07. Display it as UNCONN to
+     * avoid implying TCP CLOSE semantics.
+     */
+    switch (state_num) {
+        case 1: return "ESTABLISHED";
+        case 7: return "UNCONN";
+        default: return "UNKNOWN";
+    }
+}
+
+static const char *socket_state_name(const char *proto, int state_num) {
+    if (strcmp(proto, "UDP") == 0) {
+        return trfx_udp_state_name(state_num);
+    }
+
+    return trfx_tcp_state_name(state_num);
+}
+
+static int should_skip_connection_state(const char *proto, int state_num) {
+    if (strcmp(proto, "TCP") != 0) {
+        return 0;
+    }
+
+    return state_num == 6 || state_num == 7 || state_num == 8 ||
+           state_num == 9 || state_num == 11;
+}
+
 int trfx_parse_connection_file(FILE *fp, const char *proto,
                                ConnectionInfo *list, int count, int max) {
     char line[512];
@@ -62,8 +92,8 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
             continue; // skip malformed lines
         }
 
-        // Skip unwanted states
-        if (state_num == 6 || state_num == 7 || state_num == 8 || state_num == 9 || state_num == 11) {
+        // Skip noisy closed TCP states, but keep UDP 07 as UNCONN.
+        if (should_skip_connection_state(proto, state_num)) {
             continue; // Skip TIME_WAIT, CLOSE, CLOSE_WAIT, LAST_ACK, CLOSING
         }
 
@@ -75,7 +105,7 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         snprintf(list[count].remote_addr, sizeof(list[count].remote_addr), "%s", remote);
 
         snprintf(list[count].state, sizeof(list[count].state), "%s",
-                 trfx_tcp_state_name(state_num));
+                 socket_state_name(proto, state_num));
         count++;
     }
 

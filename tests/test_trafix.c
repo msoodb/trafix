@@ -173,7 +173,13 @@ static int test_parse_connection_fixtures(void) {
 
   count = trfx_parse_connection_path("tests/fixtures/proc_net_udp", "UDP",
                                      connections, count, MAX_CONNECTIONS);
-  ASSERT_INT_EQ(count, 2);
+  ASSERT_INT_EQ(count, 4);
+  ASSERT_STR_EQ(connections[2].protocol, "UDP");
+  ASSERT_STR_EQ(connections[2].local_addr, "127.0.0.1:53");
+  ASSERT_STR_EQ(connections[2].state, "UNCONN");
+  ASSERT_STR_EQ(connections[3].protocol, "UDP");
+  ASSERT_STR_EQ(connections[3].local_addr, "0.0.0.0:68");
+  ASSERT_STR_EQ(connections[3].state, "UNCONN");
 
   return 0;
 }
@@ -196,6 +202,14 @@ static int test_tcp_state_names(void) {
   return 0;
 }
 
+static int test_udp_state_names(void) {
+  ASSERT_STR_EQ(trfx_udp_state_name(1), "ESTABLISHED");
+  ASSERT_STR_EQ(trfx_udp_state_name(7), "UNCONN");
+  ASSERT_STR_EQ(trfx_udp_state_name(99), "UNKNOWN");
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -213,6 +227,9 @@ int main(void) {
     return 1;
 
   if (test_tcp_state_names() != 0)
+    return 1;
+
+  if (test_udp_state_names() != 0)
     return 1;
 
   return 0;

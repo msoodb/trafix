@@ -28,6 +28,7 @@ int trfx_parse_connection_path(const char *path, const char *proto,
                                ConnectionInfo *connections, int count,
                                int max_conns);
 const char *trfx_tcp_state_name(int state_num);
+const char *trfx_udp_state_name(int state_num);
 int get_connection_info(ConnectionInfo *connections, int max_conns);
 
 #endif // TRFX_CONNECTIONS_H
