@@ -344,6 +344,50 @@ static TrfxInterfaceStat* find_prev_stat(const char *name) {
     return NULL;
 }
 
+static const TrfxInterfaceStat *find_stat(const TrfxInterfaceStat stats[],
+                                          int count, const char *name) {
+    for (int i = 0; stats && i < count; i++) {
+        if (strcmp(stats[i].name, name) == 0)
+            return &stats[i];
+    }
+    return NULL;
+}
+
+int trfx_calculate_interface_rates(const TrfxInterfaceStat previous[],
+                                   int previous_count,
+                                   const TrfxInterfaceStat current[],
+                                   int current_count, double elapsed_seconds,
+                                   TrfxInterfaceRate rates[], int max_rates) {
+    int count = 0;
+
+    if (!current || !rates || current_count < 0 || max_rates <= 0 ||
+        elapsed_seconds <= 0.0) {
+        return -1;
+    }
+
+    for (int i = 0; i < current_count && count < max_rates; i++) {
+        const TrfxInterfaceStat *prev =
+            find_stat(previous, previous_count, current[i].name);
+        unsigned long rx_delta = 0;
+        unsigned long tx_delta = 0;
+
+        if (prev) {
+            if (current[i].rx_bytes >= prev->rx_bytes)
+                rx_delta = current[i].rx_bytes - prev->rx_bytes;
+            if (current[i].tx_bytes >= prev->tx_bytes)
+                tx_delta = current[i].tx_bytes - prev->tx_bytes;
+        }
+
+        snprintf(rates[count].name, sizeof(rates[count].name), "%.31s",
+                 current[i].name);
+        rates[count].rx_bytes_per_sec = (double)rx_delta / elapsed_seconds;
+        rates[count].tx_bytes_per_sec = (double)tx_delta / elapsed_seconds;
+        count++;
+    }
+
+    return count;
+}
+
 void trfx_format_net_bytes(double bytes, char *buf, size_t bufsize) {
     if (bytes < 1024) {
         snprintf(buf, bufsize, "%.2f B", bytes);
@@ -390,19 +434,20 @@ char** get_interfaces_usage(int *num_interfaces) {
             exit(1);
         }
 
-        double delta_tx = 0, delta_rx = 0;
+        TrfxInterfaceRate rate = {0};
 
-        // Calculate delta if previous stats exist
         if (initialized) {
             TrfxInterfaceStat *prev = find_prev_stat(curr_stats[i].name);
-            if (prev) {
-                delta_tx = curr_stats[i].tx_bytes - prev->tx_bytes;
-                delta_rx = curr_stats[i].rx_bytes - prev->rx_bytes;
-            }
+            trfx_calculate_interface_rates(prev, prev ? 1 : 0, &curr_stats[i],
+                                           1, 1.0, &rate, 1);
+        } else {
+            snprintf(rate.name, sizeof(rate.name), "%.31s",
+                     curr_stats[i].name);
         }
 
-        trfx_format_interface_usage_line(curr_stats[i].name, delta_tx,
-                                         delta_rx, data[i], 128);
+        trfx_format_interface_usage_line(curr_stats[i].name,
+                                         rate.tx_bytes_per_sec,
+                                         rate.rx_bytes_per_sec, data[i], 128);
     }
 
     // Update previous state

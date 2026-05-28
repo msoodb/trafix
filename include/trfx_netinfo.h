@@ -20,6 +20,12 @@ typedef struct {
     unsigned long tx_bytes;
 } TrfxInterfaceStat;
 
+typedef struct {
+    char name[32];
+    double rx_bytes_per_sec;
+    double tx_bytes_per_sec;
+} TrfxInterfaceRate;
+
 typedef enum {
     TRFX_COLLECTOR_OK = 0,
     TRFX_COLLECTOR_INVALID_ARGUMENT,
@@ -53,6 +59,11 @@ int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
                                     int max_stats);
 TrfxInterfaceStatsResult trfx_collect_interface_stats_path(const char *path);
 int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats);
+int trfx_calculate_interface_rates(const TrfxInterfaceStat previous[],
+                                   int previous_count,
+                                   const TrfxInterfaceStat current[],
+                                   int current_count, double elapsed_seconds,
+                                   TrfxInterfaceRate rates[], int max_rates);
 void trfx_format_net_bytes(double bytes, char *buf, size_t bufsize);
 void trfx_format_interface_usage_line(const char *name, double tx_bytes,
                                       double rx_bytes, char *buf,

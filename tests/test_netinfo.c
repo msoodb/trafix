@@ -57,6 +57,49 @@ static int test_format_interface_usage_line(void) {
   return 0;
 }
 
+static int test_calculate_interface_rates(void) {
+  TrfxInterfaceStat previous[] = {
+      {"eth0", 1000, 2000},
+      {"lo", 500, 800},
+  };
+  TrfxInterfaceStat current[] = {
+      {"eth0", 3000, 2600},
+      {"lo", 1500, 1800},
+  };
+  TrfxInterfaceRate rates[2];
+
+  int count = trfx_calculate_interface_rates(previous, 2, current, 2, 2.0,
+                                             rates, 2);
+  ASSERT_INT_EQ(count, 2);
+  ASSERT_STR_EQ(rates[0].name, "eth0");
+  ASSERT_INT_EQ((int)rates[0].rx_bytes_per_sec, 1000);
+  ASSERT_INT_EQ((int)rates[0].tx_bytes_per_sec, 300);
+  ASSERT_STR_EQ(rates[1].name, "lo");
+  ASSERT_INT_EQ((int)rates[1].rx_bytes_per_sec, 500);
+  ASSERT_INT_EQ((int)rates[1].tx_bytes_per_sec, 500);
+
+  return 0;
+}
+
+static int test_calculate_interface_rates_counter_reset(void) {
+  TrfxInterfaceStat previous[] = {
+      {"eth0", 9000, 9000},
+  };
+  TrfxInterfaceStat current[] = {
+      {"eth0", 100, 200},
+  };
+  TrfxInterfaceRate rates[1];
+
+  int count = trfx_calculate_interface_rates(previous, 1, current, 1, 1.0,
+                                             rates, 1);
+  ASSERT_INT_EQ(count, 1);
+  ASSERT_STR_EQ(rates[0].name, "eth0");
+  ASSERT_INT_EQ((int)rates[0].rx_bytes_per_sec, 0);
+  ASSERT_INT_EQ((int)rates[0].tx_bytes_per_sec, 0);
+
+  return 0;
+}
+
 static int test_parse_default_route_line(void) {
   char gateway[64];
   char metric[64];
@@ -122,6 +165,12 @@ int main(void) {
     return 1;
 
   if (test_format_interface_usage_line() != 0)
+    return 1;
+
+  if (test_calculate_interface_rates() != 0)
+    return 1;
+
+  if (test_calculate_interface_rates_counter_reset() != 0)
     return 1;
 
   if (test_parse_default_route_line() != 0)
