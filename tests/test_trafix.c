@@ -237,6 +237,63 @@ static int test_format_interface_usage_line(void) {
   return 0;
 }
 
+static int test_parse_default_route_line(void) {
+  char gateway[64];
+  char metric[64];
+  int found = trfx_parse_default_route_line(
+      "default via 192.168.1.1 dev eth0 proto dhcp metric 100\n", gateway,
+      sizeof(gateway), metric, sizeof(metric));
+
+  ASSERT_INT_EQ(found, 1);
+  ASSERT_STR_EQ(gateway, "192.168.1.1");
+  ASSERT_STR_EQ(metric, "100");
+
+  found = trfx_parse_default_route_line("10.0.0.0/24 dev wg0\n", gateway,
+                                        sizeof(gateway), metric,
+                                        sizeof(metric));
+  ASSERT_INT_EQ(found, 0);
+
+  found = trfx_parse_default_route_line("default dev wlan0 proto dhcp\n",
+                                        gateway, sizeof(gateway), metric,
+                                        sizeof(metric));
+  ASSERT_INT_EQ(found, 1);
+  ASSERT_STR_EQ(gateway, "N/A");
+  ASSERT_STR_EQ(metric, "N/A");
+
+  FILE *fp = fopen("tests/fixtures/ip_route", "r");
+  if (!fp) {
+    perror("fopen");
+    return 1;
+  }
+
+  char line[256];
+  found = 0;
+  while (fgets(line, sizeof(line), fp)) {
+    if (trfx_parse_default_route_line(line, gateway, sizeof(gateway), metric,
+                                      sizeof(metric))) {
+      found = 1;
+      break;
+    }
+  }
+  fclose(fp);
+
+  ASSERT_INT_EQ(found, 1);
+  ASSERT_STR_EQ(gateway, "192.168.1.1");
+  ASSERT_STR_EQ(metric, "100");
+
+  return 0;
+}
+
+static int test_interface_name_validation(void) {
+  ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
+  ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
+  ASSERT_INT_EQ(trfx_is_valid_interface_name("wg-test.1"), 1);
+  ASSERT_INT_EQ(trfx_is_valid_interface_name("bad;ifname"), 0);
+  ASSERT_INT_EQ(trfx_is_valid_interface_name("bad name"), 0);
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -263,6 +320,12 @@ int main(void) {
     return 1;
 
   if (test_format_interface_usage_line() != 0)
+    return 1;
+
+  if (test_parse_default_route_line() != 0)
+    return 1;
+
+  if (test_interface_name_validation() != 0)
     return 1;
 
   return 0;

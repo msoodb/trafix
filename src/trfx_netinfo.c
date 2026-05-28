@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -21,10 +22,26 @@ static TrfxInterfaceStat prev_stats[TRFX_MAX_INTERFACES];
 static int prev_count = 0;
 static int initialized = 0;
 
+int trfx_is_valid_interface_name(const char *ifname) {
+    if (!ifname || ifname[0] == '\0')
+        return 0;
+
+    for (const char *p = ifname; *p; p++) {
+        if (!(isalnum((unsigned char)*p) || *p == '_' || *p == '-' ||
+              *p == '.' || *p == ':')) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
 
 char *get_ip_address(const char *ifname) {
     struct ifaddrs *ifaddr, *ifa;
     static char ip[INET_ADDRSTRLEN];
+
+    if (!trfx_is_valid_interface_name(ifname))
+        return NULL;
 
     if (getifaddrs(&ifaddr) == -1) {
         perror("getifaddrs");
@@ -51,7 +68,7 @@ char *get_wifi_ssid(const char *ifname) {
     char cmd[256], line[256];
 
     // Check if input is NULL
-    if (ifname == NULL || strlen(ifname) == 0) {
+    if (!trfx_is_valid_interface_name(ifname)) {
         return NULL;
     }
 
@@ -78,34 +95,78 @@ char *get_wifi_ssid(const char *ifname) {
 }
 
 int is_wifi_interface(const char *iface_name) {
+    if (!trfx_is_valid_interface_name(iface_name))
+        return 0;
+
     char path[128];
     snprintf(path, sizeof(path), "/sys/class/net/%s/wireless", iface_name);
     return access(path, F_OK) == 0;  // Exists = Wi-Fi
 }
 
 int is_vpn_interface(const char *iface_name) {
+    if (!trfx_is_valid_interface_name(iface_name))
+        return 0;
+
     return strncmp(iface_name, "tun", 3) == 0 ||
            strncmp(iface_name, "ppp", 3) == 0 ||
            strncmp(iface_name, "wg", 2) == 0;
 }
 
+int trfx_parse_default_route_line(const char *line, char *gateway,
+                                  size_t gateway_size, char *metric,
+                                  size_t metric_size) {
+    char copy[256];
+
+    if (!line || !gateway || gateway_size == 0 || !metric || metric_size == 0)
+        return 0;
+
+    snprintf(gateway, gateway_size, "N/A");
+    snprintf(metric, metric_size, "N/A");
+
+    snprintf(copy, sizeof(copy), "%s", line);
+
+    char *token = strtok(copy, " \t\n");
+    if (!token || strcmp(token, "default") != 0)
+        return 0;
+
+    while ((token = strtok(NULL, " \t\n")) != NULL) {
+        if (strcmp(token, "via") == 0) {
+            char *value = strtok(NULL, " \t\n");
+            if (value)
+                snprintf(gateway, gateway_size, "%s", value);
+        } else if (strcmp(token, "metric") == 0) {
+            char *value = strtok(NULL, " \t\n");
+            if (value)
+                snprintf(metric, metric_size, "%s", value);
+        }
+    }
+
+    return 1;
+}
+
 char* get_gateway_ip() {
-    FILE *fp = popen("ip route | grep default | awk '{print $3}'", "r");
+    FILE *fp = popen("ip route 2>/dev/null", "r");
     if (!fp) return NULL;
 
     static char gateway[64];
-    if (fgets(gateway, sizeof(gateway), fp)) {
-        gateway[strcspn(gateway, "\n")] = '\0';  // Remove newline
-    } else {
-        strcpy(gateway, "N/A");
+    char metric[64];
+    char buffer[256];
+    snprintf(gateway, sizeof(gateway), "N/A");
+
+    while (fgets(buffer, sizeof(buffer), fp)) {
+        if (trfx_parse_default_route_line(buffer, gateway, sizeof(gateway),
+                                          metric, sizeof(metric))) {
+            break;
+        }
     }
+
     pclose(fp);
     return gateway;
 }
 
 // Function to get the default gateway and metric
 void get_default_gateway_and_metric(char *gateway, char *metric) {
-    FILE *fp = popen("ip route 2>/dev/null | grep default", "r");
+    FILE *fp = popen("ip route 2>/dev/null", "r");
     if (!fp) {
         strcpy(gateway, "N/A");
         strcpy(metric, "N/A");
@@ -113,12 +174,12 @@ void get_default_gateway_and_metric(char *gateway, char *metric) {
     }
 
     char buffer[256];
-    if (fgets(buffer, sizeof(buffer), fp)) {
-        // Example line: "default via 192.168.1.1 dev eth0 proto static metric 100"
-        sscanf(buffer, "default via %s dev %*s proto %*s metric %s", gateway, metric);
-    } else {
-        strcpy(gateway, "N/A");
-        strcpy(metric, "N/A");
+    strcpy(gateway, "N/A");
+    strcpy(metric, "N/A");
+    while (fgets(buffer, sizeof(buffer), fp)) {
+        if (trfx_parse_default_route_line(buffer, gateway, 64, metric, 64)) {
+            break;
+        }
     }
 
     pclose(fp);
