@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -289,8 +290,50 @@ int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
     return count;
 }
 
+TrfxInterfaceStatsResult trfx_collect_interface_stats_path(const char *path) {
+    TrfxInterfaceStatsResult result = {0};
+    FILE *fp;
+
+    result.status = TRFX_COLLECTOR_OK;
+
+    if (!path || path[0] == '\0') {
+        result.status = TRFX_COLLECTOR_INVALID_ARGUMENT;
+        snprintf(result.error, sizeof(result.error), "invalid path");
+        return result;
+    }
+
+    fp = fopen(path, "r");
+    if (!fp) {
+        result.status = TRFX_COLLECTOR_OPEN_FAILED;
+        snprintf(result.error, sizeof(result.error), "open failed: %s",
+                 strerror(errno));
+        return result;
+    }
+
+    result.count = trfx_parse_interface_stats_file(fp, result.stats,
+                                                   TRFX_MAX_INTERFACES);
+    fclose(fp);
+
+    if (result.count < 0) {
+        result.status = TRFX_COLLECTOR_PARSE_FAILED;
+        result.count = 0;
+        snprintf(result.error, sizeof(result.error),
+                 "failed to parse interface stats");
+    }
+
+    return result;
+}
+
 int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats) {
-    return trfx_parse_interface_stats_path("/proc/net/dev", stats, max_stats);
+    TrfxInterfaceStatsResult result =
+        trfx_collect_interface_stats_path("/proc/net/dev");
+
+    if (result.status != TRFX_COLLECTOR_OK)
+        return -1;
+
+    int count = result.count < max_stats ? result.count : max_stats;
+    memcpy(stats, result.stats, sizeof(TrfxInterfaceStat) * count);
+    return count;
 }
 
 static TrfxInterfaceStat* find_prev_stat(const char *name) {

@@ -20,6 +20,20 @@ typedef struct {
     unsigned long tx_bytes;
 } TrfxInterfaceStat;
 
+typedef enum {
+    TRFX_COLLECTOR_OK = 0,
+    TRFX_COLLECTOR_INVALID_ARGUMENT,
+    TRFX_COLLECTOR_OPEN_FAILED,
+    TRFX_COLLECTOR_PARSE_FAILED
+} TrfxCollectorStatus;
+
+typedef struct {
+    TrfxCollectorStatus status;
+    int count;
+    char error[128];
+    TrfxInterfaceStat stats[TRFX_MAX_INTERFACES];
+} TrfxInterfaceStatsResult;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 int trfx_is_valid_interface_name(const char *ifname);
@@ -37,6 +51,7 @@ int trfx_parse_interface_stats_file(FILE *fp, TrfxInterfaceStat stats[],
                                     int max_stats);
 int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
                                     int max_stats);
+TrfxInterfaceStatsResult trfx_collect_interface_stats_path(const char *path);
 int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats);
 void trfx_format_net_bytes(double bytes, char *buf, size_t bufsize);
 void trfx_format_interface_usage_line(const char *name, double tx_bytes,

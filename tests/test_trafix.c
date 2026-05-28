@@ -227,6 +227,27 @@ static int test_parse_interface_stats_fixture(void) {
   return 0;
 }
 
+static int test_collect_interface_stats_result(void) {
+  TrfxInterfaceStatsResult result =
+      trfx_collect_interface_stats_path("tests/fixtures/proc_net_dev");
+
+  ASSERT_INT_EQ(result.status, TRFX_COLLECTOR_OK);
+  ASSERT_INT_EQ(result.count, 2);
+  ASSERT_STR_EQ(result.error, "");
+  ASSERT_STR_EQ(result.stats[0].name, "lo");
+  ASSERT_STR_EQ(result.stats[1].name, "eth0");
+
+  result = trfx_collect_interface_stats_path("tests/fixtures/no_such_file");
+  ASSERT_INT_EQ(result.status, TRFX_COLLECTOR_OPEN_FAILED);
+  ASSERT_INT_EQ(result.count, 0);
+
+  result = trfx_collect_interface_stats_path(NULL);
+  ASSERT_INT_EQ(result.status, TRFX_COLLECTOR_INVALID_ARGUMENT);
+  ASSERT_INT_EQ(result.count, 0);
+
+  return 0;
+}
+
 static int test_format_interface_usage_line(void) {
   char line[128];
 
@@ -317,6 +338,9 @@ int main(void) {
     return 1;
 
   if (test_parse_interface_stats_fixture() != 0)
+    return 1;
+
+  if (test_collect_interface_stats_result() != 0)
     return 1;
 
   if (test_format_interface_usage_line() != 0)
