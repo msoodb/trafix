@@ -23,6 +23,15 @@ int main(int argc, char **argv) {
     case TRFX_CLI_MODE_INVALID:
         trfx_print_cli_error(&options);
         return 1;
+    case TRFX_CLI_MODE_INTERFACES:
+        trfx_print_cli_not_implemented("interfaces");
+        return 1;
+    case TRFX_CLI_MODE_CONNECTIONS:
+        trfx_print_cli_not_implemented("connections");
+        return 1;
+    case TRFX_CLI_MODE_SYSTEM:
+        trfx_print_cli_not_implemented("system");
+        return 1;
     case TRFX_CLI_MODE_TUI:
         break;
     }

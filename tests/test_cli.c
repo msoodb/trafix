@@ -41,10 +41,25 @@ static int test_parse_cli(void) {
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
   ASSERT_STR_EQ(options.error, "unknown argument: --bad-option");
 
-  char *unknown_command_argv[] = {"trafix", "connections"};
+  char *interfaces_argv[] = {"trafix", "interfaces"};
+  options = trfx_parse_cli(2, interfaces_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INTERFACES);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_argv[] = {"trafix", "connections"};
+  options = trfx_parse_cli(2, connections_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *system_argv[] = {"trafix", "system"};
+  options = trfx_parse_cli(2, system_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_SYSTEM);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *unknown_command_argv[] = {"trafix", "listeners"};
   options = trfx_parse_cli(2, unknown_command_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
-  ASSERT_STR_EQ(options.error, "unknown argument: connections");
+  ASSERT_STR_EQ(options.error, "unknown argument: listeners");
 
   char *too_many_argv[] = {"trafix", "--help", "--version"};
   options = trfx_parse_cli(3, too_many_argv);
@@ -60,6 +75,11 @@ static int test_parse_cli(void) {
   options = trfx_parse_cli(3, version_plus_extra_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
   ASSERT_STR_EQ(options.error, "unknown argument: --version");
+
+  char *interfaces_plus_extra_argv[] = {"trafix", "interfaces", "--json"};
+  options = trfx_parse_cli(3, interfaces_plus_extra_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: interfaces");
 
   return 0;
 }

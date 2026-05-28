@@ -16,6 +16,9 @@ typedef enum {
   TRFX_CLI_MODE_TUI = 0,
   TRFX_CLI_MODE_HELP,
   TRFX_CLI_MODE_VERSION,
+  TRFX_CLI_MODE_INTERFACES,
+  TRFX_CLI_MODE_CONNECTIONS,
+  TRFX_CLI_MODE_SYSTEM,
   TRFX_CLI_MODE_INVALID
 } TrfxCliMode;
 
@@ -28,5 +31,6 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv);
 void trfx_print_cli_help(void);
 void trfx_print_cli_version(void);
 void trfx_print_cli_error(const TrfxCliOptions *options);
+void trfx_print_cli_not_implemented(const char *command);
 
 #endif // TRFX_CLI_H

@@ -33,6 +33,21 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       options.mode = TRFX_CLI_MODE_VERSION;
       return options;
     }
+
+    if (strcmp(arg, "interfaces") == 0) {
+      options.mode = TRFX_CLI_MODE_INTERFACES;
+      return options;
+    }
+
+    if (strcmp(arg, "connections") == 0) {
+      options.mode = TRFX_CLI_MODE_CONNECTIONS;
+      return options;
+    }
+
+    if (strcmp(arg, "system") == 0) {
+      options.mode = TRFX_CLI_MODE_SYSTEM;
+      return options;
+    }
   }
 
   options.mode = TRFX_CLI_MODE_INVALID;
@@ -69,4 +84,8 @@ void trfx_print_cli_error(const TrfxCliOptions *options) {
 
   fprintf(stderr, "trafix: %s\n", message);
   fprintf(stderr, "Try 'trafix --help' for usage.\n");
+}
+
+void trfx_print_cli_not_implemented(const char *command) {
+  fprintf(stderr, "trafix: command not implemented yet: %s\n", command);
 }
