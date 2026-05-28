@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pwd.h>
 #include "trfx_connections.h"
 #include "trfx_socket_owners.h"
 
@@ -62,6 +63,20 @@ static const char *socket_state_name(const char *proto, int state_num) {
     return trfx_tcp_state_name(state_num);
 }
 
+static void resolve_uid_name(unsigned int uid, char *dest, size_t dest_size) {
+    struct passwd *pw;
+
+    if (!dest || dest_size == 0)
+        return;
+
+    pw = getpwuid((uid_t)uid);
+    if (pw && pw->pw_name) {
+        snprintf(dest, dest_size, "%s", pw->pw_name);
+    } else {
+        snprintf(dest, dest_size, "-");
+    }
+}
+
 static int should_skip_connection_state(const char *proto, int state_num) {
     if (strcmp(proto, "TCP") != 0) {
         return 0;
@@ -88,10 +103,11 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         char local_hex[128], remote_hex[128];
         int state_num;
         unsigned long inode;
+        unsigned int uid;
 
         if (sscanf(line,
-                   "%*d: %127[0-9A-Fa-f:] %127[0-9A-Fa-f:] %x %*s %*s %*s %*u %*u %lu",
-                   local_hex, remote_hex, &state_num, &inode) != 4) {
+                   "%*d: %127[0-9A-Fa-f:] %127[0-9A-Fa-f:] %x %*s %*s %*s %u %*u %lu",
+                   local_hex, remote_hex, &state_num, &uid, &inode) != 5) {
             continue; // skip malformed lines
         }
 
@@ -110,6 +126,8 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         snprintf(list[count].state, sizeof(list[count].state), "%s",
                  socket_state_name(proto, state_num));
         list[count].inode = inode;
+        list[count].uid = uid;
+        resolve_uid_name(uid, list[count].user, sizeof(list[count].user));
         snprintf(list[count].pid, sizeof(list[count].pid), "-");
         snprintf(list[count].process, sizeof(list[count].process), "-");
         count++;

@@ -20,6 +20,8 @@ typedef struct {
     char remote_addr[64];
     char state[32];
     unsigned long inode;
+    unsigned int uid;
+    char user[64];
     char pid[16];
     char process[64];
 } ConnectionInfo;

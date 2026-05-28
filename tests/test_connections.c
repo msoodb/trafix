@@ -22,12 +22,14 @@ static int test_parse_connection_fixtures(void) {
   ASSERT_STR_EQ(connections[0].remote_addr, "127.0.0.2:443");
   ASSERT_STR_EQ(connections[0].state, "ESTABLISHED");
   ASSERT_INT_EQ((int)connections[0].inode, 12345);
+  ASSERT_INT_EQ((int)connections[0].uid, 1000);
   ASSERT_STR_EQ(connections[0].pid, "-");
   ASSERT_STR_EQ(connections[0].process, "-");
   ASSERT_STR_EQ(connections[1].protocol, "TCP");
   ASSERT_STR_EQ(connections[1].local_addr, "0.0.0.0:22");
   ASSERT_STR_EQ(connections[1].remote_addr, "0.0.0.0:0");
   ASSERT_STR_EQ(connections[1].state, "LISTEN");
+  ASSERT_INT_EQ((int)connections[1].uid, 0);
 
   count = trfx_parse_connection_path("tests/fixtures/proc_net_udp", "UDP",
                                      connections, count, MAX_CONNECTIONS);

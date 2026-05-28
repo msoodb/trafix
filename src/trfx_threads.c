@@ -551,16 +551,19 @@ void *connection_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, 1, 2, "%-6s %-22s %-22s %-15s %-7s %-16s", "Proto",
-              "Local Address", "Remote Address", "State", "PID", "Process");
+    mvwprintw(win, 1, 2, "%-6s %-22s %-22s %-15s %-8s %-12s %-7s %-16s",
+              "Proto", "Local Address", "Remote Address", "State", "UID",
+              "User", "PID", "Process");
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      mvwprintw(win, y++, 2, "%-6s %-22s %-22s %-15s %-7s %-16.16s", connections[i].protocol,
+      mvwprintw(win, y++, 2,
+                "%-6s %-22s %-22s %-15s %-8u %-12.12s %-7s %-16.16s",
+                connections[i].protocol,
                 connections[i].local_addr, connections[i].remote_addr,
-                connections[i].state, connections[i].pid,
-                connections[i].process);
+                connections[i].state, connections[i].uid, connections[i].user,
+                connections[i].pid, connections[i].process);
     }
 
     wrefresh(win);

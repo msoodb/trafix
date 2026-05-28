@@ -93,16 +93,17 @@ void trfx_print_interfaces_json(FILE *out,
 
 void trfx_print_connections_text(FILE *out, const ConnectionInfo connections[],
                                  int count, const TrfxCliOptions *options) {
-  fprintf(out, "%-6s %-22s %-22s %-15s %-7s %-16s\n", "PROTO", "LOCAL",
-          "REMOTE", "STATE", "PID", "PROCESS");
+  fprintf(out, "%-6s %-22s %-22s %-15s %-8s %-16s %-7s %-16s\n", "PROTO",
+          "LOCAL", "REMOTE", "STATE", "UID", "USER", "PID", "PROCESS");
   for (int i = 0; connections && i < count; i++) {
     if (!connection_matches_filters(&connections[i], options))
       continue;
 
-    fprintf(out, "%-6s %-22s %-22s %-15s %-7s %-16.16s\n",
+    fprintf(out, "%-6s %-22s %-22s %-15s %-8u %-16.16s %-7s %-16.16s\n",
             connections[i].protocol,
             connections[i].local_addr, connections[i].remote_addr,
-            connections[i].state, connections[i].pid, connections[i].process);
+            connections[i].state, connections[i].uid, connections[i].user,
+            connections[i].pid, connections[i].process);
   }
 }
 
@@ -124,6 +125,9 @@ void trfx_print_connections_json(FILE *out, const ConnectionInfo connections[],
     print_json_string(out, connections[i].remote_addr);
     fprintf(out, ",\"state\":");
     print_json_string(out, connections[i].state);
+    fprintf(out, ",\"uid\":%u", connections[i].uid);
+    fprintf(out, ",\"user\":");
+    print_json_string(out, connections[i].user);
     fprintf(out, ",\"pid\":");
     print_json_string(out, connections[i].pid);
     fprintf(out, ",\"process\":");

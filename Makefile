@@ -9,7 +9,9 @@ CFLAGS += -Wall -Wextra -Wunused-result
 LDFLAGS ?=
 LDLIBS = -lncurses
 SRC_DIR = src
-BUILD_DIR = build
+BUILD_ROOT = build
+MODE ?= release
+BUILD_DIR = $(BUILD_ROOT)/$(MODE)
 BIN_DIR = bin
 TEST_BINS = \
 	$(BUILD_DIR)/test_utils \
@@ -33,12 +35,13 @@ SPECDIR := $(HOME)/rpmbuild/SPECS
 # Default build
 all: $(BIN_DIR) $(TARGET)
 
-debug: CFLAGS = -O0 -g3 -Wall -Wextra -Wunused-result
-debug: clean all
+debug:
+	$(MAKE) clean
+	$(MAKE) MODE=debug CFLAGS="-O0 -g3 -Wall -Wextra -Wunused-result" all
 
-asan: CFLAGS = -O1 -g -Wall -Wextra -Wunused-result -fsanitize=address,undefined -fno-omit-frame-pointer
-asan: LDFLAGS = -fsanitize=address,undefined
-asan: clean all
+asan:
+	$(MAKE) clean
+	$(MAKE) MODE=asan CFLAGS="-O1 -g -Wall -Wextra -Wunused-result -fsanitize=address,undefined -fno-omit-frame-pointer" LDFLAGS="-fsanitize=address,undefined" all
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(TARGET) $(LDLIBS)
@@ -116,6 +119,6 @@ uninstall:
 # Clean build files
 clean:
 	rm -f $(TARGET)
-	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	rm -rf $(BUILD_ROOT) $(BIN_DIR)
 
 .PHONY: all debug asan test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
