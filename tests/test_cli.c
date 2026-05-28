@@ -52,6 +52,8 @@ static int test_parse_cli(void) {
   options = trfx_parse_cli(2, connections_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
+  ASSERT_INT_EQ(options.has_proto_filter, 0);
+  ASSERT_INT_EQ(options.has_state_filter, 0);
   ASSERT_STR_EQ(options.error, "");
 
   char *system_argv[] = {"trafix", "system"};
@@ -70,6 +72,50 @@ static int test_parse_cli(void) {
   options = trfx_parse_cli(3, connections_json_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_JSON);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_proto_tcp_argv[] = {"trafix", "connections", "--proto",
+                                        "tcp"};
+  options = trfx_parse_cli(4, connections_proto_tcp_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
+  ASSERT_INT_EQ(options.has_proto_filter, 1);
+  ASSERT_STR_EQ(options.proto_filter, "TCP");
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_proto_udp_argv[] = {"trafix", "connections", "--proto",
+                                        "udp"};
+  options = trfx_parse_cli(4, connections_proto_udp_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_INT_EQ(options.has_proto_filter, 1);
+  ASSERT_STR_EQ(options.proto_filter, "UDP");
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_state_argv[] = {"trafix", "connections", "--state",
+                                    "ESTABLISHED"};
+  options = trfx_parse_cli(4, connections_state_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_INT_EQ(options.has_state_filter, 1);
+  ASSERT_STR_EQ(options.state_filter, "ESTABLISHED");
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_json_proto_argv[] = {"trafix", "connections", "--json",
+                                         "--proto", "tcp"};
+  options = trfx_parse_cli(5, connections_json_proto_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_JSON);
+  ASSERT_INT_EQ(options.has_proto_filter, 1);
+  ASSERT_STR_EQ(options.proto_filter, "TCP");
+  ASSERT_STR_EQ(options.error, "");
+
+  char *connections_proto_state_argv[] = {"trafix", "connections", "--proto",
+                                          "tcp", "--state", "LISTEN"};
+  options = trfx_parse_cli(6, connections_proto_state_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_CONNECTIONS);
+  ASSERT_INT_EQ(options.has_proto_filter, 1);
+  ASSERT_INT_EQ(options.has_state_filter, 1);
+  ASSERT_STR_EQ(options.proto_filter, "TCP");
+  ASSERT_STR_EQ(options.state_filter, "LISTEN");
   ASSERT_STR_EQ(options.error, "");
 
   char *system_json_argv[] = {"trafix", "system", "--json"};
@@ -106,7 +152,22 @@ static int test_parse_cli(void) {
   char *interfaces_plus_extra_argv[] = {"trafix", "interfaces", "--bad"};
   options = trfx_parse_cli(3, interfaces_plus_extra_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
-  ASSERT_STR_EQ(options.error, "unknown argument: interfaces");
+  ASSERT_STR_EQ(options.error, "unknown argument: --bad");
+
+  char *interfaces_proto_argv[] = {"trafix", "interfaces", "--proto", "tcp"};
+  options = trfx_parse_cli(4, interfaces_proto_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: --proto");
+
+  char *bad_proto_argv[] = {"trafix", "connections", "--proto", "icmp"};
+  options = trfx_parse_cli(4, bad_proto_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: icmp");
+
+  char *bad_state_argv[] = {"trafix", "connections", "--state", "BOGUS"};
+  options = trfx_parse_cli(4, bad_state_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "unknown argument: BOGUS");
 
   return 0;
 }

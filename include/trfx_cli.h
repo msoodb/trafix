@@ -11,6 +11,8 @@
 #define TRFX_CLI_H
 
 #define TRFX_CLI_ERROR_MAX 128
+#define TRFX_CLI_PROTO_FILTER_MAX 8
+#define TRFX_CLI_STATE_FILTER_MAX 32
 
 typedef enum {
   TRFX_CLI_MODE_TUI = 0,
@@ -30,6 +32,10 @@ typedef enum {
 typedef struct {
   TrfxCliMode mode;
   TrfxCliOutputFormat output_format;
+  int has_proto_filter;
+  char proto_filter[TRFX_CLI_PROTO_FILTER_MAX];
+  int has_state_filter;
+  char state_filter[TRFX_CLI_STATE_FILTER_MAX];
   char error[TRFX_CLI_ERROR_MAX];
 } TrfxCliOptions;
 

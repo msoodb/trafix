@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     case TRFX_CLI_MODE_INTERFACES:
         return trfx_run_interfaces_command(options.output_format);
     case TRFX_CLI_MODE_CONNECTIONS:
-        return trfx_run_connections_command(options.output_format);
+        return trfx_run_connections_command(&options);
     case TRFX_CLI_MODE_SYSTEM:
         return trfx_run_system_command(options.output_format);
     case TRFX_CLI_MODE_TUI:

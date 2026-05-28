@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "trfx_config.h"
@@ -98,14 +99,38 @@ int trfx_run_interfaces_command(TrfxCliOutputFormat output_format) {
   return 0;
 }
 
-int trfx_run_connections_command(TrfxCliOutputFormat output_format) {
+static int connection_matches_filters(const ConnectionInfo *connection,
+                                      const TrfxCliOptions *options) {
+  if (!connection || !options)
+    return 0;
+
+  if (options->has_proto_filter &&
+      strcmp(connection->protocol, options->proto_filter) != 0) {
+    return 0;
+  }
+
+  if (options->has_state_filter &&
+      strcmp(connection->state, options->state_filter) != 0) {
+    return 0;
+  }
+
+  return 1;
+}
+
+int trfx_run_connections_command(const TrfxCliOptions *options) {
   ConnectionInfo connections[MAX_CONNECTIONS];
   int count = get_connection_info(connections, MAX_CONNECTIONS);
+  TrfxCliOutputFormat output_format =
+      options ? options->output_format : TRFX_CLI_OUTPUT_TEXT;
 
   if (output_format == TRFX_CLI_OUTPUT_JSON) {
+    int written = 0;
     printf("{\"connections\":[");
     for (int i = 0; i < count; i++) {
-      if (i > 0)
+      if (!connection_matches_filters(&connections[i], options))
+        continue;
+
+      if (written > 0)
         putchar(',');
       printf("{\"proto\":");
       print_json_string(connections[i].protocol);
@@ -116,6 +141,7 @@ int trfx_run_connections_command(TrfxCliOutputFormat output_format) {
       printf(",\"state\":");
       print_json_string(connections[i].state);
       putchar('}');
+      written++;
     }
     printf("]}\n");
     return 0;
@@ -123,6 +149,9 @@ int trfx_run_connections_command(TrfxCliOutputFormat output_format) {
 
   printf("%-6s %-22s %-22s %-15s\n", "PROTO", "LOCAL", "REMOTE", "STATE");
   for (int i = 0; i < count; i++) {
+    if (!connection_matches_filters(&connections[i], options))
+      continue;
+
     printf("%-6s %-22s %-22s %-15s\n", connections[i].protocol,
            connections[i].local_addr, connections[i].remote_addr,
            connections[i].state);

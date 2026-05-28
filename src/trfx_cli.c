@@ -14,8 +14,48 @@
 
 #include "trfx_version.h"
 
+static int is_command(const char *arg, TrfxCliMode *mode) {
+  if (strcmp(arg, "interfaces") == 0) {
+    *mode = TRFX_CLI_MODE_INTERFACES;
+    return 1;
+  }
+
+  if (strcmp(arg, "connections") == 0) {
+    *mode = TRFX_CLI_MODE_CONNECTIONS;
+    return 1;
+  }
+
+  if (strcmp(arg, "system") == 0) {
+    *mode = TRFX_CLI_MODE_SYSTEM;
+    return 1;
+  }
+
+  return 0;
+}
+
+static int is_supported_state_filter(const char *state) {
+  const char *states[] = {"ESTABLISHED", "SYN_SENT", "SYN_RECV", "FIN_WAIT1",
+                          "FIN_WAIT2",   "TIME_WAIT", "CLOSE",    "CLOSE_WAIT",
+                          "LAST_ACK",    "LISTEN",    "CLOSING",  "NEW_SYN_RECV",
+                          "UNCONN",      "UNKNOWN",   NULL};
+
+  for (int i = 0; states[i]; i++) {
+    if (strcmp(state, states[i]) == 0)
+      return 1;
+  }
+
+  return 0;
+}
+
+static void set_unknown_argument(TrfxCliOptions *options, const char *arg) {
+  options->mode = TRFX_CLI_MODE_INVALID;
+  snprintf(options->error, sizeof(options->error), "unknown argument: %s",
+           arg ? arg : "");
+}
+
 TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
-  TrfxCliOptions options = {TRFX_CLI_MODE_TUI, TRFX_CLI_OUTPUT_TEXT, {0}};
+  TrfxCliOptions options = {TRFX_CLI_MODE_TUI, TRFX_CLI_OUTPUT_TEXT,
+                            0, {0}, 0, {0}, {0}};
 
   if (argc <= 1) {
     return options;
@@ -34,51 +74,78 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       return options;
     }
 
-    if (strcmp(arg, "interfaces") == 0) {
-      options.mode = TRFX_CLI_MODE_INTERFACES;
-      return options;
-    }
-
-    if (strcmp(arg, "connections") == 0) {
-      options.mode = TRFX_CLI_MODE_CONNECTIONS;
-      return options;
-    }
-
-    if (strcmp(arg, "system") == 0) {
-      options.mode = TRFX_CLI_MODE_SYSTEM;
+    if (is_command(arg, &options.mode)) {
       return options;
     }
   }
 
-  if (argc == 3) {
-    const char *command = argv[1];
-    const char *flag = argv[2];
+  if (argc >= 3 && is_command(argv[1], &options.mode)) {
+    int i = 2;
+    while (i < argc) {
+      const char *arg = argv[i];
 
-    if (strcmp(flag, "--json") == 0) {
-      if (strcmp(command, "interfaces") == 0) {
-        options.mode = TRFX_CLI_MODE_INTERFACES;
+      if (strcmp(arg, "--json") == 0) {
+        if (options.output_format == TRFX_CLI_OUTPUT_JSON) {
+          set_unknown_argument(&options, arg);
+          return options;
+        }
         options.output_format = TRFX_CLI_OUTPUT_JSON;
-        return options;
+        i++;
+        continue;
       }
 
-      if (strcmp(command, "connections") == 0) {
-        options.mode = TRFX_CLI_MODE_CONNECTIONS;
-        options.output_format = TRFX_CLI_OUTPUT_JSON;
-        return options;
+      if (strcmp(arg, "--proto") == 0) {
+        if (options.mode != TRFX_CLI_MODE_CONNECTIONS || i + 1 >= argc ||
+            options.has_proto_filter) {
+          set_unknown_argument(&options, arg);
+          return options;
+        }
+
+        const char *value = argv[i + 1];
+        if (strcmp(value, "tcp") == 0 || strcmp(value, "TCP") == 0) {
+          snprintf(options.proto_filter, sizeof(options.proto_filter), "TCP");
+        } else if (strcmp(value, "udp") == 0 || strcmp(value, "UDP") == 0) {
+          snprintf(options.proto_filter, sizeof(options.proto_filter), "UDP");
+        } else {
+          set_unknown_argument(&options, value);
+          return options;
+        }
+
+        options.has_proto_filter = 1;
+        i += 2;
+        continue;
       }
 
-      if (strcmp(command, "system") == 0) {
-        options.mode = TRFX_CLI_MODE_SYSTEM;
-        options.output_format = TRFX_CLI_OUTPUT_JSON;
-        return options;
+      if (strcmp(arg, "--state") == 0) {
+        if (options.mode != TRFX_CLI_MODE_CONNECTIONS || i + 1 >= argc ||
+            options.has_state_filter) {
+          set_unknown_argument(&options, arg);
+          return options;
+        }
+
+        const char *value = argv[i + 1];
+        if (!is_supported_state_filter(value)) {
+          set_unknown_argument(&options, value);
+          return options;
+        }
+
+        snprintf(options.state_filter, sizeof(options.state_filter), "%s",
+                 value);
+        options.has_state_filter = 1;
+        i += 2;
+        continue;
       }
+
+      set_unknown_argument(&options, arg);
+      return options;
     }
+
+    return options;
   }
 
   options.mode = TRFX_CLI_MODE_INVALID;
   if (argc > 1 && argv[1]) {
-    snprintf(options.error, sizeof(options.error), "unknown argument: %s",
-             argv[1]);
+    set_unknown_argument(&options, argv[1]);
   } else {
     snprintf(options.error, sizeof(options.error), "invalid arguments");
   }
