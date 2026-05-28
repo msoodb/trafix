@@ -21,7 +21,7 @@ void *disk_info_thread(void *arg);
 void *connection_info_thread(void *arg);
 void *network_info_thread(void *arg);
 void *process_info_thread(void *arg);
-void *bandwidth_info_thread(void *arg);
+void *socket_owner_info_thread(void *arg);
 void *help_info_thread(void *arg);
 
 void start_dashboard();

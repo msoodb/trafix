@@ -23,7 +23,7 @@
 
 #include "trfx_procinfo.h"
 #include "trfx_connections.h"
-#include "trfx_bandwidth.h"
+#include "trfx_socket_owners.h"
 #include "trfx_netinfo.h"
 #include "trfx_wifi.h"
 
@@ -569,7 +569,7 @@ void *connection_info_thread(void *arg) {
   return NULL;
 }
 
-void *bandwidth_info_thread(void *arg) {
+void *socket_owner_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
@@ -584,9 +584,8 @@ void *bandwidth_info_thread(void *arg) {
       continue;
     }
 
-    // Array of connections (max limit)
-    BandwidthInfo bandwidths[MAX_BANDWIDTH_CONNECTIONS];
-    int nconn = get_bandwidth_info(bandwidths, MAX_BANDWIDTH_CONNECTIONS);
+    SocketOwnerInfo owners[MAX_SOCKET_OWNERS];
+    int nconn = get_socket_owner_info(owners, MAX_SOCKET_OWNERS);
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -599,32 +598,27 @@ void *bandwidth_info_thread(void *arg) {
 
     // Print the title
     wattron(win, A_BOLD);
-    mvwprintw(win, 0, 2, " [%d] Bandwidth Usage ", my_index + 1);
+    mvwprintw(win, 0, 2, " [%d] Socket Owners ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    // Print column headers (updated)
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, 1, 2, "%-10s %-6s %-22s %-22s %-5s %-5s", "Proto", "PID",
-              "Local", "Remote", "Sent", "Recv");
+    mvwprintw(win, 1, 2, "%-6s %-7s %-16s %-22s %-22s", "Proto", "PID",
+              "Process", "Local", "Remote");
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
-    // Display connection info
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      // Format local address as IP:Port
       char local_info[64];
-      snprintf(local_info, sizeof(local_info), "%s:%s", bandwidths[i].laddr,
-               bandwidths[i].lport);
+      snprintf(local_info, sizeof(local_info), "%s:%s", owners[i].laddr,
+               owners[i].lport);
 
-      // Format remote address as IP:Port
       char remote_info[64];
-      snprintf(remote_info, sizeof(remote_info), "%s:%s", bandwidths[i].raddr,
-               bandwidths[i].rport);
+      snprintf(remote_info, sizeof(remote_info), "%s:%s", owners[i].raddr,
+               owners[i].rport);
 
-      // Display the connection info in the window
-      mvwprintw(win, y++, 2, "%-10s %-6s %-22s %-22s %-5lu %-5lu",
-                bandwidths[i].proto, bandwidths[i].pid, local_info,
-                remote_info, bandwidths[i].sent_kb, bandwidths[i].recv_kb);
+      mvwprintw(win, y++, 2, "%-6s %-7s %-16.16s %-22s %-22s",
+                owners[i].proto, owners[i].pid, owners[i].process, local_info,
+                remote_info);
     }
 
     wrefresh(win); // Refresh the window to show new data

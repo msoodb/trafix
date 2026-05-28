@@ -38,14 +38,14 @@ typedef struct {
 
 const int dynamic_module_indexes[] = {
   DYNAMIC_MODULE_CONNINFO, DYNAMIC_MODULE_NETINFO, DYNAMIC_MODULE_PROCINFO, DYNAMIC_MODULE_PROC_COMPACT_INFO,
-    DYNAMIC_MODULE_BANDWIDTH};
+    DYNAMIC_MODULE_SOCKET_OWNERS};
 
 Module modules[] = {
     {"Connections", connection_info_thread},
     {"Network", network_info_thread},
     {"Processes", process_info_thread},
     {"Processes Compact", process_compact_info_thread},
-    {"Bandwidth", bandwidth_info_thread},
+    {"Socket Owners", socket_owner_info_thread},
     {NULL, NULL} // Sentinel
 };
 
@@ -125,7 +125,7 @@ int select_module() {
   screen_paused = 1;
 
   const char *module_names[] = {" Connections ", " Network Information ",
-                                " Processes ", " Processes Compact ", " Bandwidth "};
+                                " Processes ", " Processes Compact ", " Socket Owners "};
   int module_count = sizeof(module_names) / sizeof(module_names[0]);
 
   int screen_height, screen_width;

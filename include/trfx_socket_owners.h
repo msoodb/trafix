@@ -7,10 +7,10 @@
  * See LICENSE file for details.
  */
 
-#ifndef TRFX_BANDWIDTH_H
-#define TRFX_BANDWIDTH_H
+#ifndef TRFX_SOCKET_OWNERS_H
+#define TRFX_SOCKET_OWNERS_H
 
-#define MAX_BANDWIDTH_CONNECTIONS 256
+#define MAX_SOCKET_OWNERS 256
 
 typedef struct {
     char pid[16];
@@ -20,10 +20,8 @@ typedef struct {
     char raddr[64];
     char rport[8];
     char proto[8]; // "TCP" or "UDP"
-    unsigned long sent_kb;
-    unsigned long recv_kb;
-} BandwidthInfo;
+} SocketOwnerInfo;
 
-int get_bandwidth_info(BandwidthInfo *bandwidths, int max_conns);
+int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners);
 
-#endif // TRFX_BANDWIDTH_H
+#endif // TRFX_SOCKET_OWNERS_H
