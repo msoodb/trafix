@@ -9,12 +9,39 @@ trafix \- Lightweight network monitoring tool for Linux
 .SH SYNOPSIS
 .B trafix
 .RI [ OPTION ]
+.br
+.B trafix interfaces
+.RI [ --json ]
+.br
+.B trafix connections
+.RI [ --json ]
+.RI [ "--proto tcp|udp" ]
+.RI [ "--state STATE" ]
+.br
+.B trafix system
+.RI [ --json ]
 .SH DESCRIPTION
-Trafix is a lightweight terminal user interface that provides real-time insights into Linux system, connection, and network activity.
+Trafix is a lightweight terminal user interface and scriptable command-line tool that provides insights into Linux system, connection, and network activity.
 
 Running
 .B trafix
 without options launches the interactive TUI.
+.SH COMMANDS
+.TP
+.B interfaces
+Print current network interface byte counters. Text output is the default; use
+.B --json
+for JSON output.
+.TP
+.B connections
+Print current TCP/UDP connections. Text output is the default; use
+.B --json
+for JSON output.
+.TP
+.B system
+Print a compact system overview. Text output is the default; use
+.B --json
+for JSON output.
 .SH OPTIONS
 .TP
 .BR -h ", " --help
@@ -22,5 +49,31 @@ Display this help message and exit.
 .TP
 .BR -v ", " --version
 Display version information and exit.
+.TP
+.B --json
+Use JSON output for scriptable commands.
+.TP
+.BI "--proto " tcp|udp
+Filter
+.B connections
+output by protocol.
+.TP
+.BI "--state " STATE
+Filter
+.B connections
+output by connection state, such as
+.B ESTABLISHED
+or
+.BR LISTEN .
+.SH EXIT STATUS
+.TP
+.B 0
+Command completed successfully.
+.TP
+.B 1
+Invalid arguments or general command failure.
+.TP
+.B 2
+Required collector data is unavailable or permission-limited.
 .SH AUTHOR
 Written by Masoud Bolhassani.

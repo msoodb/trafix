@@ -7,7 +7,7 @@
 
 **Trafix** - A Lightweight Linux Monitoring Tool
 
-Trafix is a lightweight terminal monitoring tool for Linux systems. It provides an interactive TUI for system, process, connection, and network visibility, with a small CLI skeleton for launching the TUI and printing help/version information.
+Trafix is a lightweight terminal monitoring tool for Linux systems. It provides an interactive TUI for system, process, connection, and network visibility, plus scriptable CLI commands for interface counters, connections, and system overview data.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
 - **Monitor Active Connections:** View detailed information about all active TCP/UDP connections, including local and remote addresses, ports, and connection states.
 - **Track Interface Activity:** Monitor sent and received interface counter deltas in real time.
 - **Socket Owners:** Map visible sockets to owning PID/process where available.
-- **CLI Skeleton:** Launch the TUI and print help/version information from a predictable command-line entry point.
+- **Scriptable CLI:** Print interface counters, active connections, and system overview data in text or JSON format.
 
 Trafix is designed to be lightweight, efficient, and to use minimal system resources, making it an ideal tool for monitoring network activity on Linux-based systems.
 
@@ -82,6 +82,31 @@ Show version information:
 ```sh
 trafix --version
 ```
+
+Print network interface counters:
+
+```sh
+trafix interfaces
+trafix interfaces --json
+```
+
+Print active TCP/UDP connections:
+
+```sh
+trafix connections
+trafix connections --json
+trafix connections --proto tcp
+trafix connections --state ESTABLISHED
+```
+
+Print a compact system overview:
+
+```sh
+trafix system
+trafix system --json
+```
+
+CLI commands use text output by default. Use `--json` when integrating Trafix with scripts or other tools.
 
 ### Install from Fedora Repository
 > This installation method is under development and not yet ready for use.

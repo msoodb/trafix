@@ -9,16 +9,21 @@
 provides an ncurses TUI for system, CPU, memory, disk, process, connection,
 network, and socket-owner visibility.
 
-The command line currently supports only the application skeleton:
+The command line supports both the interactive TUI entry point and scriptable
+read-only commands:
 
 - `trafix` launches the interactive TUI.
 - `trafix --help` or `trafix -h` prints usage.
 - `trafix --version` or `trafix -v` prints version information.
+- `trafix interfaces` prints network interface counters.
+- `trafix connections` prints current TCP/UDP connection rows.
+- `trafix system` prints a compact system overview.
+- `--json` selects JSON output for scriptable commands.
+- `trafix connections --proto tcp|udp` filters by protocol.
+- `trafix connections --state STATE` filters by connection state.
 - Unknown arguments fail clearly and do not launch the TUI.
 
-Scriptable subcommands such as `trafix connections`, `trafix interfaces`, JSON
-output, filters, alerts, and top-talkers are roadmap items, not current
-behavior.
+Alerts and top-talkers are roadmap items, not current behavior.
 
 ## Build Dependencies
 
@@ -154,17 +159,23 @@ ROW2_MODULES = 3
 trafix
 trafix --help
 trafix --version
+trafix interfaces
+trafix interfaces --json
+trafix connections
+trafix connections --json
+trafix connections --proto tcp
+trafix connections --state ESTABLISHED
+trafix system
+trafix system --json
 ```
 
-No subcommands are currently implemented.
+The scriptable commands use text output by default and JSON output with
+`--json`.
 
 ## Roadmap
 
 Planned future work includes:
 
-- scriptable CLI subcommands such as `interfaces`, `connections`, and `system`
-- JSON output
-- connection filters
 - IPv6 connection parsing
 - route and DNS collectors
 - cleaner TUI lifecycle and resize handling
