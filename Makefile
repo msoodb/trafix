@@ -61,7 +61,7 @@ $(BUILD_DIR)/test_cli_output: tests/test_cli_output.c src/trfx_cli_output.c src/
 $(BUILD_DIR)/test_version: tests/test_version.c src/trfx_version.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-$(BUILD_DIR)/test_connections: tests/test_connections.c src/trfx_connections.c | $(BUILD_DIR)
+$(BUILD_DIR)/test_connections: tests/test_connections.c src/trfx_connections.c src/trfx_socket_owners.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_netinfo: tests/test_netinfo.c src/trfx_netinfo.c | $(BUILD_DIR)

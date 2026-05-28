@@ -10,7 +10,10 @@
 #ifndef TRFX_SOCKET_OWNERS_H
 #define TRFX_SOCKET_OWNERS_H
 
+#include <stddef.h>
+
 #define MAX_SOCKET_OWNERS 256
+#define MAX_SOCKET_OWNER_MAP_ENTRIES 4096
 
 typedef struct {
     char pid[16];
@@ -22,6 +25,18 @@ typedef struct {
     char proto[8]; // "TCP" or "UDP"
 } SocketOwnerInfo;
 
+typedef struct {
+    unsigned long inode;
+    char pid[16];
+    char process[64];
+} TrfxSocketOwnerMapEntry;
+
 int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners);
+int trfx_scan_socket_owner_map(TrfxSocketOwnerMapEntry *entries,
+                               int max_entries);
+int trfx_find_socket_owner_by_inode(const TrfxSocketOwnerMapEntry *entries,
+                                    int entry_count, unsigned long inode,
+                                    char *pid, size_t pid_size, char *process,
+                                    size_t process_size);
 
 #endif // TRFX_SOCKET_OWNERS_H

@@ -9,6 +9,7 @@
 
 #include "test_common.h"
 #include "trfx_connections.h"
+#include "trfx_socket_owners.h"
 
 static int test_parse_connection_fixtures(void) {
   ConnectionInfo connections[MAX_CONNECTIONS];
@@ -20,6 +21,9 @@ static int test_parse_connection_fixtures(void) {
   ASSERT_STR_EQ(connections[0].local_addr, "127.0.0.1:8080");
   ASSERT_STR_EQ(connections[0].remote_addr, "127.0.0.2:443");
   ASSERT_STR_EQ(connections[0].state, "ESTABLISHED");
+  ASSERT_INT_EQ((int)connections[0].inode, 12345);
+  ASSERT_STR_EQ(connections[0].pid, "-");
+  ASSERT_STR_EQ(connections[0].process, "-");
   ASSERT_STR_EQ(connections[1].protocol, "TCP");
   ASSERT_STR_EQ(connections[1].local_addr, "0.0.0.0:22");
   ASSERT_STR_EQ(connections[1].remote_addr, "0.0.0.0:0");
@@ -34,6 +38,31 @@ static int test_parse_connection_fixtures(void) {
   ASSERT_STR_EQ(connections[3].protocol, "UDP");
   ASSERT_STR_EQ(connections[3].local_addr, "0.0.0.0:68");
   ASSERT_STR_EQ(connections[3].state, "UNCONN");
+
+  return 0;
+}
+
+static int test_socket_owner_inode_lookup(void) {
+  TrfxSocketOwnerMapEntry owners[] = {
+      {12345, "42", "curl"},
+      {23456, "77", "sshd"},
+  };
+  char pid[16];
+  char process[64];
+
+  ASSERT_INT_EQ(trfx_find_socket_owner_by_inode(owners, 2, 23456, pid,
+                                                sizeof(pid), process,
+                                                sizeof(process)),
+                1);
+  ASSERT_STR_EQ(pid, "77");
+  ASSERT_STR_EQ(process, "sshd");
+
+  ASSERT_INT_EQ(trfx_find_socket_owner_by_inode(owners, 2, 99999, pid,
+                                                sizeof(pid), process,
+                                                sizeof(process)),
+                0);
+  ASSERT_STR_EQ(pid, "-");
+  ASSERT_STR_EQ(process, "-");
 
   return 0;
 }
@@ -72,6 +101,9 @@ int main(void) {
     return 1;
 
   if (test_udp_state_names() != 0)
+    return 1;
+
+  if (test_socket_owner_inode_lookup() != 0)
     return 1;
 
   return 0;

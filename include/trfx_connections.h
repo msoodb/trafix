@@ -19,6 +19,9 @@ typedef struct {
     char local_addr[64];
     char remote_addr[64];
     char state[32];
+    unsigned long inode;
+    char pid[16];
+    char process[64];
 } ConnectionInfo;
 
 int trfx_parse_connection_file(FILE *fp, const char *proto,

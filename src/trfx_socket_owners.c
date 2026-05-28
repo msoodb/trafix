@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -149,5 +150,91 @@ int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners) {
                           max_owners - count);
   count += parse_proc_net("/proc/net/udp", "UDP", owners + count,
                           max_owners - count);
+  return count;
+}
+
+int trfx_find_socket_owner_by_inode(const TrfxSocketOwnerMapEntry *entries,
+                                    int entry_count, unsigned long inode,
+                                    char *pid, size_t pid_size, char *process,
+                                    size_t process_size) {
+  if (pid && pid_size > 0)
+    snprintf(pid, pid_size, "-");
+  if (process && process_size > 0)
+    snprintf(process, process_size, "-");
+
+  if (!entries || entry_count <= 0 || inode == 0)
+    return 0;
+
+  for (int i = 0; i < entry_count; i++) {
+    if (entries[i].inode == inode) {
+      if (pid && pid_size > 0)
+        snprintf(pid, pid_size, "%s", entries[i].pid);
+      if (process && process_size > 0)
+        snprintf(process, process_size, "%s", entries[i].process);
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int trfx_scan_socket_owner_map(TrfxSocketOwnerMapEntry *entries,
+                               int max_entries) {
+  if (!entries || max_entries <= 0)
+    return 0;
+
+  DIR *proc = opendir("/proc");
+  if (!proc)
+    return 0;
+
+  int count = 0;
+  struct dirent *entry;
+  while ((entry = readdir(proc)) != NULL && count < max_entries) {
+    if (!isdigit((unsigned char)entry->d_name[0]))
+      continue;
+
+    char fd_dir[300];
+    snprintf(fd_dir, sizeof(fd_dir), "/proc/%.*s/fd", 200, entry->d_name);
+
+    DIR *fd = opendir(fd_dir);
+    if (!fd)
+      continue;
+
+    struct dirent *fd_entry;
+    while ((fd_entry = readdir(fd)) != NULL && count < max_entries) {
+      if (fd_entry->d_name[0] == '.')
+        continue;
+
+      char linkpath[512];
+      char target[512];
+      if (strlen(fd_dir) + 1 + strlen(fd_entry->d_name) >= sizeof(linkpath))
+        continue;
+
+      strcpy(linkpath, fd_dir);
+      strcat(linkpath, "/");
+      strcat(linkpath, fd_entry->d_name);
+
+      ssize_t len = readlink(linkpath, target, sizeof(target) - 1);
+      if (len == -1)
+        continue;
+
+      target[len] = '\0';
+
+      unsigned long inode;
+      if (sscanf(target, "socket:[%lu]", &inode) != 1 || inode == 0)
+        continue;
+
+      entries[count].inode = inode;
+      snprintf(entries[count].pid, sizeof(entries[count].pid), "%.*s",
+               (int)(sizeof(entries[count].pid) - 1), entry->d_name);
+      get_process_name_by_pid(entries[count].pid, entries[count].process,
+                              sizeof(entries[count].process));
+      count++;
+    }
+
+    closedir(fd);
+  }
+
+  closedir(proc);
   return count;
 }

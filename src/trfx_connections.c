@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "trfx_connections.h"
+#include "trfx_socket_owners.h"
 
 static void parse_ip_port(char *dest, const char *hex, int is_ipv6) {
     unsigned ip[4], port;
@@ -86,9 +87,11 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         char local[64], remote[64];
         char local_hex[128], remote_hex[128];
         int state_num;
+        unsigned long inode;
 
-        if (sscanf(line, "%*d: %127[0-9A-Fa-f:] %127[0-9A-Fa-f:] %x",
-                   local_hex, remote_hex, &state_num) != 3) {
+        if (sscanf(line,
+                   "%*d: %127[0-9A-Fa-f:] %127[0-9A-Fa-f:] %x %*s %*s %*s %*u %*u %lu",
+                   local_hex, remote_hex, &state_num, &inode) != 4) {
             continue; // skip malformed lines
         }
 
@@ -106,6 +109,9 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
 
         snprintf(list[count].state, sizeof(list[count].state), "%s",
                  socket_state_name(proto, state_num));
+        list[count].inode = inode;
+        snprintf(list[count].pid, sizeof(list[count].pid), "-");
+        snprintf(list[count].process, sizeof(list[count].process), "-");
         count++;
     }
 
@@ -140,6 +146,21 @@ static int compare_connections(const void *a, const void *b) {
     return state_priority(conn_a->state) - state_priority(conn_b->state);
 }
 
+static void apply_socket_owner_map(ConnectionInfo *connections, int count) {
+    TrfxSocketOwnerMapEntry owners[MAX_SOCKET_OWNER_MAP_ENTRIES];
+    int owner_count = trfx_scan_socket_owner_map(owners,
+                                                 MAX_SOCKET_OWNER_MAP_ENTRIES);
+
+    for (int i = 0; connections && i < count; i++) {
+        trfx_find_socket_owner_by_inode(owners, owner_count,
+                                        connections[i].inode,
+                                        connections[i].pid,
+                                        sizeof(connections[i].pid),
+                                        connections[i].process,
+                                        sizeof(connections[i].process));
+    }
+}
+
 int get_connection_info(ConnectionInfo *connections, int max_conns) {
     int count = 0;
     count = trfx_parse_connection_path("/proc/net/tcp", "TCP", connections,
@@ -147,6 +168,7 @@ int get_connection_info(ConnectionInfo *connections, int max_conns) {
     count = trfx_parse_connection_path("/proc/net/udp", "UDP", connections,
                                        count, max_conns);
 
+    apply_socket_owner_map(connections, count);
     qsort(connections, count, sizeof(ConnectionInfo), compare_connections);
 
     return count;
