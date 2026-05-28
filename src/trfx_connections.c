@@ -11,16 +11,80 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pwd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include "trfx_connections.h"
 #include "trfx_socket_owners.h"
 
-static void parse_ip_port(char *dest, const char *hex, int is_ipv6) {
+static int hex_byte(const char *hex, unsigned char *byte) {
+    unsigned value;
+
+    if (sscanf(hex, "%2x", &value) != 1)
+        return 0;
+
+    *byte = (unsigned char)value;
+    return 1;
+}
+
+static int parse_ipv6_hex(const char *hex, char *dest, size_t dest_size) {
+    unsigned char bytes[16];
+    struct in6_addr addr;
+
+    if (!hex || strlen(hex) != 32)
+        return 0;
+
+    for (int word = 0; word < 4; word++) {
+        for (int byte = 0; byte < 4; byte++) {
+            int src = word * 8 + (3 - byte) * 2;
+            if (!hex_byte(hex + src, &bytes[word * 4 + byte]))
+                return 0;
+        }
+    }
+
+    memcpy(&addr, bytes, sizeof(addr));
+    return inet_ntop(AF_INET6, &addr, dest, dest_size) != NULL;
+}
+
+static void parse_ip_port(char *dest, const char *hex) {
+    char addr_hex[64];
+    const char *sep;
     unsigned ip[4], port;
-    if (is_ipv6) {
-        snprintf(dest, 64, "[IPv6]");
+
+    if (!dest || !hex) {
+        return;
+    }
+
+    sep = strrchr(hex, ':');
+    if (!sep || sscanf(sep + 1, "%X", &port) != 1) {
+        snprintf(dest, 64, "-");
+        return;
+    }
+
+    size_t addr_len = (size_t)(sep - hex);
+    if (addr_len >= sizeof(addr_hex)) {
+        snprintf(dest, 64, "-");
+        return;
+    }
+
+    memcpy(addr_hex, hex, addr_len);
+    addr_hex[addr_len] = '\0';
+
+    if (addr_len == 32) {
+        char ip_str[INET6_ADDRSTRLEN];
+        if (parse_ipv6_hex(addr_hex, ip_str, sizeof(ip_str))) {
+            snprintf(dest, 64, "[%s]:%u", ip_str, port);
+        } else {
+            snprintf(dest, 64, "-");
+        }
+        return;
+    }
+
+    if (sscanf(hex, "%2X%2X%2X%2X:%X", &ip[3], &ip[2], &ip[1], &ip[0],
+               &port) == 5) {
+        snprintf(dest, 64, "%u.%u.%u.%u:%u", ip[0], ip[1], ip[2], ip[3],
+                 port);
     } else {
-        sscanf(hex, "%2X%2X%2X%2X:%X", &ip[3], &ip[2], &ip[1], &ip[0], &port);
-        snprintf(dest, 64, "%u.%u.%u.%u:%u", ip[0], ip[1], ip[2], ip[3], port);
+        snprintf(dest, 64, "-");
     }
 }
 
@@ -116,8 +180,8 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
             continue; // Skip TIME_WAIT, CLOSE, CLOSE_WAIT, LAST_ACK, CLOSING
         }
 
-        parse_ip_port(local, local_hex, 0);
-        parse_ip_port(remote, remote_hex, 0);
+        parse_ip_port(local, local_hex);
+        parse_ip_port(remote, remote_hex);
 
         snprintf(list[count].protocol, sizeof(list[count].protocol), "%s", proto);
         snprintf(list[count].local_addr, sizeof(list[count].local_addr), "%s", local);
@@ -184,6 +248,10 @@ int get_connection_info(ConnectionInfo *connections, int max_conns) {
     count = trfx_parse_connection_path("/proc/net/tcp", "TCP", connections,
                                        count, max_conns);
     count = trfx_parse_connection_path("/proc/net/udp", "UDP", connections,
+                                       count, max_conns);
+    count = trfx_parse_connection_path("/proc/net/tcp6", "TCP", connections,
+                                       count, max_conns);
+    count = trfx_parse_connection_path("/proc/net/udp6", "UDP", connections,
                                        count, max_conns);
 
     apply_socket_owner_map(connections, count);

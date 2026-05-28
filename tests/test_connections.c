@@ -87,6 +87,33 @@ static int test_tcp_state_names(void) {
   return 0;
 }
 
+static int test_parse_ipv6_connection_fixtures(void) {
+  ConnectionInfo connections[MAX_CONNECTIONS];
+
+  int count = trfx_parse_connection_path("tests/fixtures/proc_net_tcp6", "TCP",
+                                         connections, 0, MAX_CONNECTIONS);
+  ASSERT_INT_EQ(count, 2);
+  ASSERT_STR_EQ(connections[0].protocol, "TCP");
+  ASSERT_STR_EQ(connections[0].local_addr, "[::1]:8080");
+  ASSERT_STR_EQ(connections[0].remote_addr, "[::2]:443");
+  ASSERT_STR_EQ(connections[0].state, "ESTABLISHED");
+  ASSERT_INT_EQ((int)connections[0].inode, 56789);
+  ASSERT_INT_EQ((int)connections[0].uid, 1000);
+  ASSERT_STR_EQ(connections[1].local_addr, "[::]:22");
+  ASSERT_STR_EQ(connections[1].remote_addr, "[::]:0");
+  ASSERT_STR_EQ(connections[1].state, "LISTEN");
+
+  count = trfx_parse_connection_path("tests/fixtures/proc_net_udp6", "UDP",
+                                     connections, count, MAX_CONNECTIONS);
+  ASSERT_INT_EQ(count, 3);
+  ASSERT_STR_EQ(connections[2].protocol, "UDP");
+  ASSERT_STR_EQ(connections[2].local_addr, "[::1]:53");
+  ASSERT_STR_EQ(connections[2].remote_addr, "[::]:0");
+  ASSERT_STR_EQ(connections[2].state, "UNCONN");
+
+  return 0;
+}
+
 static int test_udp_state_names(void) {
   ASSERT_STR_EQ(trfx_udp_state_name(1), "ESTABLISHED");
   ASSERT_STR_EQ(trfx_udp_state_name(7), "UNCONN");
@@ -103,6 +130,9 @@ int main(void) {
     return 1;
 
   if (test_udp_state_names() != 0)
+    return 1;
+
+  if (test_parse_ipv6_connection_fixtures() != 0)
     return 1;
 
   if (test_socket_owner_inode_lookup() != 0)
