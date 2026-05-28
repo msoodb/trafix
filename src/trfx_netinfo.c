@@ -145,6 +145,101 @@ int trfx_parse_default_route_line(const char *line, char *gateway,
     return 1;
 }
 
+static void init_route_summary(TrfxRouteSummary *summary) {
+    if (!summary)
+        return;
+
+    summary->has_default = 0;
+    snprintf(summary->destination, sizeof(summary->destination), "N/A");
+    snprintf(summary->gateway, sizeof(summary->gateway), "N/A");
+    snprintf(summary->interface, sizeof(summary->interface), "N/A");
+    snprintf(summary->metric, sizeof(summary->metric), "N/A");
+}
+
+int trfx_parse_route_summary_line(const char *line,
+                                  TrfxRouteSummary *summary) {
+    char copy[256];
+
+    if (!line || !summary)
+        return 0;
+
+    snprintf(copy, sizeof(copy), "%s", line);
+
+    char *token = strtok(copy, " \t\n");
+    if (!token || strcmp(token, "default") != 0)
+        return 0;
+
+    init_route_summary(summary);
+    summary->has_default = 1;
+    snprintf(summary->destination, sizeof(summary->destination), "default");
+
+    while ((token = strtok(NULL, " \t\n")) != NULL) {
+        if (strcmp(token, "via") == 0) {
+            char *value = strtok(NULL, " \t\n");
+            if (value)
+                snprintf(summary->gateway, sizeof(summary->gateway), "%.63s",
+                         value);
+        } else if (strcmp(token, "dev") == 0) {
+            char *value = strtok(NULL, " \t\n");
+            if (value)
+                snprintf(summary->interface, sizeof(summary->interface), "%.31s",
+                         value);
+        } else if (strcmp(token, "metric") == 0) {
+            char *value = strtok(NULL, " \t\n");
+            if (value)
+                snprintf(summary->metric, sizeof(summary->metric), "%.31s",
+                         value);
+        }
+    }
+
+    return 1;
+}
+
+TrfxCollectorStatus trfx_collect_route_summary_file(FILE *fp,
+                                                    TrfxRouteSummary *summary) {
+    char line[256];
+
+    if (!fp || !summary)
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+
+    init_route_summary(summary);
+
+    while (fgets(line, sizeof(line), fp)) {
+        if (trfx_parse_route_summary_line(line, summary))
+            return TRFX_COLLECTOR_OK;
+    }
+
+    return TRFX_COLLECTOR_PARSE_FAILED;
+}
+
+TrfxCollectorStatus trfx_collect_route_summary_path(const char *path,
+                                                    TrfxRouteSummary *summary,
+                                                    char *error,
+                                                    size_t error_size) {
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    if (!path || path[0] == '\0' || !summary) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "invalid argument");
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+    }
+
+    FILE *fp = fopen(path, "r");
+    if (!fp) {
+        if (error && error_size > 0)
+            snprintf(error, error_size, "open failed: %s", strerror(errno));
+        return TRFX_COLLECTOR_OPEN_FAILED;
+    }
+
+    TrfxCollectorStatus status = trfx_collect_route_summary_file(fp, summary);
+    fclose(fp);
+    if (status == TRFX_COLLECTOR_PARSE_FAILED && error && error_size > 0)
+        snprintf(error, error_size, "default route not found");
+
+    return status;
+}
+
 char* get_gateway_ip() {
     FILE *fp = popen("ip route 2>/dev/null", "r");
     if (!fp) return NULL;

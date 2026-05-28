@@ -40,12 +40,27 @@ typedef struct {
     TrfxInterfaceStat stats[TRFX_MAX_INTERFACES];
 } TrfxInterfaceStatsResult;
 
+typedef struct {
+    int has_default;
+    char destination[64];
+    char gateway[64];
+    char interface[32];
+    char metric[32];
+} TrfxRouteSummary;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 int trfx_is_valid_interface_name(const char *ifname);
 int trfx_parse_default_route_line(const char *line, char *gateway,
                                   size_t gateway_size, char *metric,
                                   size_t metric_size);
+int trfx_parse_route_summary_line(const char *line, TrfxRouteSummary *summary);
+TrfxCollectorStatus trfx_collect_route_summary_file(FILE *fp,
+                                                    TrfxRouteSummary *summary);
+TrfxCollectorStatus trfx_collect_route_summary_path(const char *path,
+                                                    TrfxRouteSummary *summary,
+                                                    char *error,
+                                                    size_t error_size);
 void get_default_gateway_and_metric(char *gateway, char *metric);
 void get_routing_table_summary(char *routing_table);
 const char *generate_random_interface_name();

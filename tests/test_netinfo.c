@@ -147,6 +147,42 @@ static int test_parse_default_route_line(void) {
   return 0;
 }
 
+static int test_route_summary_collector(void) {
+  TrfxRouteSummary summary;
+  char error[128];
+  TrfxCollectorStatus status = trfx_collect_route_summary_path(
+      "tests/fixtures/ip_route", &summary, error, sizeof(error));
+
+  ASSERT_INT_EQ(status, TRFX_COLLECTOR_OK);
+  ASSERT_INT_EQ(summary.has_default, 1);
+  ASSERT_STR_EQ(summary.destination, "default");
+  ASSERT_STR_EQ(summary.gateway, "192.168.1.1");
+  ASSERT_STR_EQ(summary.interface, "eth0");
+  ASSERT_STR_EQ(summary.metric, "100");
+  ASSERT_STR_EQ(error, "");
+
+  status = trfx_collect_route_summary_path("tests/fixtures/no_such_route",
+                                           &summary, error, sizeof(error));
+  ASSERT_INT_EQ(status, TRFX_COLLECTOR_OPEN_FAILED);
+
+  return 0;
+}
+
+static int test_parse_route_summary_without_gateway_or_metric(void) {
+  TrfxRouteSummary summary;
+
+  ASSERT_INT_EQ(trfx_parse_route_summary_line("default dev wlan0 proto dhcp\n",
+                                              &summary),
+                1);
+  ASSERT_INT_EQ(summary.has_default, 1);
+  ASSERT_STR_EQ(summary.destination, "default");
+  ASSERT_STR_EQ(summary.gateway, "N/A");
+  ASSERT_STR_EQ(summary.interface, "wlan0");
+  ASSERT_STR_EQ(summary.metric, "N/A");
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -174,6 +210,12 @@ int main(void) {
     return 1;
 
   if (test_parse_default_route_line() != 0)
+    return 1;
+
+  if (test_route_summary_collector() != 0)
+    return 1;
+
+  if (test_parse_route_summary_without_gateway_or_metric() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)
