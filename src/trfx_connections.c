@@ -22,6 +22,24 @@ static void parse_ip_port(char *dest, const char *hex, int is_ipv6) {
     }
 }
 
+const char *trfx_tcp_state_name(int state_num) {
+    switch (state_num) {
+        case 1: return "ESTABLISHED";
+        case 2: return "SYN_SENT";
+        case 3: return "SYN_RECV";
+        case 4: return "FIN_WAIT1";
+        case 5: return "FIN_WAIT2";
+        case 6: return "TIME_WAIT";
+        case 7: return "CLOSE";
+        case 8: return "CLOSE_WAIT";
+        case 9: return "LAST_ACK";
+        case 10: return "LISTEN";
+        case 11: return "CLOSING";
+        case 12: return "NEW_SYN_RECV";
+        default: return "UNKNOWN";
+    }
+}
+
 int trfx_parse_connection_file(FILE *fp, const char *proto,
                                ConnectionInfo *list, int count, int max) {
     char line[512];
@@ -35,7 +53,7 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
     }
 
     while (fgets(line, sizeof(line), fp) && count < max) {
-        char local[64], remote[64], state[16];
+        char local[64], remote[64];
         char local_hex[128], remote_hex[128];
         int state_num;
 
@@ -56,17 +74,8 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         snprintf(list[count].local_addr, sizeof(list[count].local_addr), "%s", local);
         snprintf(list[count].remote_addr, sizeof(list[count].remote_addr), "%s", remote);
 
-        switch (state_num) {
-            case 1: strcpy(state, "ESTABLISHED"); break;
-            case 2: strcpy(state, "SYN_SENT"); break;
-            case 3: strcpy(state, "SYN_RECV"); break;
-            case 4: strcpy(state, "FIN_WAIT1"); break;
-            case 5: strcpy(state, "FIN_WAIT2"); break;
-            case 10: strcpy(state, "LISTEN"); break;
-            default: strcpy(state, "UNKNOWN"); break;
-        }
-
-        snprintf(list[count].state, sizeof(list[count].state), "%s", state);
+        snprintf(list[count].state, sizeof(list[count].state), "%s",
+                 trfx_tcp_state_name(state_num));
         count++;
     }
 

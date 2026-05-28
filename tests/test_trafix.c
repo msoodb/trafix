@@ -178,6 +178,24 @@ static int test_parse_connection_fixtures(void) {
   return 0;
 }
 
+static int test_tcp_state_names(void) {
+  ASSERT_STR_EQ(trfx_tcp_state_name(1), "ESTABLISHED");
+  ASSERT_STR_EQ(trfx_tcp_state_name(2), "SYN_SENT");
+  ASSERT_STR_EQ(trfx_tcp_state_name(3), "SYN_RECV");
+  ASSERT_STR_EQ(trfx_tcp_state_name(4), "FIN_WAIT1");
+  ASSERT_STR_EQ(trfx_tcp_state_name(5), "FIN_WAIT2");
+  ASSERT_STR_EQ(trfx_tcp_state_name(6), "TIME_WAIT");
+  ASSERT_STR_EQ(trfx_tcp_state_name(7), "CLOSE");
+  ASSERT_STR_EQ(trfx_tcp_state_name(8), "CLOSE_WAIT");
+  ASSERT_STR_EQ(trfx_tcp_state_name(9), "LAST_ACK");
+  ASSERT_STR_EQ(trfx_tcp_state_name(10), "LISTEN");
+  ASSERT_STR_EQ(trfx_tcp_state_name(11), "CLOSING");
+  ASSERT_STR_EQ(trfx_tcp_state_name(12), "NEW_SYN_RECV");
+  ASSERT_STR_EQ(trfx_tcp_state_name(99), "UNKNOWN");
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -192,6 +210,9 @@ int main(void) {
     return 1;
 
   if (test_parse_connection_fixtures() != 0)
+    return 1;
+
+  if (test_tcp_state_names() != 0)
     return 1;
 
   return 0;
