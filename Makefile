@@ -26,6 +26,9 @@ SPECDIR := $(HOME)/rpmbuild/SPECS
 # Default build
 all: $(BIN_DIR) $(TARGET)
 
+debug: CFLAGS = -O0 -g3 -Wall -Wextra -Wunused-result
+debug: clean all
+
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(TARGET) $(LDLIBS)
 
@@ -84,4 +87,4 @@ clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
+.PHONY: all debug test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm

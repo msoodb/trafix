@@ -608,11 +608,11 @@ void *socket_owner_info_thread(void *arg) {
 
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      char local_info[64];
+      char local_info[80];
       snprintf(local_info, sizeof(local_info), "%s:%s", owners[i].laddr,
                owners[i].lport);
 
-      char remote_info[64];
+      char remote_info[80];
       snprintf(remote_info, sizeof(remote_info), "%s:%s", owners[i].raddr,
                owners[i].rport);
 
