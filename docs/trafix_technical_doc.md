@@ -1,206 +1,179 @@
-
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Copyright (C) 2025 Masoud Bolhassani. -->
-
 
 # Trafix - Technical Documentation
 
 ## Overview
 
-**Trafix** is a lightweight, real-time network monitoring tool designed for Linux systems. It provides visibility into network activity, allowing you to track bandwidth usage, monitor active connections, and identify top traffic sources. Trafix operates via the command-line interface (CLI), offering a simple yet powerful way to monitor your system's network performance.
+**Trafix** is a lightweight Linux terminal monitoring tool. It currently
+provides an ncurses TUI for system, CPU, memory, disk, process, connection,
+network, and socket-owner visibility.
 
-## Table of Contents
+The command line currently supports only the application skeleton:
 
-1. [Installation](#installation)
-2. [Usage](#usage)
-   - [Basic Commands](#basic-commands)
-   - [Advanced Options](#advanced-options)
-3. [Features](#features)
-4. [Configuration](#configuration)
-5. [Examples](#examples)
-6. [Contributing](#contributing)
-7. [License](#license)
+- `trafix` launches the interactive TUI.
+- `trafix --help` or `trafix -h` prints usage.
+- `trafix --version` or `trafix -v` prints version information.
+- Unknown arguments fail clearly and do not launch the TUI.
 
-## Installation
+Scriptable subcommands such as `trafix connections`, `trafix interfaces`, JSON
+output, filters, alerts, and top-talkers are roadmap items, not current
+behavior.
 
-### Prerequisites
+## Build Dependencies
 
-Before installing **Trafix**, ensure you have the following dependencies:
+- Linux
+- C compiler such as `gcc`
+- `make`
+- ncurses development package
 
-- **Linux system** (Ubuntu, Debian, CentOS, etc.)
-- **gcc** (GNU Compiler Collection)
-- **make** (for building the tool from source)
-- **libpcap-dev** (for packet capture, if applicable)
+Optional runtime tools may improve some panels:
 
-### Installing from Source
+- `lm_sensors` for CPU temperature data
+- `iw` for Wi-Fi details
+- `iproute2` for route information
 
-To install **Trafix** from source, follow these steps:
+Trafix does not currently use libpcap, eBPF, or privileged packet capture.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/msoodb/trafix.git
-   cd trafix
-   ```
+## Build and Install
 
-2. Compile the code:
-   ```bash
-   make
-   ```
+Build from source:
 
-3. Install the tool:
-   ```bash
-   sudo make install
-   ```
-
-4. Verify the installation:
-   ```bash
-   trafix --version
-   ```
-
-This will display the installed version of **Trafix**.
-
-### Installing via Package Manager
-
-If you're using a Linux distribution that supports package management, you can also install **Trafix** through the package manager (e.g., `apt`, `yum`, etc.), assuming it's available on your distribution's repository.
-
-```bash
-sudo apt install trafix  # For Debian-based systems
-sudo yum install trafix  # For Red Hat-based systems
+```sh
+make
 ```
 
-## Usage
+Run from the source tree:
 
-### Basic Commands
+```sh
+bin/trafix
+```
 
-Once installed, you can use **Trafix** from the command line. Below are some of the basic commands:
+Install:
 
-- **Start Monitoring:**
-  ```bash
-  trafix start
-  ```
+```sh
+sudo make install
+```
 
-  This command begins monitoring network activity in real time.
+Run after installation:
 
-- **Monitor Active Connections:**
-  ```bash
-  trafix connections
-  ```
+```sh
+trafix
+```
 
-  Lists all active network connections, including local and remote addresses, ports, and connection statuses.
+Check version:
 
-- **Monitor Bandwidth Usage:**
-  ```bash
-  trafix bandwidth
-  ```
+```sh
+trafix --version
+```
 
-  Displays real-time bandwidth usage, including total incoming and outgoing traffic.
+## Current Runtime Architecture
 
-### Advanced Options
+The executable parses CLI arguments first. For no-argument TUI mode, it reads
+configuration and starts the dashboard.
 
-- **Set Bandwidth Alert:**
-  ```bash
-  trafix --alert-bandwidth 100MB
-  ```
+The TUI is organized around ncurses windows. Several worker threads collect data
+and render panels:
 
-  Sets a bandwidth usage threshold of 100MB. An alert will trigger when this threshold is exceeded.
+- system overview
+- CPU information
+- memory usage
+- disk usage
+- active connections
+- network information
+- process information
+- socket owners
 
-- **Filter By Process:**
-  ```bash
-  trafix --filter-process nginx
-  ```
+Collectors currently read from Linux sources such as `/proc`, `/sys`,
+`getifaddrs(3)`, `statvfs(3)`, `uname(2)`, and `utmpx`.
 
-  Filters the output to show only network connections related to the specified process (in this case, `nginx`).
+## Current TUI Panels
 
-- **View Top Talkers:**
-  ```bash
-  trafix top
-  ```
+### System
 
-  Displays the top processes or IP addresses consuming the most bandwidth.
+Shows hostname, OS, kernel, uptime, load averages, and logged-in users.
 
-## Features
+### CPU
 
-- **Real-Time Monitoring**: Provides live data on active network connections and bandwidth usage.
-- **Detailed Connection Information**: Displays local and remote addresses, ports, protocols (TCP/UDP), and process IDs (PIDs) associated with connections.
-- **Bandwidth Tracking**: Real-time tracking of incoming and outgoing network traffic with detailed statistics.
-- **Alerts**: Allows users to set custom thresholds for network activity and get notified when thresholds are exceeded.
-- **Top Talkers**: Identify which processes or IP addresses are using the most bandwidth in real-time.
-- **Minimal Dependencies**: Built to be lightweight and fast, with minimal system resource usage.
+Shows average CPU usage, per-core usage, CPU frequency, and temperature when
+available.
+
+### Memory
+
+Shows RAM and swap usage.
+
+### Disk
+
+Shows mounted filesystem usage and totals.
+
+### Connections
+
+Shows current TCP/UDP connection rows parsed from `/proc/net/tcp` and
+`/proc/net/udp`. IPv4 is supported in the current parser. IPv6 is planned for a
+later phase.
+
+### Network
+
+Shows default route information, DNS servers, active interface details, optional
+Wi-Fi details, VPN interface detection, and interface counter deltas.
+
+### Processes
+
+Shows process data gathered from `ps`.
+
+### Socket Owners
+
+Shows sockets mapped to owning PID/process where visible from `/proc/*/fd`.
+This panel does **not** measure per-socket bandwidth.
 
 ## Configuration
 
-**Trafix** can be configured via command-line options or through a configuration file. The configuration file is optional but can be used for persistent settings.
+The default configuration path is:
 
-### Configuration File
+```sh
+/etc/trafix/config.cfg
+```
 
-The configuration file can be located at `/etc/trafix/config`. Here is an example configuration:
+Current options:
+
+- `TEMP_WARN_YELLOW`: CPU temperature warning threshold.
+- `TEMP_WARN_RED`: CPU temperature critical threshold.
+- `ROW2_MODULES`: number of second-row TUI modules, from 1 to 3.
+
+Example:
 
 ```ini
-[settings]
-alert_bandwidth = 100MB
-alert_process = nginx
+TEMP_WARN_YELLOW = 50
+TEMP_WARN_RED = 75
+ROW2_MODULES = 3
 ```
 
-### Command-Line Arguments
+## Current CLI
 
-- `--alert-bandwidth`: Set a threshold for bandwidth usage. Alerts are triggered if this limit is exceeded.
-- `--filter-process`: Filter results by a specific process.
-- `--top`: Display the top talkers consuming bandwidth.
-- `--connections`: List all active network connections.
-
-## Examples
-
-### Example 1: Monitor Active Connections
-
-To monitor all active network connections, run:
-
-```bash
-trafix connections
+```sh
+trafix
+trafix --help
+trafix --version
 ```
 
-This will display a list of active connections along with their associated details such as IP addresses, ports, and connection status.
+No subcommands are currently implemented.
 
-### Example 2: Monitor Bandwidth Usage
+## Roadmap
 
-To monitor bandwidth usage in real-time:
+Planned future work includes:
 
-```bash
-trafix bandwidth
-```
+- scriptable CLI subcommands such as `interfaces`, `connections`, and `system`
+- JSON output
+- connection filters
+- IPv6 connection parsing
+- route and DNS collectors
+- cleaner TUI lifecycle and resize handling
+- packaging and CI improvements
 
-This command will display incoming and outgoing bandwidth usage on all network interfaces.
-
-### Example 3: Set Bandwidth Alert
-
-To set a bandwidth alert for 100MB:
-
-```bash
-trafix --alert-bandwidth 100MB
-```
-
-An alert will be triggered if the total bandwidth usage exceeds 100MB.
-
-### Example 4: View Top Talkers
-
-To view which processes or IP addresses are consuming the most bandwidth:
-
-```bash
-trafix top
-```
-
-This will show the processes or IP addresses that are currently using the most network resources.
-
-## Contributing
-
-We welcome contributions to **Trafix**! If you'd like to contribute, please fork the repository and submit a pull request with your changes. Be sure to write tests for any new features or bug fixes.
-
-### Steps to Contribute:
-1. Fork the repository.
-2. Clone your fork to your local machine.
-3. Make your changes and commit them.
-4. Push your changes to your fork.
-5. Open a pull request with a description of your changes.
+Alerts, top-talkers, per-process bandwidth accounting, libpcap, eBPF, remote
+agents, and historical metrics are not implemented.
 
 ## License
 
-**Trafix** is licensed under the GPL-3.0-or-later License. See the [LICENSE](LICENSE) file for more details.
+Trafix is licensed under the GPL-3.0-or-later License. See the [LICENSE](../LICENSE)
+file for more details.

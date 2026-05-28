@@ -7,7 +7,7 @@
 
 **Trafix** - A Lightweight Linux Monitoring Tool
 
-Trafix is a high-performance, user-friendly monitoring tool for Linux systems. It enables real-time tracking of active network connections and provides insights into top traffic sources, all via a streamlined command-line interface.
+Trafix is a lightweight terminal monitoring tool for Linux systems. It provides an interactive TUI for system, process, connection, and network visibility, with a small CLI skeleton for launching the TUI and printing help/version information.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ Trafix is a high-performance, user-friendly monitoring tool for Linux systems. I
 ## Key Features:
 
 - **Monitor Active Connections:** View detailed information about all active TCP/UDP connections, including local and remote addresses, ports, and connection states.
-- **Track Bandwidth Usage:** Monitor both incoming and outgoing network traffic in real-time.
-- **Alerts & Thresholds:** Set custom thresholds for network usage and receive notifications when these limits are exceeded.
-- **User-Friendly CLI:** A simple and intuitive command-line interface with filtering, sorting, and customizable options for tailored monitoring.
+- **Track Interface Activity:** Monitor sent and received interface counter deltas in real time.
+- **Socket Owners:** Map visible sockets to owning PID/process where available.
+- **CLI Skeleton:** Launch the TUI and print help/version information from a predictable command-line entry point.
 
 Trafix is designed to be lightweight, efficient, and to use minimal system resources, making it an ideal tool for monitoring network activity on Linux-based systems.
 
@@ -104,7 +104,7 @@ Trafix offers an interactive command-line interface with real-time controls. You
 ### Hotkeys
 
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
-- `[s]` — **Sort Processes:** Change the sorting order of process information (e.g., by bandwidth).
+- `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Columns:** Toggle or cycle through different column views in specific panels.
 - `[p]` — **Pause:** Pause/resume real-time updates.

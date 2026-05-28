@@ -2,10 +2,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Copyright (C) 2025 Masoud Bolhassani. -->
 
-# Trafix - Technical Features
+# Trafix - Feature Roadmap
 
-> That sounds like an awesome project — a kind of all-in-one system monitoring dashboard for Linux. 
-> Here's a well-organized list of important system data you might want to include, grouped by category:
+This document is a roadmap of possible monitoring areas. It is not a list of
+features currently implemented in Trafix.
+
+For current behavior, see `docs/trafix_technical_doc.md`.
 
 1. System Overview
     Hostname
