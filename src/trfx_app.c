@@ -14,6 +14,7 @@
 #include <time.h>
 
 #include "trfx_config.h"
+#include "trfx_connections.h"
 #include "trfx_dashboard.h"
 #include "trfx_netinfo.h"
 
@@ -38,6 +39,20 @@ int trfx_run_interfaces_command(void) {
   for (int i = 0; i < result.count; i++) {
     printf("%-15s %12lu %12lu\n", result.stats[i].name,
            result.stats[i].rx_bytes, result.stats[i].tx_bytes);
+  }
+
+  return 0;
+}
+
+int trfx_run_connections_command(void) {
+  ConnectionInfo connections[MAX_CONNECTIONS];
+  int count = get_connection_info(connections, MAX_CONNECTIONS);
+
+  printf("%-6s %-22s %-22s %-15s\n", "PROTO", "LOCAL", "REMOTE", "STATE");
+  for (int i = 0; i < count; i++) {
+    printf("%-6s %-22s %-22s %-15s\n", connections[i].protocol,
+           connections[i].local_addr, connections[i].remote_addr,
+           connections[i].state);
   }
 
   return 0;
