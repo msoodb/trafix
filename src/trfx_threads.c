@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <ncurses.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "trfx_threads.h"
 #include "trfx_globals.h"
@@ -28,6 +30,28 @@
 #include "trfx_wifi.h"
 
 SortType current_sort_type = SORT_BY_MEM;
+
+static int panel_has_room(int row, int max_lines) {
+  return row < max_lines;
+}
+
+static void format_dns_summary(const TrfxDnsSummary *summary, char *buf,
+                               size_t bufsize) {
+  if (!buf || bufsize == 0)
+    return;
+
+  if (!summary || summary->count == 0) {
+    snprintf(buf, bufsize, "N/A");
+    return;
+  }
+
+  buf[0] = '\0';
+  for (int i = 0; i < summary->count; i++) {
+    if (i > 0)
+      strncat(buf, ", ", bufsize - strlen(buf) - 1);
+    strncat(buf, summary->servers[i], bufsize - strlen(buf) - 1);
+  }
+}
 
 void wait_until_ready() {
   pthread_mutex_lock(&ready_mutex); // Lock before checking the ready flag
@@ -654,13 +678,14 @@ void *network_info_thread(void *arg) {
 
     char **interfaces_usage = get_interfaces_usage(&num_interfaces);
 
-    const char *connected_if = NULL;
+    char connected_if[32] = {0};
     const char *ssid = NULL;
     char *ip = NULL;
 
     for (int i = 0; i < num_interfaces; i++) {
       char name[32];
-      sscanf(interfaces_usage[i], " %31s", name);
+      if (sscanf(interfaces_usage[i], " %31s", name) != 1)
+        continue;
 
       if (strcmp(name, "lo") == 0 || strncmp(name, "br-", 3) == 0 ||
           strncmp(name, "docker", 6) == 0 || strncmp(name, "veth", 4) == 0 ||
@@ -670,36 +695,62 @@ void *network_info_thread(void *arg) {
 
       ip = get_ip_address(name);
       if (ip) {
-        connected_if = name;
+        snprintf(connected_if, sizeof(connected_if), "%.31s", name);
         ssid = get_wifi_ssid(name);
         break;
       }
     }
 
-    const char *vpn_if = NULL;
+    char vpn_if[32] = {0};
     const char *vpn_ip = NULL;
 
     for (int i = 0; i < num_interfaces; i++) {
       char name[32];
-      sscanf(interfaces_usage[i], " %31s", name);
+      if (sscanf(interfaces_usage[i], " %31s", name) != 1)
+        continue;
 
       if (is_vpn_interface(name)) {
         char *vip = get_ip_address(name);
         if (vip) {
-          vpn_if = name;
+          snprintf(vpn_if, sizeof(vpn_if), "%.31s", name);
           vpn_ip = vip;
           break;
         }
       }
     }
 
-    const char *dns = get_dns_servers();
-    char gateway[64] = {0};
-    char metric[64] = {0};
-    get_default_gateway_and_metric(gateway, metric);
+    TrfxRouteSummary route;
+    TrfxDnsSummary dns_summary;
+    char dns_error[128];
+    char dns[256];
+    TrfxCollectorStatus route_status = TRFX_COLLECTOR_PARSE_FAILED;
+    route.has_default = 0;
+    snprintf(route.gateway, sizeof(route.gateway), "N/A");
+    snprintf(route.metric, sizeof(route.metric), "N/A");
+    snprintf(route.interface, sizeof(route.interface), "N/A");
 
-    char *mac = get_mac_address(connected_if);
-    WifiInfo wifi = get_wifi_info(connected_if);
+    FILE *route_fp = popen("ip route 2>/dev/null", "r");
+    if (route_fp) {
+      route_status = trfx_collect_route_summary_file(route_fp, &route);
+      pclose(route_fp);
+    }
+    if (route_status != TRFX_COLLECTOR_OK) {
+      route.has_default = 0;
+      snprintf(route.gateway, sizeof(route.gateway), "N/A");
+      snprintf(route.metric, sizeof(route.metric), "N/A");
+      snprintf(route.interface, sizeof(route.interface), "N/A");
+    }
+
+    TrfxCollectorStatus dns_status = trfx_collect_dns_summary_path(
+        "/etc/resolv.conf", &dns_summary, dns_error, sizeof(dns_error));
+    if (dns_status != TRFX_COLLECTOR_OK) {
+      dns_summary.count = 0;
+    }
+    format_dns_summary(&dns_summary, dns, sizeof(dns));
+
+    char *mac = connected_if[0] ? get_mac_address(connected_if) : NULL;
+    WifiInfo wifi = connected_if[0] ? get_wifi_info(connected_if)
+                                    : (WifiInfo){0};
 
     // Lock only for ncurses rendering
     pthread_mutex_lock(&ncurses_mutex);
@@ -719,46 +770,62 @@ void *network_info_thread(void *arg) {
     mvwprintw(win, row++, 2, " [%d] Network Information ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    mvwprintw(win, row++, line, "Default Gateway: %s | Metric: %s", gateway,
-              metric);
-    mvwprintw(win, row++, line, "DNS Servers: %s", dns);
-    row++;
+    if (panel_has_room(row, max_lines))
+      mvwprintw(win, row++, line, "Default Gateway: %s | Iface: %s | Metric: %s",
+                route.gateway, route.interface, route.metric);
+    if (panel_has_room(row, max_lines))
+      mvwprintw(win, row++, line, "DNS Servers: %s", dns);
+    if (panel_has_room(row, max_lines))
+      row++;
 
-    if (connected_if) {
+    if (connected_if[0]) {
       const char *type = is_wifi_interface(connected_if) ? "Wi-Fi" : "Ethernet";
-      if (is_wifi_interface(connected_if) && ssid)
+      if (is_wifi_interface(connected_if) && ssid) {
+        if (panel_has_room(row, max_lines))
         mvwprintw(win, row++, line, "> Connected: %s (%s: %s)  |  IP: %s",
                   connected_if, type, ssid, ip);
-      else
+      } else {
+        if (panel_has_room(row, max_lines))
         mvwprintw(win, row++, line, "> Connected: %s (%s)       |  IP: %s",
                   connected_if, type, ip);
+      }
     } else {
-      mvwprintw(win, row++, line, "No active network connection detected.");
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "No active network connection detected.");
     }
 
-    if (vpn_if && vpn_ip) {
+    if (vpn_if[0] && vpn_ip && panel_has_room(row, max_lines)) {
       wattron(win, COLOR_PAIR(COLOR_DATA_RED));
       mvwprintw(win, row++, line, "VPN Active: %s  |  IP: %s", vpn_if, vpn_ip);
       wattroff(win, COLOR_PAIR(COLOR_DATA_RED));
     }
 
-    row++;
+    if (panel_has_room(row, max_lines))
+      row++;
     if (ssid) {
-      mvwprintw(win, row++, line, "  Wi-Fi: %s", ssid);
-      mvwprintw(win, row++, line, "  Signal Strength: %s dBm",
-                wifi.signal_strength);
-      mvwprintw(win, row++, line, "  Bitrate: %s", wifi.bitrate);
-      mvwprintw(win, row++, line, "  Frequency: %s MHz", wifi.freq);
-      mvwprintw(win, row++, line, "  MAC Address: %s", mac);
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "  Wi-Fi: %s", ssid);
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "  Signal Strength: %s dBm",
+                  wifi.signal_strength);
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "  Bitrate: %s", wifi.bitrate);
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "  Frequency: %s MHz", wifi.freq);
+      if (panel_has_room(row, max_lines))
+        mvwprintw(win, row++, line, "  MAC Address: %s", mac ? mac : "N/A");
     }
 
-    row++;
+    if (panel_has_room(row, max_lines))
+      row++;
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, line, "%-15s | %10s | %10s", "Interface", "Sent",
-              "Received");
+    if (panel_has_room(row, max_lines))
+      mvwprintw(win, row++, line, "%-15s | %10s | %10s", "Interface", "Sent/s",
+                "Recv/s");
     wattroff(win, A_BOLD);
-    mvwprintw(win, row++, line,
-              "---------------------------------------------");
+    if (panel_has_room(row, max_lines))
+      mvwprintw(win, row++, line,
+                "---------------------------------------------");
 
     for (int i = 0; i < num_interfaces && row < max_lines; i++) {
       mvwprintw(win, row++, line, "%s", interfaces_usage[i]);
