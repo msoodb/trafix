@@ -29,6 +29,10 @@ all: $(BIN_DIR) $(TARGET)
 debug: CFLAGS = -O0 -g3 -Wall -Wextra -Wunused-result
 debug: clean all
 
+asan: CFLAGS = -O1 -g -Wall -Wextra -Wunused-result -fsanitize=address,undefined -fno-omit-frame-pointer
+asan: LDFLAGS = -fsanitize=address,undefined
+asan: clean all
+
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(TARGET) $(LDLIBS)
 
@@ -87,4 +91,4 @@ clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all debug test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
+.PHONY: all debug asan test clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
