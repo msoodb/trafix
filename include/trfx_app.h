@@ -10,9 +10,11 @@
 #ifndef TRFX_APP_H
 #define TRFX_APP_H
 
+#include "trfx_cli.h"
+
 int trfx_run_tui(void);
-int trfx_run_interfaces_command(void);
-int trfx_run_connections_command(void);
-int trfx_run_system_command(void);
+int trfx_run_interfaces_command(TrfxCliOutputFormat output_format);
+int trfx_run_connections_command(TrfxCliOutputFormat output_format);
+int trfx_run_system_command(TrfxCliOutputFormat output_format);
 
 #endif // TRFX_APP_H

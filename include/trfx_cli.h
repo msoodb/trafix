@@ -22,8 +22,14 @@ typedef enum {
   TRFX_CLI_MODE_INVALID
 } TrfxCliMode;
 
+typedef enum {
+  TRFX_CLI_OUTPUT_TEXT = 0,
+  TRFX_CLI_OUTPUT_JSON
+} TrfxCliOutputFormat;
+
 typedef struct {
   TrfxCliMode mode;
+  TrfxCliOutputFormat output_format;
   char error[TRFX_CLI_ERROR_MAX];
 } TrfxCliOptions;
 

@@ -15,7 +15,7 @@
 #include "trfx_version.h"
 
 TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
-  TrfxCliOptions options = {TRFX_CLI_MODE_TUI, {0}};
+  TrfxCliOptions options = {TRFX_CLI_MODE_TUI, TRFX_CLI_OUTPUT_TEXT, {0}};
 
   if (argc <= 1) {
     return options;
@@ -47,6 +47,31 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
     if (strcmp(arg, "system") == 0) {
       options.mode = TRFX_CLI_MODE_SYSTEM;
       return options;
+    }
+  }
+
+  if (argc == 3) {
+    const char *command = argv[1];
+    const char *flag = argv[2];
+
+    if (strcmp(flag, "--json") == 0) {
+      if (strcmp(command, "interfaces") == 0) {
+        options.mode = TRFX_CLI_MODE_INTERFACES;
+        options.output_format = TRFX_CLI_OUTPUT_JSON;
+        return options;
+      }
+
+      if (strcmp(command, "connections") == 0) {
+        options.mode = TRFX_CLI_MODE_CONNECTIONS;
+        options.output_format = TRFX_CLI_OUTPUT_JSON;
+        return options;
+      }
+
+      if (strcmp(command, "system") == 0) {
+        options.mode = TRFX_CLI_MODE_SYSTEM;
+        options.output_format = TRFX_CLI_OUTPUT_JSON;
+        return options;
+      }
     }
   }
 
