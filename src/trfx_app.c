@@ -17,6 +17,7 @@
 #include "trfx_connections.h"
 #include "trfx_dashboard.h"
 #include "trfx_netinfo.h"
+#include "trfx_sysinfo.h"
 
 int trfx_run_tui(void) {
   srand(time(NULL));
@@ -54,6 +55,19 @@ int trfx_run_connections_command(void) {
            connections[i].local_addr, connections[i].remote_addr,
            connections[i].state);
   }
+
+  return 0;
+}
+
+int trfx_run_system_command(void) {
+  SystemOverview overview = get_system_overview();
+
+  printf("%-16s %s\n", "HOSTNAME", overview.hostname);
+  printf("%-16s %s\n", "OS", overview.os_version);
+  printf("%-16s %s\n", "KERNEL", overview.kernel_version);
+  printf("%-16s %s\n", "UPTIME", overview.uptime);
+  printf("%-16s %s\n", "LOAD_AVG", overview.load_avg);
+  printf("%-16s %s\n", "LOGGED_IN_USERS", overview.logged_in_users);
 
   return 0;
 }

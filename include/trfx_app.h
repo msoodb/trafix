@@ -13,5 +13,6 @@
 int trfx_run_tui(void);
 int trfx_run_interfaces_command(void);
 int trfx_run_connections_command(void);
+int trfx_run_system_command(void);
 
 #endif // TRFX_APP_H

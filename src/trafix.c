@@ -28,8 +28,7 @@ int main(int argc, char **argv) {
     case TRFX_CLI_MODE_CONNECTIONS:
         return trfx_run_connections_command();
     case TRFX_CLI_MODE_SYSTEM:
-        trfx_print_cli_not_implemented("system");
-        return 1;
+        return trfx_run_system_command();
     case TRFX_CLI_MODE_TUI:
         break;
     }
