@@ -163,8 +163,12 @@ static int test_parse_connection_fixtures(void) {
                                          connections, 0, MAX_CONNECTIONS);
   ASSERT_INT_EQ(count, 2);
   ASSERT_STR_EQ(connections[0].protocol, "TCP");
+  ASSERT_STR_EQ(connections[0].local_addr, "127.0.0.1:8080");
+  ASSERT_STR_EQ(connections[0].remote_addr, "127.0.0.2:443");
   ASSERT_STR_EQ(connections[0].state, "ESTABLISHED");
   ASSERT_STR_EQ(connections[1].protocol, "TCP");
+  ASSERT_STR_EQ(connections[1].local_addr, "0.0.0.0:22");
+  ASSERT_STR_EQ(connections[1].remote_addr, "0.0.0.0:0");
   ASSERT_STR_EQ(connections[1].state, "LISTEN");
 
   count = trfx_parse_connection_path("tests/fixtures/proc_net_udp", "UDP",

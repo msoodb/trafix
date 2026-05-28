@@ -39,7 +39,8 @@ int trfx_parse_connection_file(FILE *fp, const char *proto,
         char local_hex[128], remote_hex[128];
         int state_num;
 
-        if (sscanf(line, "%*d: %64[0-9A-Fa-f]:%*x %64[0-9A-Fa-f]:%*x %x", local_hex, remote_hex, &state_num) != 3) {
+        if (sscanf(line, "%*d: %127[0-9A-Fa-f:] %127[0-9A-Fa-f:] %x",
+                   local_hex, remote_hex, &state_num) != 3) {
             continue; // skip malformed lines
         }
 
