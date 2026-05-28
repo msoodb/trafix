@@ -13,17 +13,11 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include "trfx_netinfo.h"
 
-#define MAX_INTERFACES 20
 #define LINE_BUFFER 256
 
-typedef struct {
-    char name[32];
-    unsigned long rx_bytes;
-    unsigned long tx_bytes;
-} NetStat;
-
-static NetStat prev_stats[MAX_INTERFACES];
+static TrfxInterfaceStat prev_stats[TRFX_MAX_INTERFACES];
 static int prev_count = 0;
 static int initialized = 0;
 
@@ -194,38 +188,51 @@ char* get_dns_servers() {
     return dns_list;
 }
 
-static int read_net_stats(NetStat stats[], int *count) {
-    FILE *fp = fopen("/proc/net/dev", "r");
+int trfx_parse_interface_stats_file(FILE *fp, TrfxInterfaceStat stats[],
+                                    int max_stats) {
+    char line[LINE_BUFFER];
+    int count = 0;
+
+    if (!fp || !stats || max_stats <= 0) {
+        return -1;
+    }
+
+    // Skip headers safely
+    if (fgets(line, LINE_BUFFER, fp) == NULL) {
+        return -1;
+    }
+    if (fgets(line, LINE_BUFFER, fp) == NULL) {
+        return -1;
+    }
+
+    while (fgets(line, LINE_BUFFER, fp) && count < max_stats) {
+        TrfxInterfaceStat *stat = &stats[count];
+        if (sscanf(line, " %31[^:]: %lu %*u %*u %*u %*u %*u %*u %*u %lu",
+                   stat->name, &stat->rx_bytes, &stat->tx_bytes) == 3) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
+                                    int max_stats) {
+    FILE *fp = fopen(path, "r");
     if (!fp) {
         return -1;
     }
 
-    char line[LINE_BUFFER];
-    *count = 0;
-
-    // Skip headers safely
-    if (fgets(line, LINE_BUFFER, fp) == NULL) {
-        fclose(fp);
-        return -1;
-    }
-    if (fgets(line, LINE_BUFFER, fp) == NULL) {
-        fclose(fp);
-        return -1;
-    }
-
-    while (fgets(line, LINE_BUFFER, fp) && *count < MAX_INTERFACES) {
-        NetStat *stat = &stats[*count];
-        if (sscanf(line, " %31[^:]: %lu %*u %*u %*u %*u %*u %*u %*u %lu",
-                   stat->name, &stat->rx_bytes, &stat->tx_bytes) == 3) {
-            (*count)++;
-        }
-    }
-
+    int count = trfx_parse_interface_stats_file(fp, stats, max_stats);
     fclose(fp);
-    return 0;
+    return count;
 }
 
-static NetStat* find_prev_stat(const char *name) {
+int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats) {
+    return trfx_parse_interface_stats_path("/proc/net/dev", stats, max_stats);
+}
+
+static TrfxInterfaceStat* find_prev_stat(const char *name) {
     for (int i = 0; i < prev_count; i++) {
         if (strcmp(prev_stats[i].name, name) == 0)
             return &prev_stats[i];
@@ -252,10 +259,10 @@ const char* internal_format_bytes(double bytes) {
 
 // Function to get bandwidth usage, modified to use format_bytes
 char** get_interfaces_usage(int *num_interfaces) {
-    NetStat curr_stats[MAX_INTERFACES];
-    int curr_count = 0;
+    TrfxInterfaceStat curr_stats[TRFX_MAX_INTERFACES];
+    int curr_count = trfx_read_interface_stats(curr_stats, TRFX_MAX_INTERFACES);
 
-    if (read_net_stats(curr_stats, &curr_count) != 0) {
+    if (curr_count < 0) {
         *num_interfaces = 0;
         return NULL;
     }
@@ -275,7 +282,7 @@ char** get_interfaces_usage(int *num_interfaces) {
 
         // Calculate delta if previous stats exist
         if (initialized) {
-            NetStat *prev = find_prev_stat(curr_stats[i].name);
+            TrfxInterfaceStat *prev = find_prev_stat(curr_stats[i].name);
             if (prev) {
                 delta_tx = curr_stats[i].tx_bytes - prev->tx_bytes;
                 delta_rx = curr_stats[i].rx_bytes - prev->rx_bytes;
@@ -291,7 +298,7 @@ char** get_interfaces_usage(int *num_interfaces) {
     }
 
     // Update previous state
-    memcpy(prev_stats, curr_stats, sizeof(NetStat) * curr_count);
+    memcpy(prev_stats, curr_stats, sizeof(TrfxInterfaceStat) * curr_count);
     prev_count = curr_count;
     initialized = 1;
 

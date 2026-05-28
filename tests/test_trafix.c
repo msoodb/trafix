@@ -10,6 +10,7 @@
 #include "trfx_config.h"
 #include "trfx_cli.h"
 #include "trfx_connections.h"
+#include "trfx_netinfo.h"
 #include "trfx_utils.h"
 #include "trfx_version.h"
 
@@ -210,6 +211,22 @@ static int test_udp_state_names(void) {
   return 0;
 }
 
+static int test_parse_interface_stats_fixture(void) {
+  TrfxInterfaceStat stats[TRFX_MAX_INTERFACES];
+  int count = trfx_parse_interface_stats_path("tests/fixtures/proc_net_dev",
+                                              stats, TRFX_MAX_INTERFACES);
+
+  ASSERT_INT_EQ(count, 2);
+  ASSERT_STR_EQ(stats[0].name, "lo");
+  ASSERT_INT_EQ((int)stats[0].rx_bytes, 4096);
+  ASSERT_INT_EQ((int)stats[0].tx_bytes, 8192);
+  ASSERT_STR_EQ(stats[1].name, "eth0");
+  ASSERT_INT_EQ((int)stats[1].rx_bytes, 1048576);
+  ASSERT_INT_EQ((int)stats[1].tx_bytes, 2097152);
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
@@ -230,6 +247,9 @@ int main(void) {
     return 1;
 
   if (test_udp_state_names() != 0)
+    return 1;
+
+  if (test_parse_interface_stats_fixture() != 0)
     return 1;
 
   return 0;

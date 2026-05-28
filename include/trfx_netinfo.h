@@ -10,6 +10,16 @@
 #ifndef TRFX_NETINFO_H
 #define TRFX_NETINFO_H
 
+#include <stdio.h>
+
+#define TRFX_MAX_INTERFACES 20
+
+typedef struct {
+    char name[32];
+    unsigned long rx_bytes;
+    unsigned long tx_bytes;
+} TrfxInterfaceStat;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 void get_default_gateway_and_metric(char *gateway, char *metric);
@@ -19,6 +29,11 @@ char *get_ip_address(const char *ifname);
 char *get_wifi_ssid(const char *ifname);
 int is_wifi_interface(const char *iface_name);
 int is_vpn_interface(const char *iface_name);
+int trfx_parse_interface_stats_file(FILE *fp, TrfxInterfaceStat stats[],
+                                    int max_stats);
+int trfx_parse_interface_stats_path(const char *path, TrfxInterfaceStat stats[],
+                                    int max_stats);
+int trfx_read_interface_stats(TrfxInterfaceStat stats[], int max_stats);
 char** get_interfaces_usage(int *num_interfaces);
 void free_interfaces_usage(char **data, int num_interfaces);
 
