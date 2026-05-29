@@ -1,0 +1,13 @@
+It still needs polish, not more random features.
+
+Next priorities:
+
+Fix README formatting/clarity.
+Add real screenshots/GIF demo.
+Add docs/architecture.md.
+Add GitHub Actions CI: build + test + rpmlint.
+Make releases consistent: current repo shows old/latest release confusion.
+Add CONTRIBUTING.md and ROADMAP.md.
+Improve man page and examples.
+Add benchmark/performance notes.
+
