@@ -113,6 +113,30 @@ static int trfx_dynamic_thread_sleep_ms(const volatile int *local_stop,
   return trfx_thread_should_stop(local_stop);
 }
 
+static void format_connection_row(const ConnectionInfo *connection,
+                                  int panel_width, char *line,
+                                  size_t line_size) {
+  if (!connection || !line || line_size == 0)
+    return;
+
+  char local[64];
+  char remote[64];
+  int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
+  int endpoint_width = inner_width >= 100 ? 22 : inner_width >= 80 ? 18 : 14;
+  int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
+  int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
+
+  trfx_format_endpoint_for_tui(connection->local_addr, local, sizeof(local));
+  trfx_format_endpoint_for_tui(connection->remote_addr, remote, sizeof(remote));
+
+  snprintf(line, line_size,
+           "%-6.6s %-*s %-*s %-13.13s %-7u %-*.*s %-7.7s %-*.*s",
+           connection->protocol, endpoint_width, local, endpoint_width, remote,
+           connection->state, connection->uid, user_width, user_width,
+           connection->user, connection->pid, process_width, process_width,
+           connection->process);
+}
+
 static void format_socket_owner_line(const SocketOwnerInfo *owner,
                                      int panel_width, char *line,
                                      size_t line_size) {
@@ -671,8 +695,14 @@ void *connection_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     char header[256];
-    snprintf(header, sizeof(header), "%-6s %-21s %-21s %-13s %-7s %-10s %-6s %-14s",
-             "Proto", "Local", "Remote", "State", "UID", "User", "PID",
+    int panel_width = getmaxx(win);
+    int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
+    int endpoint_width = inner_width >= 100 ? 22 : inner_width >= 80 ? 18 : 14;
+    int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
+    int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
+    snprintf(header, sizeof(header), "%-6s %-*s %-*s %-13s %-7s %-*s %-7s %-*s",
+             "Proto", endpoint_width, "Local", endpoint_width, "Remote",
+             "State", "UID", user_width, "User", "PID", process_width,
              "Process");
     wattron(win, trfx_color_attr(COLOR_HEADER));
     trfx_print_clipped(win, 1, 2, header);
@@ -683,18 +713,8 @@ void *connection_info_thread(void *arg) {
       trfx_print_empty_state(win, "No TCP/UDP connections visible");
 
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      char local[22];
-      char remote[22];
       char line[256];
-      trfx_format_endpoint_for_tui(connections[i].local_addr, local,
-                                   sizeof(local));
-      trfx_format_endpoint_for_tui(connections[i].remote_addr, remote,
-                                   sizeof(remote));
-      snprintf(line, sizeof(line),
-               "%-6.6s %-21s %-21s %-13.13s %-7u %-10.10s %-6.6s %-14.14s",
-               connections[i].protocol, local, remote, connections[i].state,
-               connections[i].uid, connections[i].user, connections[i].pid,
-               connections[i].process);
+      format_connection_row(&connections[i], panel_width, line, sizeof(line));
       trfx_print_clipped(win, y++, 2, line);
     }
 
