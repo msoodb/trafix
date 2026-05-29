@@ -69,6 +69,33 @@ static int test_socket_owner_inode_lookup(void) {
   return 0;
 }
 
+static int test_parse_socket_owner_fixture(void) {
+  TrfxSocketOwnerMapEntry owner_map[] = {
+      {12345, "42", "curl"},
+      {23456, "77", "sshd"},
+  };
+  SocketOwnerInfo owners[MAX_SOCKET_OWNERS];
+
+  int count = trfx_parse_socket_owner_path(
+      "tests/fixtures/proc_net_tcp", "TCP", owner_map, 2, owners, 0,
+      MAX_SOCKET_OWNERS);
+
+  ASSERT_INT_EQ(count, 2);
+  ASSERT_STR_EQ(owners[0].proto, "TCP");
+  ASSERT_STR_EQ(owners[0].pid, "42");
+  ASSERT_STR_EQ(owners[0].process, "curl");
+  ASSERT_STR_EQ(owners[0].laddr, "127.0.0.1");
+  ASSERT_STR_EQ(owners[0].lport, "8080");
+  ASSERT_STR_EQ(owners[0].raddr, "127.0.0.2");
+  ASSERT_STR_EQ(owners[0].rport, "443");
+  ASSERT_STR_EQ(owners[1].pid, "77");
+  ASSERT_STR_EQ(owners[1].process, "sshd");
+  ASSERT_STR_EQ(owners[1].laddr, "0.0.0.0");
+  ASSERT_STR_EQ(owners[1].lport, "22");
+
+  return 0;
+}
+
 static int test_tcp_state_names(void) {
   ASSERT_STR_EQ(trfx_tcp_state_name(1), "ESTABLISHED");
   ASSERT_STR_EQ(trfx_tcp_state_name(2), "SYN_SENT");
@@ -136,6 +163,9 @@ int main(void) {
     return 1;
 
   if (test_socket_owner_inode_lookup() != 0)
+    return 1;
+
+  if (test_parse_socket_owner_fixture() != 0)
     return 1;
 
   return 0;

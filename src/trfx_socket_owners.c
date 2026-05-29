@@ -23,7 +23,7 @@ static void hex_to_ip_port(const char *hex_ip, const char *hex_port,
   unsigned int ip, port;
   sscanf(hex_ip, "%X", &ip);
   sscanf(hex_port, "%X", &port);
-  addr.s_addr = htonl(ip);
+  addr.s_addr = ip;
   inet_ntop(AF_INET, &addr, ip_str, 64);
   snprintf(port_str, 8, "%u", port);
 }
@@ -47,18 +47,23 @@ static void get_process_name_by_pid(const char *pid, char *name,
   }
 }
 
-static int parse_proc_net(const char *path, const char *proto,
-                          SocketOwnerInfo *list, int max_count) {
+int trfx_parse_socket_owner_path(const char *path, const char *proto,
+                                 const TrfxSocketOwnerMapEntry *entries,
+                                 int entry_count, SocketOwnerInfo *list,
+                                 int start_count, int max_count) {
+  if (!path || !proto || !list || start_count < 0 || max_count <= start_count)
+    return start_count;
+
   FILE *fp = fopen(path, "r");
   if (!fp)
-    return 0;
+    return start_count;
 
   char line[512];
-  int count = 0;
+  int count = start_count;
 
   if (fgets(line, sizeof(line), fp) == NULL) {
     fclose(fp);
-    return 0;
+    return count;
   }
 
   while (fgets(line, sizeof(line), fp) && count < max_count) {
@@ -77,67 +82,21 @@ static int parse_proc_net(const char *path, const char *proto,
     if (inode == 0)
       continue;
 
-    DIR *proc = opendir("/proc");
-    if (!proc)
-      break;
-
-    struct dirent *entry;
-    while ((entry = readdir(proc)) != NULL) {
-      if (!isdigit((unsigned char)entry->d_name[0]))
-        continue;
-
-      char fd_dir[300];
-      snprintf(fd_dir, sizeof(fd_dir), "/proc/%.*s/fd", 200, entry->d_name);
-
-      DIR *fd = opendir(fd_dir);
-      if (!fd)
-        continue;
-
-      struct dirent *fd_entry;
-      while ((fd_entry = readdir(fd)) != NULL) {
-        if (fd_entry->d_name[0] == '.')
-          continue;
-
-        char linkpath[512];
-        char target[512];
-        if (strlen(fd_dir) + 1 + strlen(fd_entry->d_name) < sizeof(linkpath)) {
-          strcpy(linkpath, fd_dir);
-          strcat(linkpath, "/");
-          strcat(linkpath, fd_entry->d_name);
-        } else {
-          continue;
-        }
-
-        ssize_t len = readlink(linkpath, target, sizeof(target) - 1);
-        if (len != -1) {
-          target[len] = '\0';
-          char inode_str[32];
-          snprintf(inode_str, sizeof(inode_str), "socket:[%u]", inode);
-          if (strstr(target, inode_str)) {
-            SocketOwnerInfo *owner = &list[count];
-            snprintf(owner->pid, sizeof(owner->pid), "%.*s",
-                     (int)(sizeof(owner->pid) - 1), entry->d_name);
-            get_process_name_by_pid(owner->pid, owner->process,
-                                    sizeof(owner->process));
-            hex_to_ip_port(local_ip_hex, local_port_hex, owner->laddr,
-                           owner->lport);
-            hex_to_ip_port(remote_ip_hex, remote_port_hex, owner->raddr,
-                           owner->rport);
-            snprintf(owner->proto, sizeof(owner->proto), "%s", proto);
-            count++;
-            if (count >= max_count) {
-              closedir(fd);
-              closedir(proc);
-              fclose(fp);
-              return count;
-            }
-            break;
-          }
-        }
-      }
-      closedir(fd);
+    SocketOwnerInfo *owner = &list[count];
+    char pid[sizeof(owner->pid)];
+    char process[sizeof(owner->process)];
+    if (!trfx_find_socket_owner_by_inode(entries, entry_count, inode, pid,
+                                         sizeof(pid), process,
+                                         sizeof(process))) {
+      continue;
     }
-    closedir(proc);
+
+    snprintf(owner->pid, sizeof(owner->pid), "%s", pid);
+    snprintf(owner->process, sizeof(owner->process), "%s", process);
+    hex_to_ip_port(local_ip_hex, local_port_hex, owner->laddr, owner->lport);
+    hex_to_ip_port(remote_ip_hex, remote_port_hex, owner->raddr, owner->rport);
+    snprintf(owner->proto, sizeof(owner->proto), "%s", proto);
+    count++;
   }
 
   fclose(fp);
@@ -145,11 +104,18 @@ static int parse_proc_net(const char *path, const char *proto,
 }
 
 int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners) {
-  int count = 0;
-  count += parse_proc_net("/proc/net/tcp", "TCP", owners + count,
-                          max_owners - count);
-  count += parse_proc_net("/proc/net/udp", "UDP", owners + count,
-                          max_owners - count);
+  if (!owners || max_owners <= 0)
+    return 0;
+
+  TrfxSocketOwnerMapEntry owner_map[MAX_SOCKET_OWNER_MAP_ENTRIES];
+  int owner_count =
+      trfx_scan_socket_owner_map(owner_map, MAX_SOCKET_OWNER_MAP_ENTRIES);
+
+  int count = trfx_parse_socket_owner_path("/proc/net/tcp", "TCP", owner_map,
+                                           owner_count, owners, 0,
+                                           max_owners);
+  count = trfx_parse_socket_owner_path("/proc/net/udp", "UDP", owner_map,
+                                       owner_count, owners, count, max_owners);
   return count;
 }
 

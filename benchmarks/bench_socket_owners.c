@@ -21,6 +21,7 @@ static long elapsed_us(struct timespec start, struct timespec end) {
 
 int main(void) {
   TrfxSocketOwnerMapEntry entries[MAX_SOCKET_OWNER_MAP_ENTRIES];
+  SocketOwnerInfo owners[MAX_SOCKET_OWNERS];
   struct timespec start;
   struct timespec end;
 
@@ -37,6 +38,21 @@ int main(void) {
   }
 
   printf("socket_owner_scan entries=%d elapsed_us=%ld\n", count,
+         elapsed_us(start, end));
+
+  if (clock_gettime(CLOCK_MONOTONIC, &start) != 0) {
+    perror("clock_gettime");
+    return 1;
+  }
+
+  int owner_count = get_socket_owner_info(owners, MAX_SOCKET_OWNERS);
+
+  if (clock_gettime(CLOCK_MONOTONIC, &end) != 0) {
+    perror("clock_gettime");
+    return 1;
+  }
+
+  printf("socket_owner_collect entries=%d elapsed_us=%ld\n", owner_count,
          elapsed_us(start, end));
   return 0;
 }

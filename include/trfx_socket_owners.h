@@ -32,6 +32,10 @@ typedef struct {
 } TrfxSocketOwnerMapEntry;
 
 int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners);
+int trfx_parse_socket_owner_path(const char *path, const char *proto,
+                                 const TrfxSocketOwnerMapEntry *entries,
+                                 int entry_count, SocketOwnerInfo *list,
+                                 int start_count, int max_count);
 int trfx_scan_socket_owner_map(TrfxSocketOwnerMapEntry *entries,
                                int max_entries);
 int trfx_find_socket_owner_by_inode(const TrfxSocketOwnerMapEntry *entries,
