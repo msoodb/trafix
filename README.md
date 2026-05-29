@@ -15,6 +15,7 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
 - [Installation and Usage](#installation-and-usage)
   - [Install from Source](#install-from-source)
   - [Install from Fedora Repository](#install-from-fedora-repository)
+  - [Debian and Ubuntu Packaging](#debian-and-ubuntu-packaging)
 - [User Manual](#user-manual)
   - [Hotkeys](#hotkeys)
   - [Configuration](#configuration)
@@ -132,6 +133,12 @@ CLI commands use text output by default. Use `--json` when integrating Trafix wi
 	```sh
 	trafix
 	```
+
+### Debian and Ubuntu Packaging
+
+Debian and Ubuntu packages are not available yet. See
+`docs/debian_packaging.md` for the current packaging roadmap and dependency
+notes.
 
 ## User Manual
 
