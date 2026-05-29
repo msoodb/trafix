@@ -6,6 +6,8 @@
 This document describes the release process for Trafix: test the code, bump the
 version, create the Git tag, and build Fedora RPM packages.
 
+For short per-release summaries, see [`RELEASE_NOTES.md`](./RELEASE_NOTES.md).
+
 ## Requirements
 
 Install the required Fedora build tools and runtime dependencies:
