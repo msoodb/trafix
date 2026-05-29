@@ -349,6 +349,11 @@ void cleanup_row2_modules() {
   for (int i = 0; i < ROW2_MODULES; i++) {
     if (row2_slots[i].thread_id) {
       row2_slots[i].stop_requested = 1;
+    }
+  }
+
+  for (int i = 0; i < ROW2_MODULES; i++) {
+    if (row2_slots[i].thread_id) {
       pthread_join(row2_slots[i].thread_id, NULL);
       row2_slots[i].thread_id = 0;
     }
