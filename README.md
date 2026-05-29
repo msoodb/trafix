@@ -137,6 +137,9 @@ CLI commands use text output by default. Use `--json` when integrating Trafix wi
 
 Trafix offers an interactive command-line interface with real-time controls. You can manage views, sorting, and behavior using the following keyboard shortcuts:
 
+For release and regression checks, use the manual TUI checklist in
+`docs/tui_manual_test_checklist.md`.
+
 ### Hotkeys
 
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
