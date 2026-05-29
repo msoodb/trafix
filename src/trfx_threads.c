@@ -93,8 +93,22 @@ static void trfx_print_clipped_line(WINDOW *win, int y, int x, int max_cols,
   mvwprintw(win, y, x, "%s", clipped);
 }
 
+static int trfx_thread_sleep_ms(int milliseconds) {
+  const int step_ms = 100;
+  int elapsed = 0;
+
+  while (!trfx_runtime_should_stop() && elapsed < milliseconds) {
+    int remaining = milliseconds - elapsed;
+    int sleep_ms = remaining < step_ms ? remaining : step_ms;
+    usleep((useconds_t)sleep_ms * 1000);
+    elapsed += sleep_ms;
+  }
+
+  return trfx_runtime_should_stop();
+}
+
 void wait_until_ready() {
-  while (!trfx_runtime_is_ready())
+  while (!trfx_runtime_is_ready() && !trfx_runtime_should_stop())
     usleep(10000);
 }
 
@@ -102,7 +116,7 @@ void *system_info_thread(void *arg) {
   WINDOW *win = (WINDOW *)arg;
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
@@ -142,7 +156,7 @@ void *system_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_SYSINFO)) {
         break;
       }
-      sleep(1);
+      trfx_thread_sleep_ms(1000);
     }
   }
   return NULL;
@@ -155,7 +169,7 @@ void *cpu_info_thread(void *arg) {
   extern int TEMP_WARN_YELLOW;
   extern int TEMP_WARN_RED;
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
@@ -257,7 +271,7 @@ void *cpu_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_CPUINFO)) {
         break;
       }
-      sleep(1);
+      trfx_thread_sleep_ms(1000);
     }
   }  
   return NULL;
@@ -267,7 +281,7 @@ void *memory_info_thread(void *arg) {
   WINDOW *win = (WINDOW *)arg;
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
@@ -330,7 +344,7 @@ void *memory_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_MEMINFO)) {
         break;
       }
-      sleep(1);
+      trfx_thread_sleep_ms(1000);
     }
 
   }
@@ -342,7 +356,7 @@ void *disk_info_thread(void *arg) {
   WINDOW *win = (WINDOW *)arg;
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
@@ -416,7 +430,7 @@ void *disk_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_DISKINFO)) {
         break;
       }
-      sleep(1);
+      trfx_thread_sleep_ms(1000);
     }
   }
   return NULL;
@@ -433,7 +447,7 @@ void *process_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -453,7 +467,7 @@ void *process_info_thread(void *arg) {
       mvwprintw(win, 1, 2, "Window too small");
       wrefresh(win);
       pthread_mutex_unlock(&ncurses_mutex);
-      sleep(2);
+      trfx_thread_sleep_ms(2000);
       continue;
     }
 
@@ -497,7 +511,7 @@ void *process_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(1);
+    trfx_thread_sleep_ms(1000);
   }
   return NULL;
 }
@@ -510,7 +524,7 @@ void *process_compact_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -530,7 +544,7 @@ void *process_compact_info_thread(void *arg) {
       mvwprintw(win, 1, 2, "Window too small");
       wrefresh(win);
       pthread_mutex_unlock(&ncurses_mutex);
-      sleep(2);
+      trfx_thread_sleep_ms(2000);
       continue;
     }
 
@@ -570,7 +584,7 @@ void *process_compact_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(1);
+    trfx_thread_sleep_ms(1000);
   }
   return NULL;
 }
@@ -583,7 +597,7 @@ void *connection_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -633,7 +647,7 @@ void *connection_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    sleep(1);
+    trfx_thread_sleep_ms(1000);
   }
   return NULL;
 }
@@ -646,7 +660,7 @@ void *socket_owner_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -693,7 +707,7 @@ void *socket_owner_info_thread(void *arg) {
     wrefresh(win); // Refresh the window to show new data
     pthread_mutex_unlock(&ncurses_mutex);
 
-    sleep(1); // Sleep for a second before refreshing
+    trfx_thread_sleep_ms(1000); // Sleep for a second before refreshing
   }
 
   return NULL;
@@ -707,7 +721,7 @@ void *network_info_thread(void *arg) {
   free(arg);
   wait_until_ready();
 
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -877,7 +891,7 @@ void *network_info_thread(void *arg) {
 
     free_interfaces_usage(interfaces_usage, num_interfaces);
 
-    sleep(1);
+    trfx_thread_sleep_ms(1000);
   }
   return NULL;
 
@@ -905,7 +919,7 @@ void *help_info_thread(void *arg) {
     "edit /etc/trafix/config.cfg to customize all settings.",
     NULL};
   
-  while (1) {
+  while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
@@ -949,7 +963,7 @@ void *help_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    sleep(1000);
+    trfx_thread_sleep_ms(1000);
   }
   return NULL;
 }

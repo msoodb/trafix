@@ -268,7 +268,8 @@ void cleanup_row2_modules() {
 
   for (int i = 0; i < ROW2_MODULES; i++) {
     if (row2_slots[i].thread_id) {
-      pthread_cancel(row2_slots[i].thread_id);
+      if (!trfx_runtime_should_stop())
+        pthread_cancel(row2_slots[i].thread_id);
       pthread_join(row2_slots[i].thread_id, NULL);
     }
     if (row2_slots[i].window) {
@@ -281,6 +282,18 @@ void cleanup_row2_modules() {
   }
   free(row2_slots);
   row2_slots = NULL;
+}
+
+static void destroy_window(WINDOW **win) {
+  if (!win || !*win)
+    return;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(*win);
+  wrefresh(*win);
+  delwin(*win);
+  pthread_mutex_unlock(&ncurses_mutex);
+  *win = NULL;
 }
 
 void load_row2_modules(int row2_height, int screen_width, int row2_y) {
@@ -475,6 +488,21 @@ void start_dashboard() {
   while ((ch = getch()) != 'q' && ch != 'Q') {
     handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win, row2_height, screen_width, row2_y);
   }
+
+  trfx_runtime_request_stop();
+
+  pthread_join(sys_tid, NULL);
+  pthread_join(cpu_tid, NULL);
+  pthread_join(mem_tid, NULL);
+  pthread_join(disk_tid, NULL);
+  pthread_join(help_tid, NULL);
+  cleanup_row2_modules();
+
+  destroy_window(&sys_win);
+  destroy_window(&cpu_win);
+  destroy_window(&mem_win);
+  destroy_window(&disk_win);
+  destroy_window(&help_win);
 
   free(row2_widths);
   endwin();
