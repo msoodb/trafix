@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "trfx_globals.h"
+#include "trfx_runtime.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
 
@@ -122,7 +123,7 @@ void refresh_static_windows(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 }
 
 int select_module() {
-  screen_paused = 1;
+  trfx_runtime_set_paused(1);
 
   const char *module_names[] = {" Connections ", " Network Information ",
                                 " Processes ", " Processes Compact ", " Socket Owners "};
@@ -139,7 +140,7 @@ int select_module() {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    screen_paused = 0;
+    trfx_runtime_set_paused(0);
     return -1;
   }
 
@@ -181,12 +182,12 @@ int select_module() {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  screen_paused = 0;
+  trfx_runtime_set_paused(0);
   return selected_index;
 }
 
 void pause_screen() {
-  screen_paused = 1;
+  trfx_runtime_set_paused(1);
 
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);
@@ -200,7 +201,7 @@ void pause_screen() {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    screen_paused = 0;
+    trfx_runtime_set_paused(0);
     return;
   }
 
@@ -214,7 +215,7 @@ void pause_screen() {
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
-  screen_paused = 0;
+  trfx_runtime_set_paused(0);
 }
 
 void change_window_module(int slot_idx) {
@@ -361,8 +362,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'r':
   case 'R':
-    for (int i = 0; i < STATIC_MODULE_COUNT; i++)
-      force_refresh_flags[i] = 1;
+    trfx_runtime_request_static_refresh_all();
     refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
     break;
 
@@ -378,6 +378,8 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 }
 
 void start_dashboard() {
+  trfx_runtime_reset();
+
   initscr();
   noecho();
   curs_set(FALSE);
@@ -467,7 +469,7 @@ void start_dashboard() {
   pthread_create(&help_tid, NULL, help_info_thread, help_win);
 
   sleep(1);
-  ready = 1;
+  trfx_runtime_set_ready(1);
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {

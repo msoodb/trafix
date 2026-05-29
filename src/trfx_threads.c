@@ -16,6 +16,7 @@
 
 #include "trfx_threads.h"
 #include "trfx_globals.h"
+#include "trfx_runtime.h"
 #include "trfx_utils.h"
 
 #include "trfx_sysinfo.h"
@@ -93,13 +94,8 @@ static void trfx_print_clipped_line(WINDOW *win, int y, int x, int max_cols,
 }
 
 void wait_until_ready() {
-  pthread_mutex_lock(&ready_mutex); // Lock before checking the ready flag
-  while (!ready) {
-    pthread_mutex_unlock(&ready_mutex); // Unlock before sleeping
-    usleep(10000);                      // Sleep before checking again
-    pthread_mutex_lock(&ready_mutex);   // Lock again before checking
-  }
-  pthread_mutex_unlock(&ready_mutex); // Unlock after we're done
+  while (!trfx_runtime_is_ready())
+    usleep(10000);
 }
 
 void *system_info_thread(void *arg) {
@@ -107,7 +103,7 @@ void *system_info_thread(void *arg) {
   wait_until_ready();
 
   while (1) {
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -143,8 +139,7 @@ void *system_info_thread(void *arg) {
     pthread_mutex_unlock(&ncurses_mutex);
 
     for (int i = 0; i < 50; i++) {
-      if (force_refresh_flags[STATIC_MODULE_SYSINFO]) {
-        force_refresh_flags[STATIC_MODULE_SYSINFO] = 0;
+      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_SYSINFO)) {
         break;
       }
       sleep(1);
@@ -161,7 +156,7 @@ void *cpu_info_thread(void *arg) {
   extern int TEMP_WARN_RED;
 
   while (1) {
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -259,8 +254,7 @@ void *cpu_info_thread(void *arg) {
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
     for (int i = 0; i < 2; i++) {
-      if (force_refresh_flags[STATIC_MODULE_CPUINFO]) {
-        force_refresh_flags[STATIC_MODULE_CPUINFO] = 0;
+      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_CPUINFO)) {
         break;
       }
       sleep(1);
@@ -274,7 +268,7 @@ void *memory_info_thread(void *arg) {
   wait_until_ready();
 
   while (1) {
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -333,8 +327,7 @@ void *memory_info_thread(void *arg) {
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
     for (int i = 0; i < 2; i++) {
-      if (force_refresh_flags[STATIC_MODULE_MEMINFO]) {
-        force_refresh_flags[STATIC_MODULE_MEMINFO] = 0;
+      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_MEMINFO)) {
         break;
       }
       sleep(1);
@@ -350,7 +343,7 @@ void *disk_info_thread(void *arg) {
   wait_until_ready();
 
   while (1) {
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -420,8 +413,7 @@ void *disk_info_thread(void *arg) {
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
     for (int i = 0; i < 10; i++) {
-      if (force_refresh_flags[STATIC_MODULE_DISKINFO]) {
-        force_refresh_flags[STATIC_MODULE_DISKINFO] = 0;
+      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_DISKINFO)) {
         break;
       }
       sleep(1);
@@ -443,7 +435,7 @@ void *process_info_thread(void *arg) {
 
   while (1) {
 
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -520,7 +512,7 @@ void *process_compact_info_thread(void *arg) {
 
   while (1) {
 
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -593,7 +585,7 @@ void *connection_info_thread(void *arg) {
 
   while (1) {
 
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -656,7 +648,7 @@ void *socket_owner_info_thread(void *arg) {
 
   while (1) {
 
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -717,7 +709,7 @@ void *network_info_thread(void *arg) {
 
   while (1) {
 
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
@@ -914,7 +906,7 @@ void *help_info_thread(void *arg) {
     NULL};
   
   while (1) {
-    if (screen_paused) {
+    if (trfx_runtime_is_paused()) {
       usleep(100000);
       continue;
     }
