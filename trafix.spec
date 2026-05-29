@@ -34,13 +34,12 @@ Linux system, CPU, memory, disk, process, connection, and network activity.
 %make_build test
 
 %install
-%make_install PREFIX=%{_prefix}
+install -Dpm755 bin/trafix %{buildroot}%{_bindir}/trafix
 install -Dpm644 man/trafix.1 %{buildroot}%{_mandir}/man1/trafix.1
 install -Dpm644 config/config.cfg %{buildroot}%{_sysconfdir}/trafix/config.cfg
 
 %files
 %license LICENSE
-%doc README.md
 %{_bindir}/trafix
 %{_mandir}/man1/trafix.1*
 %dir %{_sysconfdir}/trafix
