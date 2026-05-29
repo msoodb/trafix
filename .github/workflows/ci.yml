@@ -24,3 +24,25 @@ jobs:
 
       - name: Test
         run: make test CC=gcc
+
+  sanitizer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make libncurses-dev
+
+      - name: Build ASan binary
+        run: make asan CC=gcc
+
+      - name: Test with ASan flags
+        run: |
+          make MODE=asan \
+            CC=gcc \
+            CFLAGS="-O1 -g -Wall -Wextra -Wunused-result -fsanitize=address,undefined -fno-omit-frame-pointer" \
+            test
