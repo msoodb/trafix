@@ -35,6 +35,55 @@ void safe_mvwprintw(WINDOW *win, int y, int x, int max_width, const char *fmt,
   vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
 
-  // Print only up to max_width and make sure it doesn’t touch the right border
-  mvwprintw(win, y, x, "%.*s", max_width, buffer);
+  char clipped[1024];
+  trfx_clip_text(buffer, clipped, sizeof(clipped), max_width);
+  mvwprintw(win, y, x, "%s", clipped);
+}
+
+void trfx_clip_text(const char *src, char *dest, size_t dest_size,
+                    int max_width) {
+  if (!dest || dest_size == 0)
+    return;
+
+  if (!src || max_width <= 0) {
+    dest[0] = '\0';
+    return;
+  }
+
+  size_t limit = (size_t)max_width;
+  if (limit >= dest_size)
+    limit = dest_size - 1;
+
+  snprintf(dest, dest_size, "%.*s", (int)limit, src);
+}
+
+void trfx_print_clipped(WINDOW *win, int y, int x, const char *line) {
+  int h, w;
+  getmaxyx(win, h, w);
+
+  if (y < 0 || y >= h - 1 || x < 1 || x >= w - 1)
+    return;
+
+  char clipped[1024];
+  trfx_clip_text(line, clipped, sizeof(clipped), w - x - 1);
+  mvwprintw(win, y, x, "%s", clipped);
+}
+
+void trfx_draw_box(WINDOW *win, int color_pair) {
+  if (!win)
+    return;
+
+  wattron(win, COLOR_PAIR(color_pair));
+  box(win, 0, 0);
+  wattroff(win, COLOR_PAIR(color_pair));
+}
+
+void trfx_print_empty_state(WINDOW *win, const char *message) {
+  int h, w;
+  getmaxyx(win, h, w);
+
+  if (h < 3 || w < 4)
+    return;
+
+  trfx_print_clipped(win, h / 2, 2, message ? message : "No data available");
 }

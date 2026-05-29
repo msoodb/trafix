@@ -78,21 +78,6 @@ static void trfx_format_endpoint_for_tui(const char *value, char *buf,
   snprintf(buf, bufsize, "%.*s...", (int)(bufsize - 4), value);
 }
 
-static void trfx_print_clipped_line(WINDOW *win, int y, int x, int max_cols,
-                                    const char *line) {
-  char clipped[256];
-  int available = max_cols - x - 1;
-
-  if (available <= 0)
-    return;
-
-  if (available >= (int)sizeof(clipped))
-    available = (int)sizeof(clipped) - 1;
-
-  snprintf(clipped, sizeof(clipped), "%.*s", available, line ? line : "");
-  mvwprintw(win, y, x, "%s", clipped);
-}
-
 static int trfx_thread_sleep_ms(int milliseconds) {
   const int step_ms = 100;
   int elapsed = 0;
@@ -462,6 +447,7 @@ void *process_info_thread(void *arg) {
     pthread_mutex_lock(&ncurses_mutex);
     int h, w;
     getmaxyx(win, h, w);
+    (void)w;
     werase(win);
 
     wattron(win, COLOR_PAIR(COLOR_BORDER));
@@ -493,12 +479,8 @@ void *process_info_thread(void *arg) {
     int max_rows = h - 2;
     const char *header = "  PID    USER      PR  NI    VIRT    RES      SHR "
                          "S   %%CPU %%MEM   TIME+     COMMAND               ";
-    char clipped_header[1024];
-    strncpy(clipped_header, header, w - 2);
-    clipped_header[w - 2] = '\0';
-
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, row++, 1, "%s", clipped_header);
+    trfx_print_clipped(win, row++, 1, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     for (int i = 0; i < count && row < max_rows; i++) {
@@ -510,8 +492,7 @@ void *process_info_thread(void *arg) {
                list[i].res, list[i].shr, list[i].state, list[i].cpu,
                list[i].mem, list[i].time, list[i].command);
 
-      line[w - 2] = '\0';
-      mvwprintw(win, row++, 1, "%s", line);
+      trfx_print_clipped(win, row++, 1, line);
     }
 
     wrefresh(win);
@@ -540,6 +521,7 @@ void *process_compact_info_thread(void *arg) {
     pthread_mutex_lock(&ncurses_mutex);
     int h, w;
     getmaxyx(win, h, w);
+    (void)w;
     werase(win);
 
     wattron(win, COLOR_PAIR(COLOR_BORDER));
@@ -570,12 +552,8 @@ void *process_compact_info_thread(void *arg) {
     int max_rows = h - 2;
 
     const char *header = "  PID    USER        %CPU  %MEM   COMMAND";
-    char clipped_header[1024];
-    strncpy(clipped_header, header, w - 2);
-    clipped_header[w - 2] = '\0';
-
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    mvwprintw(win, row++, 1, "%s", clipped_header);
+    trfx_print_clipped(win, row++, 1, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     for (int i = 0; i < count && row < max_rows; i++) {
@@ -584,8 +562,7 @@ void *process_compact_info_thread(void *arg) {
                list[i].pid, list[i].user, list[i].cpu, list[i].mem,
                list[i].command);
 
-      line[w - 2] = '\0';
-      mvwprintw(win, row++, 1, "%s", line);
+      trfx_print_clipped(win, row++, 1, line);
     }
 
     wrefresh(win);
@@ -626,13 +603,12 @@ void *connection_info_thread(void *arg) {
     mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    int max_cols = getmaxx(win);
     char header[256];
     snprintf(header, sizeof(header), "%-6s %-21s %-21s %-13s %-7s %-10s %-6s %-14s",
              "Proto", "Local", "Remote", "State", "UID", "User", "PID",
              "Process");
     wattron(win, COLOR_PAIR(COLOR_HEADER));
-    trfx_print_clipped_line(win, 1, 2, max_cols, header);
+    trfx_print_clipped(win, 1, 2, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     int y = 2;
@@ -649,7 +625,7 @@ void *connection_info_thread(void *arg) {
                connections[i].protocol, local, remote, connections[i].state,
                connections[i].uid, connections[i].user, connections[i].pid,
                connections[i].process);
-      trfx_print_clipped_line(win, y++, 2, max_cols, line);
+      trfx_print_clipped(win, y++, 2, line);
     }
 
     wrefresh(win);
