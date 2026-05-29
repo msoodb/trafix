@@ -33,6 +33,10 @@ CPPFLAGS += -DTRFX_VERSION=\"$(VERSION)\"
 TAG := v$(VERSION)
 TARBALL := trafix-$(VERSION).tar.gz
 PREFIX ?= /usr
+DATAROOTDIR ?= $(PREFIX)/share
+DOCDIR ?= $(DATAROOTDIR)/doc/trafix
+MANDIR ?= $(DATAROOTDIR)/man
+SYSCONFDIR ?= /etc
 SOURCEDIR := $(HOME)/rpmbuild/SOURCES
 SPECDIR := $(HOME)/rpmbuild/SPECS
 
@@ -125,18 +129,37 @@ rpm: copy-spec
 	rpmbuild -ba $(SPECDIR)/trafix.spec
 
 # Installation
-install: install-bin
+install: install-bin install-man install-config install-doc
 
 install-bin:
 	install -D -m 0755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/trafix
 
+install-man:
+	install -D -m 644 man/trafix.1 $(DESTDIR)$(MANDIR)/man1/trafix.1
+
+install-config:
+	install -D -m 644 config/config.cfg $(DESTDIR)$(SYSCONFDIR)/trafix/config.cfg
+
+install-doc:
+	install -D -m 644 README.md $(DESTDIR)$(DOCDIR)/README.md
+	install -D -m 644 RELEASE.md $(DESTDIR)$(DOCDIR)/RELEASE.md
+	install -D -m 644 docs/cli_contract.md $(DESTDIR)$(DOCDIR)/docs/cli_contract.md
+	install -D -m 644 docs/debian_packaging.md $(DESTDIR)$(DOCDIR)/docs/debian_packaging.md
+	install -D -m 644 docs/performance_notes.md $(DESTDIR)$(DOCDIR)/docs/performance_notes.md
+	install -D -m 644 docs/trafix_features.md $(DESTDIR)$(DOCDIR)/docs/trafix_features.md
+	install -D -m 644 docs/trafix_technical_doc.md $(DESTDIR)$(DOCDIR)/docs/trafix_technical_doc.md
+	install -D -m 644 docs/tui_manual_test_checklist.md $(DESTDIR)$(DOCDIR)/docs/tui_manual_test_checklist.md
+
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/trafix
-	rm -rf $(DESTDIR)/usr/share/doc/trafix
+	rm -f $(DESTDIR)$(MANDIR)/man1/trafix.1
+	rm -f $(DESTDIR)$(SYSCONFDIR)/trafix/config.cfg
+	rmdir -p --ignore-fail-on-non-empty $(DESTDIR)$(SYSCONFDIR)/trafix 2>/dev/null || true
+	rm -rf $(DESTDIR)$(DOCDIR)
 
 # Clean build files
 clean:
 	rm -f $(TARGET)
 	rm -rf $(BUILD_ROOT) $(BIN_DIR)
 
-.PHONY: all debug asan test benchmark clean install install-bin install-doc uninstall bump tag tarball copy-spec rpm
+.PHONY: all debug asan test benchmark clean install install-bin install-man install-config install-doc uninstall bump tag tarball copy-spec rpm
