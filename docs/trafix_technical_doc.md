@@ -38,6 +38,7 @@ Optional runtime tools may improve some panels:
 - `lm_sensors` for CPU temperature data
 - `iw` for Wi-Fi details
 - `iproute2` for route information
+- `procps` for process listings
 
 Trafix does not currently use libpcap, eBPF, or privileged packet capture.
 

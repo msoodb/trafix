@@ -11,7 +11,7 @@ version, create the Git tag, and build Fedora RPM packages.
 Install the required Fedora build tools and runtime dependencies:
 
 ```sh
-sudo dnf install gcc make git rpm-build rpmdevtools rpmlint ncurses-devel lm_sensors
+sudo dnf install gcc make git rpm-build rpmdevtools rpmlint ncurses-devel lm_sensors iproute iw procps-ng
 ```
 
 Create the RPM build tree once per machine:

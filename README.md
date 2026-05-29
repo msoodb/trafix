@@ -35,6 +35,20 @@ Trafix is designed to be lightweight, efficient, and to use minimal system resou
 
 In this release line, Trafix treats bandwidth as interface-level byte rates. Connection and socket-owner views show protocol, address, state, UID/user, PID, and process ownership where visible, but they do not claim per-connection, per-socket, or per-process byte accounting.
 
+## Build Requirements
+
+- Linux
+- C compiler such as `gcc`
+- `make`
+- ncurses development package
+
+Optional runtime tools that improve some panels:
+
+- `lm_sensors` for CPU temperature data
+- `iw` for Wi-Fi details
+- `iproute2` for route information
+- `procps` for process listings
+
 ## Installation and Usage:
 
 ### Install from Source
