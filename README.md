@@ -190,6 +190,7 @@ TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
 
 ROW2_MODULES = 3
+SHOW_TOP_PANELS = 1
 TUI_REFRESH_INTERVAL_MS = 1000
 TUI_PAUSE_INTERVAL_MS = 100
 TUI_READY_CHECK_INTERVAL_MS = 10
@@ -206,6 +207,9 @@ TUI_SMALL_PANEL_REFRESH_MS = 2000
 
 - **ROW2_MODULES** *(default: 3)*  
   Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (1 to 3).
+
+- **SHOW_TOP_PANELS** *(default: 1)*  
+  Controls whether the top system, CPU, memory, and disk panels are shown.
 
 - **TUI_REFRESH_INTERVAL_MS** *(default: 1000)*  
   Standard refresh cadence for TUI panels, in milliseconds.

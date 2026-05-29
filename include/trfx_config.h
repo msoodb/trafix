@@ -15,6 +15,7 @@
 extern int TEMP_WARN_RED;
 extern int TEMP_WARN_YELLOW;
 extern int ROW2_MODULES;
+extern int SHOW_TOP_PANELS;
 extern int TUI_REFRESH_INTERVAL_MS;
 extern int TUI_PAUSE_INTERVAL_MS;
 extern int TUI_READY_CHECK_INTERVAL_MS;

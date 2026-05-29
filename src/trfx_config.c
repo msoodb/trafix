@@ -16,6 +16,7 @@
 int TEMP_WARN_YELLOW = 50;
 int TEMP_WARN_RED = 75;
 int ROW2_MODULES = 3;
+int SHOW_TOP_PANELS = 1;
 int TUI_REFRESH_INTERVAL_MS = 1000;
 int TUI_PAUSE_INTERVAL_MS = 100;
 int TUI_READY_CHECK_INTERVAL_MS = 10;
@@ -111,6 +112,8 @@ void read_config(const char *config_file) {
                 ROW2_MODULES);
         ROW2_MODULES = 3;
       }
+    } else if (strcmp(key, "SHOW_TOP_PANELS") == 0) {
+      SHOW_TOP_PANELS = parse_bounded_int(value, 1, 0, 1, key, line_num);
     } else if (strcmp(key, "TUI_REFRESH_INTERVAL_MS") == 0) {
       TUI_REFRESH_INTERVAL_MS =
           parse_bounded_int(value, 1000, 250, 10000, key, line_num);
