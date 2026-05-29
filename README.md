@@ -166,6 +166,10 @@ TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
 
 ROW2_MODULES = 3
+TUI_REFRESH_INTERVAL_MS = 1000
+TUI_PAUSE_INTERVAL_MS = 100
+TUI_READY_CHECK_INTERVAL_MS = 10
+TUI_SMALL_PANEL_REFRESH_MS = 2000
 ```
 
 ### Configuration Options
@@ -177,6 +181,18 @@ ROW2_MODULES = 3
   Temperature threshold in °C that triggers a red warning in the UI, indicating a high or dangerous temperature.
 
 - **ROW2_MODULES** *(default: 3)*  
-  Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (e.g., 1 to 4).
+  Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (1 to 3).
+
+- **TUI_REFRESH_INTERVAL_MS** *(default: 1000)*  
+  Standard refresh cadence for TUI panels, in milliseconds.
+
+- **TUI_PAUSE_INTERVAL_MS** *(default: 100)*  
+  Sleep cadence while the TUI is paused, in milliseconds.
+
+- **TUI_READY_CHECK_INTERVAL_MS** *(default: 10)*  
+  Startup wait cadence while worker threads wait for the TUI runtime to become ready, in milliseconds.
+
+- **TUI_SMALL_PANEL_REFRESH_MS** *(default: 2000)*  
+  Refresh cadence for small-window fallback messages, in milliseconds.
 
 After modifying the configuration, simply exit and run Trafix again to apply the changes:

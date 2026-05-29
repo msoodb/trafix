@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "trfx_threads.h"
+#include "trfx_config.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_utils.h"
@@ -99,7 +100,7 @@ static int trfx_thread_should_stop(const volatile int *local_stop) {
 
 void wait_until_ready() {
   while (!trfx_runtime_is_ready() && !trfx_runtime_should_stop())
-    usleep(10000);
+    usleep((useconds_t)TUI_READY_CHECK_INTERVAL_MS * 1000);
 }
 
 void *system_info_thread(void *arg) {
@@ -108,7 +109,7 @@ void *system_info_thread(void *arg) {
 
   while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -146,7 +147,7 @@ void *system_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_SYSINFO)) {
         break;
       }
-      trfx_thread_sleep_ms(1000);
+      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
     }
   }
   return NULL;
@@ -161,7 +162,7 @@ void *cpu_info_thread(void *arg) {
 
   while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -261,7 +262,7 @@ void *cpu_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_CPUINFO)) {
         break;
       }
-      trfx_thread_sleep_ms(1000);
+      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
     }
   }  
   return NULL;
@@ -273,7 +274,7 @@ void *memory_info_thread(void *arg) {
 
   while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -334,7 +335,7 @@ void *memory_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_MEMINFO)) {
         break;
       }
-      trfx_thread_sleep_ms(1000);
+      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
     }
 
   }
@@ -348,7 +349,7 @@ void *disk_info_thread(void *arg) {
 
   while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -420,7 +421,7 @@ void *disk_info_thread(void *arg) {
       if (trfx_runtime_consume_static_refresh(STATIC_MODULE_DISKINFO)) {
         break;
       }
-      trfx_thread_sleep_ms(1000);
+      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
     }
   }
   return NULL;
@@ -441,7 +442,7 @@ void *process_info_thread(void *arg) {
   while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -459,7 +460,7 @@ void *process_info_thread(void *arg) {
       mvwprintw(win, 1, 2, "Window too small");
       wrefresh(win);
       pthread_mutex_unlock(&ncurses_mutex);
-      trfx_thread_sleep_ms(2000);
+      trfx_thread_sleep_ms(TUI_SMALL_PANEL_REFRESH_MS);
       continue;
     }
 
@@ -507,7 +508,7 @@ void *process_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    trfx_thread_sleep_ms(1000);
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }
@@ -524,7 +525,7 @@ void *process_compact_info_thread(void *arg) {
   while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -542,7 +543,7 @@ void *process_compact_info_thread(void *arg) {
       mvwprintw(win, 1, 2, "Window too small");
       wrefresh(win);
       pthread_mutex_unlock(&ncurses_mutex);
-      trfx_thread_sleep_ms(2000);
+      trfx_thread_sleep_ms(TUI_SMALL_PANEL_REFRESH_MS);
       continue;
     }
 
@@ -584,7 +585,7 @@ void *process_compact_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    trfx_thread_sleep_ms(1000);
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }
@@ -601,7 +602,7 @@ void *connection_info_thread(void *arg) {
   while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -650,7 +651,7 @@ void *connection_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    trfx_thread_sleep_ms(1000);
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }
@@ -667,7 +668,7 @@ void *socket_owner_info_thread(void *arg) {
   while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -711,7 +712,7 @@ void *socket_owner_info_thread(void *arg) {
     wrefresh(win); // Refresh the window to show new data
     pthread_mutex_unlock(&ncurses_mutex);
 
-    trfx_thread_sleep_ms(1000); // Sleep for a second before refreshing
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
 
   return NULL;
@@ -729,7 +730,7 @@ void *network_info_thread(void *arg) {
   while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -903,7 +904,7 @@ void *network_info_thread(void *arg) {
 
     free_interfaces_usage(interfaces_usage, num_interfaces);
 
-    trfx_thread_sleep_ms(1000);
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 
@@ -933,7 +934,7 @@ void *help_info_thread(void *arg) {
   
   while (!trfx_runtime_should_stop()) {
     if (trfx_runtime_is_paused()) {
-      usleep(100000);
+      trfx_thread_sleep_ms(TUI_PAUSE_INTERVAL_MS);
       continue;
     }
 
@@ -975,7 +976,7 @@ void *help_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    trfx_thread_sleep_ms(1000);
+    trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }

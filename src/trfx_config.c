@@ -16,6 +16,35 @@
 int TEMP_WARN_YELLOW = 50;
 int TEMP_WARN_RED = 75;
 int ROW2_MODULES = 3;
+int TUI_REFRESH_INTERVAL_MS = 1000;
+int TUI_PAUSE_INTERVAL_MS = 100;
+int TUI_READY_CHECK_INTERVAL_MS = 10;
+int TUI_SMALL_PANEL_REFRESH_MS = 2000;
+
+static int parse_bounded_int(const char *value, int default_value, int min_value,
+                             int max_value, const char *name, int line_num) {
+  char *end = NULL;
+  long parsed = strtol(value, &end, 10);
+
+  while (end && isspace((unsigned char)*end))
+    end++;
+
+  if (!value[0] || !end || *end != '\0') {
+    fprintf(stderr,
+            "Warning: Invalid integer for %s at line %d. Defaulting to %d.\n",
+            name, line_num, default_value);
+    return default_value;
+  }
+
+  if (parsed < min_value || parsed > max_value) {
+    fprintf(stderr,
+            "Warning: %s out of range (%d-%d), got %ld. Defaulting to %d.\n",
+            name, min_value, max_value, parsed, default_value);
+    return default_value;
+  }
+
+  return (int)parsed;
+}
 
 static void trim_whitespace(char *str) {
   char *end;
@@ -82,6 +111,18 @@ void read_config(const char *config_file) {
                 ROW2_MODULES);
         ROW2_MODULES = 3;
       }
+    } else if (strcmp(key, "TUI_REFRESH_INTERVAL_MS") == 0) {
+      TUI_REFRESH_INTERVAL_MS =
+          parse_bounded_int(value, 1000, 250, 10000, key, line_num);
+    } else if (strcmp(key, "TUI_PAUSE_INTERVAL_MS") == 0) {
+      TUI_PAUSE_INTERVAL_MS =
+          parse_bounded_int(value, 100, 25, 1000, key, line_num);
+    } else if (strcmp(key, "TUI_READY_CHECK_INTERVAL_MS") == 0) {
+      TUI_READY_CHECK_INTERVAL_MS =
+          parse_bounded_int(value, 10, 1, 250, key, line_num);
+    } else if (strcmp(key, "TUI_SMALL_PANEL_REFRESH_MS") == 0) {
+      TUI_SMALL_PANEL_REFRESH_MS =
+          parse_bounded_int(value, 2000, 250, 10000, key, line_num);
     } else {
       fprintf(stderr, "Warning: Unknown config key '%s' at line %d\n", key,
               line_num);

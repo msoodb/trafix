@@ -151,6 +151,10 @@ Current options:
 - `TEMP_WARN_YELLOW`: CPU temperature warning threshold.
 - `TEMP_WARN_RED`: CPU temperature critical threshold.
 - `ROW2_MODULES`: number of second-row TUI modules, from 1 to 3.
+- `TUI_REFRESH_INTERVAL_MS`: standard TUI panel refresh cadence.
+- `TUI_PAUSE_INTERVAL_MS`: sleep cadence while the TUI is paused.
+- `TUI_READY_CHECK_INTERVAL_MS`: worker startup readiness check cadence.
+- `TUI_SMALL_PANEL_REFRESH_MS`: refresh cadence for small-window fallback messages.
 
 Example:
 
@@ -158,6 +162,10 @@ Example:
 TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
 ROW2_MODULES = 3
+TUI_REFRESH_INTERVAL_MS = 1000
+TUI_PAUSE_INTERVAL_MS = 100
+TUI_READY_CHECK_INTERVAL_MS = 10
+TUI_SMALL_PANEL_REFRESH_MS = 2000
 ```
 
 ## Current CLI
