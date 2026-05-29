@@ -38,6 +38,16 @@ threading, rendering, keyboard handling, or collectors.
 - Continue switching for at least 30 seconds.
 - Confirm CPU usage remains reasonable and the TUI stays responsive.
 
+## Hotkey Popup
+
+- Start the TUI.
+- Press `F1`, `h`, and `H`.
+- Confirm the hotkey popup opens from each key.
+- Press `Esc`.
+- Confirm the popup closes immediately and returns to the dashboard.
+- Resize the terminal while the popup is open.
+- Confirm the screen redraws cleanly after the popup closes.
+
 ## Columns
 
 - Start the TUI.
@@ -45,6 +55,10 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the number of second-row columns cycles through the supported layouts.
 - Confirm panel borders align after every layout change.
 - Confirm active panel workers keep updating after each layout change.
+- Set `SHOW_TOP_PANELS = FALSE`.
+- Confirm the second row stays aligned and fills the available space.
+- Cycle columns again with the top row hidden.
+- Confirm the dashboard remains responsive and borders stay intact.
 
 ## Pause And Resume
 
@@ -67,6 +81,8 @@ threading, rendering, keyboard handling, or collectors.
 - Start at `80x24`.
 - Resize wider and taller.
 - Confirm all windows resize and redraw cleanly.
+- Resize with `SHOW_TOP_PANELS = FALSE`.
+- Confirm the top panels stay hidden and the second row still resizes cleanly.
 - Resize narrower and shorter.
 - Confirm text is clipped instead of overflowing borders.
 - Resize below the minimum supported size.
