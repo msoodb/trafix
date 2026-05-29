@@ -15,6 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "trfx_config.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
@@ -62,13 +63,15 @@ typedef struct {
 WindowSlot *row2_slots = NULL;
 
 static int calculate_row2_height(int screen_height) {
-  int row2_height = screen_height - FIXED_ROW1_HEIGHT;
+  int top_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
+  int row2_height = screen_height - top_height;
   return row2_height < MIN_ROW2_HEIGHT ? MIN_ROW2_HEIGHT : row2_height;
 }
 
 static int tui_size_is_too_small(int screen_height, int screen_width) {
+  int min_height = (SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0) + MIN_ROW2_HEIGHT;
   return screen_width < MIN_TUI_WIDTH ||
-         screen_height < FIXED_ROW1_HEIGHT + MIN_ROW2_HEIGHT;
+         screen_height < min_height;
 }
 
 static void calculate_row1_widths(int screen_width,
@@ -505,7 +508,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
   calculate_row1_widths(screen_width, row1_widths);
   calculate_row2_widths(screen_width, row2_widths);
 
-  const int row1_height = FIXED_ROW1_HEIGHT;
+  const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
   const int row2_height = calculate_row2_height(screen_height);
   const int row2_y = row1_height;
 
@@ -514,14 +517,16 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
   refresh();
   clear();
 
-  wresize(sys_win, row1_height, row1_widths[0]);
-  mvwin(sys_win, 0, 0);
-  wresize(cpu_win, row1_height, row1_widths[1]);
-  mvwin(cpu_win, 0, row1_widths[0]);
-  wresize(mem_win, row1_height, row1_widths[2]);
-  mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
-  wresize(disk_win, row1_height, row1_widths[3]);
-  mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  if (SHOW_TOP_PANELS) {
+    wresize(sys_win, row1_height, row1_widths[0]);
+    mvwin(sys_win, 0, 0);
+    wresize(cpu_win, row1_height, row1_widths[1]);
+    mvwin(cpu_win, 0, row1_widths[0]);
+    wresize(mem_win, row1_height, row1_widths[2]);
+    mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
+    wresize(disk_win, row1_height, row1_widths[3]);
+    mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  }
 
   int x_offset = 0;
   for (int i = 0; i < ROW2_MODULES; i++) {
@@ -589,7 +594,8 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'r':
   case 'R':
     trfx_runtime_request_static_refresh_all();
-    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+    if (SHOW_TOP_PANELS)
+      refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
     break;
 
   case 'p':
@@ -632,25 +638,35 @@ void start_dashboard() {
     exit(EXIT_FAILURE);
   }
 
-  const int row1_height = FIXED_ROW1_HEIGHT;
+  const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
   const int row2_height = calculate_row2_height(screen_height);
 
-  int row1_widths[ROW1_MODULES];
-  calculate_row1_widths(screen_width, row1_widths);
+  int row1_widths[ROW1_MODULES] = {0};
+  if (SHOW_TOP_PANELS)
+    calculate_row1_widths(screen_width, row1_widths);
   int row1_y = 0, row2_y = row1_height;
 
-  WINDOW *sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
-  WINDOW *cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
-  WINDOW *mem_win = newwin(row1_height, row1_widths[2], row1_y,
-                           row1_widths[0] + row1_widths[1]);
-  WINDOW *disk_win = newwin(row1_height, row1_widths[3], row1_y,
-                            row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  WINDOW *sys_win = NULL;
+  WINDOW *cpu_win = NULL;
+  WINDOW *mem_win = NULL;
+  WINDOW *disk_win = NULL;
+
+  if (SHOW_TOP_PANELS) {
+    sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
+    cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
+    mem_win = newwin(row1_height, row1_widths[2], row1_y,
+                     row1_widths[0] + row1_widths[1]);
+    disk_win = newwin(row1_height, row1_widths[3], row1_y,
+                      row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  }
 
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
-  pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
-  pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
-  pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
-  pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
+  if (SHOW_TOP_PANELS) {
+    pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
+    pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
+    pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
+    pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
+  }
 
   /*create_row2_windows(row2_height, row2_widths, row2_y);
   for (int i = 0; i < ROW2_MODULES; i++) {
@@ -680,10 +696,12 @@ void start_dashboard() {
 
   trfx_runtime_request_stop();
 
-  pthread_join(sys_tid, NULL);
-  pthread_join(cpu_tid, NULL);
-  pthread_join(mem_tid, NULL);
-  pthread_join(disk_tid, NULL);
+  if (SHOW_TOP_PANELS) {
+    pthread_join(sys_tid, NULL);
+    pthread_join(cpu_tid, NULL);
+    pthread_join(mem_tid, NULL);
+    pthread_join(disk_tid, NULL);
+  }
   cleanup_row2_modules();
 
   destroy_window(&sys_win);

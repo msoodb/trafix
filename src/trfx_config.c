@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <strings.h>
 
 int TEMP_WARN_YELLOW = 50;
 int TEMP_WARN_RED = 75;
@@ -45,6 +46,19 @@ static int parse_bounded_int(const char *value, int default_value, int min_value
   }
 
   return (int)parsed;
+}
+
+static int parse_bool(const char *value, int default_value, const char *name,
+                      int line_num) {
+  if (strcasecmp(value, "true") == 0 || strcasecmp(value, "yes") == 0 ||
+      strcasecmp(value, "on") == 0)
+    return 1;
+
+  if (strcasecmp(value, "false") == 0 || strcasecmp(value, "no") == 0 ||
+      strcasecmp(value, "off") == 0)
+    return 0;
+
+  return parse_bounded_int(value, default_value, 0, 1, name, line_num);
 }
 
 static void trim_whitespace(char *str) {
@@ -113,7 +127,7 @@ void read_config(const char *config_file) {
         ROW2_MODULES = 3;
       }
     } else if (strcmp(key, "SHOW_TOP_PANELS") == 0) {
-      SHOW_TOP_PANELS = parse_bounded_int(value, 1, 0, 1, key, line_num);
+      SHOW_TOP_PANELS = parse_bool(value, 1, key, line_num);
     } else if (strcmp(key, "TUI_REFRESH_INTERVAL_MS") == 0) {
       TUI_REFRESH_INTERVAL_MS =
           parse_bounded_int(value, 1000, 250, 10000, key, line_num);
