@@ -597,6 +597,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     pause_screen();
     break;
 
+  case KEY_F(1):
   case 'h':
   case 'H':
     show_hotkeys_popup();
