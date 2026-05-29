@@ -113,6 +113,40 @@ static int trfx_dynamic_thread_sleep_ms(const volatile int *local_stop,
   return trfx_thread_should_stop(local_stop);
 }
 
+static void format_socket_owner_line(const SocketOwnerInfo *owner,
+                                     int panel_width, char *line,
+                                     size_t line_size) {
+  if (!owner || !line || line_size == 0)
+    return;
+
+  char local_info[128];
+  char remote_info[128];
+  char proto[8];
+  char pid[16];
+  char process[64];
+  char local[64];
+  char remote[64];
+
+  int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
+  int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
+  int endpoint_width = inner_width >= 90 ? 22 : inner_width >= 70 ? 18 : 12;
+
+  snprintf(local_info, sizeof(local_info), "%s:%s", owner->laddr,
+           owner->lport);
+  snprintf(remote_info, sizeof(remote_info), "%s:%s", owner->raddr,
+           owner->rport);
+
+  trfx_clip_text(owner->proto, proto, sizeof(proto), 6);
+  trfx_clip_text(owner->pid, pid, sizeof(pid), 7);
+  trfx_clip_text(owner->process, process, sizeof(process), process_width);
+  trfx_clip_text(local_info, local, sizeof(local), endpoint_width);
+  trfx_clip_text(remote_info, remote, sizeof(remote), endpoint_width);
+
+  snprintf(line, line_size, "%-6s %-7s %-*s %-*s %-*s", proto, pid,
+           process_width, process, endpoint_width, local, endpoint_width,
+           remote);
+}
+
 void wait_until_ready() {
   while (!trfx_runtime_is_ready() && !trfx_runtime_should_stop())
     usleep((useconds_t)TUI_READY_CHECK_INTERVAL_MS * 1000);
@@ -705,23 +739,24 @@ void *socket_owner_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     wattron(win, trfx_color_attr(COLOR_HEADER));
-    mvwprintw(win, 1, 2, "%-6s %-7s %-16s %-22s %-22s", "Proto", "PID",
-              "Process", "Local", "Remote");
+    {
+      char header[128];
+      int max_cols = getmaxx(win);
+      int inner_width = max_cols > 4 ? max_cols - 4 : max_cols;
+      int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
+      int endpoint_width = inner_width >= 90 ? 22 : inner_width >= 70 ? 18 : 12;
+      snprintf(header, sizeof(header), "%-6s %-7s %-*s %-*s %-*s", "Proto",
+               "PID", process_width, "Process", endpoint_width, "Local",
+               endpoint_width, "Remote");
+      trfx_print_clipped(win, 1, 2, header);
+    }
     wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
-      char local_info[80];
-      snprintf(local_info, sizeof(local_info), "%s:%s", owners[i].laddr,
-               owners[i].lport);
-
-      char remote_info[80];
-      snprintf(remote_info, sizeof(remote_info), "%s:%s", owners[i].raddr,
-               owners[i].rport);
-
-      mvwprintw(win, y++, 2, "%-6s %-7s %-16.16s %-22s %-22s",
-                owners[i].proto, owners[i].pid, owners[i].process, local_info,
-                remote_info);
+      char line[256];
+      format_socket_owner_line(&owners[i], getmaxx(win), line, sizeof(line));
+      trfx_print_clipped(win, y++, 2, line);
     }
 
     wrefresh(win); // Refresh the window to show new data
