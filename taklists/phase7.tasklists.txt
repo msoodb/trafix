@@ -1,0 +1,132 @@
+Phase 7 Task List: TUI Usability, Layout Control, and Visual Cleanup
+--------------------------------------------------------------------
+
+Goal
+----
+Make the Trafix TUI feel deliberate and professional: clearer hotkey help,
+optional top-row panels, stable borders, and text that fits cleanly in narrow
+layouts.
+
+Constraints
+-----------
+- Do not add new monitoring features in this phase.
+- Keep the TUI responsive after each change.
+- Keep each task small enough to build, test, and review independently.
+- After every task, `make` and `make test` should still pass locally.
+
+
+Task 1: Move Hotkey Help Into a Popup
+--------------------------------------
+Remove the permanent hotkeys frame from the dashboard and show the hotkey
+content in a popup instead.
+
+Acceptance checks:
+- The dashboard no longer reserves a permanent hotkeys frame.
+- The help content still exists and is readable in a popup.
+- Normal dashboard rendering and exit behavior still work.
+
+
+Task 2: Bind Help Popup To F1, h, and H
+---------------------------------------
+Open the hotkey popup with `F1`, `h`, and `H`, and close it cleanly.
+
+Acceptance checks:
+- `F1`, `h`, and `H` open the popup from the TUI.
+- The popup closes cleanly with an expected dismiss key.
+- Keyboard handling still returns to the dashboard after closing.
+
+
+Task 3: Add A Config Flag For Top Panels
+----------------------------------------
+Add one config option that enables or disables the top system, CPU, memory,
+and disk info panels together.
+
+Acceptance checks:
+- The config file supports one clear flag for the top-row panels.
+- The default behavior is documented and stable.
+- The option does not affect unrelated panels.
+
+
+Task 4: Wire The Top-Panel Flag Into Layout Creation
+----------------------------------------------------
+Make the dashboard honor the new config flag when building the TUI layout.
+
+Acceptance checks:
+- When disabled, the top-row panels do not render.
+- When enabled, the current top-row layout still renders.
+- Border placement and spacing remain valid in both modes.
+
+
+Task 5: Keep The Second Row Stable Without The Top Row
+-------------------------------------------------------
+Make the second-row column logic work cleanly whether the top row is visible or
+hidden.
+
+Acceptance checks:
+- Column switching still works with the top row disabled.
+- The dashboard does not leave holes or broken borders.
+- Layout changes remain responsive.
+
+
+Task 6: Trim Long Socket Owner Text
+-----------------------------------
+Tighten the socket-owner display so long owners, PIDs, or addresses do not
+break the right border in narrow columns.
+
+Acceptance checks:
+- Long values are clipped or truncated safely.
+- The right border stays intact in column 1 and column 2 layouts.
+- The panel remains readable in small terminals.
+
+
+Task 7: Improve IPv6 and Long Address Rendering
+-----------------------------------------------
+Make IPv6 and other long address strings render cleanly in table and owner
+views.
+
+Acceptance checks:
+- Long addresses no longer overflow panel width.
+- The display stays aligned across narrow and wide layouts.
+- The change does not break IPv4 rendering.
+
+
+Task 8: Review Resize Handling For Popup And Optional Panels
+------------------------------------------------------------
+Make popup rendering and the optional top-row layout behave correctly on
+terminal resize.
+
+Acceptance checks:
+- Resizing while the help popup is open does not corrupt the screen.
+- Resizing with top panels hidden keeps the layout aligned.
+- Small-terminal fallback still works.
+
+
+Task 9: Update Manual TUI Checks For New Behavior
+-------------------------------------------------
+Extend the manual TUI checklist so it covers the help popup and the optional
+top-panel layout.
+
+Acceptance checks:
+- The checklist includes popup open/close behavior.
+- The checklist includes enabled and disabled top-panel modes.
+- The checklist still matches the shipped TUI behavior.
+
+
+Task 10: Audit TUI Documentation Against The New Layout
+--------------------------------------------------------
+Review README, man page, and TUI docs so they describe the new hotkey popup and
+the optional top-panel behavior accurately.
+
+Acceptance checks:
+- No permanent hotkeys frame is described after it is removed.
+- The help popup behavior is documented accurately.
+- The optional top-panel flag is documented consistently.
+
+
+Definition of Done for Phase 7
+------------------------------
+- Hotkey help is popup-based.
+- Top-row panels can be enabled or disabled together by config.
+- Narrow layouts no longer break on long socket-owner or address text.
+- Resize behavior stays clean.
+- Documentation matches the shipped TUI behavior.

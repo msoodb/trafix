@@ -62,13 +62,13 @@ typedef struct {
 WindowSlot *row2_slots = NULL;
 
 static int calculate_row2_height(int screen_height) {
-  int row2_height = screen_height - FIXED_ROW1_HEIGHT - FIXED_ROW3_HEIGHT;
+  int row2_height = screen_height - FIXED_ROW1_HEIGHT;
   return row2_height < MIN_ROW2_HEIGHT ? MIN_ROW2_HEIGHT : row2_height;
 }
 
 static int tui_size_is_too_small(int screen_height, int screen_width) {
   return screen_width < MIN_TUI_WIDTH ||
-         screen_height < FIXED_ROW1_HEIGHT + FIXED_ROW3_HEIGHT + MIN_ROW2_HEIGHT;
+         screen_height < FIXED_ROW1_HEIGHT + MIN_ROW2_HEIGHT;
 }
 
 static void calculate_row1_widths(int screen_width,
@@ -196,6 +196,80 @@ void refresh_static_windows(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     wrefresh(wins[i]);
   }
   pthread_mutex_unlock(&ncurses_mutex);
+}
+
+void show_hotkeys_popup(void) {
+  trfx_runtime_set_paused(1);
+
+  static const char *hotkeys[] = {
+      "[1-3] Switch Panel",
+      "[s] Sort Processes",
+      "[r] Refresh",
+      "[c] Columns",
+      "[p] Pause",
+      "[h] Help",
+      "[q] Quit",
+      "Press ESC or Enter to close.",
+  };
+  const int hotkey_count = (int)(sizeof(hotkeys) / sizeof(hotkeys[0]));
+
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  const char *title = "Hotkeys";
+  int popup_height = hotkey_count + 4;
+  int popup_width = (int)strlen(title) + 6;
+  for (int i = 0; i < hotkey_count; ++i) {
+    int line_width = (int)strlen(hotkeys[i]) + 4;
+    if (line_width > popup_width)
+      popup_width = line_width;
+  }
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 28)
+    popup_width = 28;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  keypad(popup, FALSE);
+  nodelay(popup, TRUE);
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  mvwprintw(popup, 1, 2, "%s", title);
+  for (int i = 0; i < hotkey_count; ++i)
+    mvwprintw(popup, i + 2, 2, "%s", hotkeys[i]);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == ERR) {
+      usleep(10000);
+      continue;
+    }
+    if (ch == KEY_ESC || ch == '\n' || ch == '\r' || ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  trfx_runtime_set_paused(0);
 }
 
 int select_module() {
@@ -414,8 +488,7 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
 }
 
 static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
-                                     WINDOW *mem_win, WINDOW *disk_win,
-                                     WINDOW *help_win) {
+                                     WINDOW *mem_win, WINDOW *disk_win) {
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);
 
@@ -434,9 +507,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
-  const int row3_height = FIXED_ROW3_HEIGHT;
   const int row2_y = row1_height;
-  const int row3_y = row1_height + row2_height;
 
   pthread_mutex_lock(&ncurses_mutex);
   endwin();
@@ -461,8 +532,6 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     x_offset += row2_widths[i];
   }
 
-  wresize(help_win, row3_height, screen_width);
-  mvwin(help_win, row3_y, 0);
   pthread_mutex_unlock(&ncurses_mutex);
 
   trfx_runtime_request_static_refresh_all();
@@ -470,10 +539,10 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 }
 
 void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                     WINDOW *disk_win, WINDOW *help_win) {
+                     WINDOW *disk_win) {
   switch (ch) {
   case KEY_RESIZE:
-    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win, help_win);
+    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win);
     break;
 
   case '1':
@@ -528,6 +597,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     pause_screen();
     break;
 
+  case 'h':
+  case 'H':
+    show_hotkeys_popup();
+    break;
+
   default:
     // Do nothing or handle other keys if needed
     break;
@@ -558,14 +632,11 @@ void start_dashboard() {
   }
 
   const int row1_height = FIXED_ROW1_HEIGHT;
-  const int row3_height = FIXED_ROW3_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
 
   int row1_widths[ROW1_MODULES];
   calculate_row1_widths(screen_width, row1_widths);
-  int row3_widths[ROW3_MODULES] = {screen_width};
-
-  int row1_y = 0, row2_y = row1_height, row3_y = row1_height + row2_height;
+  int row1_y = 0, row2_y = row1_height;
 
   WINDOW *sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
   WINDOW *cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
@@ -573,9 +644,8 @@ void start_dashboard() {
                            row1_widths[0] + row1_widths[1]);
   WINDOW *disk_win = newwin(row1_height, row1_widths[3], row1_y,
                             row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  WINDOW *help_win = newwin(row3_height, row3_widths[0], row3_y, 0);
 
-  pthread_t sys_tid, cpu_tid, mem_tid, disk_tid, help_tid;
+  pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
   pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
   pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
   pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
@@ -598,14 +668,13 @@ void start_dashboard() {
     }
     }*/
   load_row2_modules(row2_height, screen_width, row2_y);
-  pthread_create(&help_tid, NULL, help_info_thread, help_win);
 
   sleep(1);
   trfx_runtime_set_ready(1);
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {
-    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win, help_win);
+    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win);
   }
 
   trfx_runtime_request_stop();
@@ -614,14 +683,12 @@ void start_dashboard() {
   pthread_join(cpu_tid, NULL);
   pthread_join(mem_tid, NULL);
   pthread_join(disk_tid, NULL);
-  pthread_join(help_tid, NULL);
   cleanup_row2_modules();
 
   destroy_window(&sys_win);
   destroy_window(&cpu_win);
   destroy_window(&mem_win);
   destroy_window(&disk_win);
-  destroy_window(&help_win);
 
   endwin();
 }

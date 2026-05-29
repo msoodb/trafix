@@ -23,6 +23,7 @@ void *network_info_thread(void *arg);
 void *process_info_thread(void *arg);
 void *socket_owner_info_thread(void *arg);
 void *help_info_thread(void *arg);
+void show_hotkeys_popup(void);
 
 void start_dashboard();
 
