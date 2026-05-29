@@ -68,6 +68,10 @@ static int calculate_row2_height(int screen_height) {
   return row2_height < MIN_ROW2_HEIGHT ? MIN_ROW2_HEIGHT : row2_height;
 }
 
+static int calculate_row2_y(void) {
+  return SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
+}
+
 static int tui_size_is_too_small(int screen_height, int screen_width) {
   int min_height = (SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0) + MIN_ROW2_HEIGHT;
   return screen_width < MIN_TUI_WIDTH ||
@@ -510,7 +514,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 
   const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
   const int row2_height = calculate_row2_height(screen_height);
-  const int row2_y = row1_height;
+  const int row2_y = calculate_row2_y();
 
   pthread_mutex_lock(&ncurses_mutex);
   endwin();
@@ -587,9 +591,8 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
       draw_small_terminal_message(current_height, current_width);
       break;
     }
-    int row2_y = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
     load_row2_modules(calculate_row2_height(current_height), current_width,
-                      row2_y);
+                      calculate_row2_y());
     break;
 
   case 'r':
@@ -645,7 +648,7 @@ void start_dashboard() {
   int row1_widths[ROW1_MODULES] = {0};
   if (SHOW_TOP_PANELS)
     calculate_row1_widths(screen_width, row1_widths);
-  int row1_y = 0, row2_y = row1_height;
+  int row1_y = 0, row2_y = calculate_row2_y();
 
   WINDOW *sys_win = NULL;
   WINDOW *cpu_win = NULL;
