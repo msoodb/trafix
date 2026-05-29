@@ -24,6 +24,9 @@ read-only commands:
 - `trafix connections --state STATE` filters by connection state.
 - Unknown arguments fail clearly and do not launch the TUI.
 
+Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
+`H`. The popup is dismissed with `Esc`, `Enter`, or `q`.
+
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts, top-talkers, and per-process bandwidth are
 roadmap items, not current behavior.
@@ -154,6 +157,8 @@ Current options:
 - `TEMP_WARN_YELLOW`: CPU temperature warning threshold.
 - `TEMP_WARN_RED`: CPU temperature critical threshold.
 - `ROW2_MODULES`: number of second-row TUI modules, from 1 to 3.
+- `SHOW_TOP_PANELS`: enable or disable the top system, CPU, memory, and disk
+  panel row together.
 - `TUI_REFRESH_INTERVAL_MS`: standard TUI panel refresh cadence.
 - `TUI_PAUSE_INTERVAL_MS`: sleep cadence while the TUI is paused.
 - `TUI_READY_CHECK_INTERVAL_MS`: worker startup readiness check cadence.
@@ -165,6 +170,7 @@ Example:
 TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
 ROW2_MODULES = 3
+SHOW_TOP_PANELS = 1
 TUI_REFRESH_INTERVAL_MS = 1000
 TUI_PAUSE_INTERVAL_MS = 100
 TUI_READY_CHECK_INTERVAL_MS = 10

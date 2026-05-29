@@ -163,6 +163,8 @@ For release and regression checks, use the manual TUI checklist in
 
 ### Hotkeys
 
+- `[F1]`, `[h]`, `[H]` — **Help Popup:** Show the hotkey help popup.
+- `[Esc]`, `[Enter]`, `[q]` — **Close Popup:** Dismiss the hotkey popup.
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
