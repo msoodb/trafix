@@ -54,6 +54,7 @@ typedef struct {
   pthread_t thread_id;
   int module_index; // -1 = none
   WINDOW *window;
+  volatile int stop_requested;
 } WindowSlot;
 // WindowSlot row2_slots[ROW2_MODULES];
 WindowSlot *row2_slots = NULL;
@@ -103,6 +104,7 @@ void start_process_info_thread(WINDOW *win, int module_index) {
   }
   arg->window = win;
   arg->module_index = module_index;
+  arg->stop_requested = NULL;
   pthread_t tid;
   if (pthread_create(&tid, NULL, process_info_thread, arg) != 0) {
     perror("pthread_create");
@@ -220,8 +222,9 @@ void pause_screen() {
 
 void change_window_module(int slot_idx) {
   if (row2_slots[slot_idx].module_index != -1) {
-    pthread_cancel(row2_slots[slot_idx].thread_id);
+    row2_slots[slot_idx].stop_requested = 1;
     pthread_join(row2_slots[slot_idx].thread_id, NULL);
+    row2_slots[slot_idx].thread_id = 0;
     row2_slots[slot_idx].module_index = -1;
   }
 
@@ -237,6 +240,8 @@ void change_window_module(int slot_idx) {
   arg->module_index = slot_idx; //selected_module;
   //arg->module_index = selected_module;
   arg->window = row2_slots[slot_idx].window;
+  row2_slots[slot_idx].stop_requested = 0;
+  arg->stop_requested = &row2_slots[slot_idx].stop_requested;
 
   if (pthread_create(&row2_slots[slot_idx].thread_id, NULL,
                      modules[selected_module].thread_func, arg) != 0) {
@@ -259,6 +264,7 @@ void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
     row2_slots[i].window = win;
     row2_slots[i].module_index = get_module_index_by_name(modules[i].name);
     row2_slots[i].thread_id = 0;
+    row2_slots[i].stop_requested = 0;
     x_offset += row2_widths[i];
   }
 }
@@ -268,9 +274,9 @@ void cleanup_row2_modules() {
 
   for (int i = 0; i < ROW2_MODULES; i++) {
     if (row2_slots[i].thread_id) {
-      if (!trfx_runtime_should_stop())
-        pthread_cancel(row2_slots[i].thread_id);
+      row2_slots[i].stop_requested = 1;
       pthread_join(row2_slots[i].thread_id, NULL);
+      row2_slots[i].thread_id = 0;
     }
     if (row2_slots[i].window) {
       pthread_mutex_lock(&ncurses_mutex);
@@ -326,6 +332,8 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
     }
     arg->module_index = i;
     arg->window = row2_slots[i].window;
+    row2_slots[i].stop_requested = 0;
+    arg->stop_requested = &row2_slots[i].stop_requested;
     if (pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
                        arg) != 0) {
       free(arg);

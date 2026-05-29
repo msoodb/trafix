@@ -107,6 +107,10 @@ static int trfx_thread_sleep_ms(int milliseconds) {
   return trfx_runtime_should_stop();
 }
 
+static int trfx_thread_should_stop(const volatile int *local_stop) {
+  return trfx_runtime_should_stop() || (local_stop && *local_stop);
+}
+
 void wait_until_ready() {
   while (!trfx_runtime_is_ready() && !trfx_runtime_should_stop())
     usleep(10000);
@@ -443,11 +447,12 @@ void *process_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
 
   free(arg);
   wait_until_ready();
 
-  while (!trfx_runtime_should_stop()) {
+  while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -520,11 +525,12 @@ void *process_compact_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
 
   free(arg);
   wait_until_ready();
 
-  while (!trfx_runtime_should_stop()) {
+  while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -593,11 +599,12 @@ void *connection_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
 
   free(arg);
   wait_until_ready();
 
-  while (!trfx_runtime_should_stop()) {
+  while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -656,11 +663,12 @@ void *socket_owner_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
 
   free(arg);
   wait_until_ready();
 
-  while (!trfx_runtime_should_stop()) {
+  while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);
@@ -717,11 +725,12 @@ void *network_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
 
   free(arg);
   wait_until_ready();
 
-  while (!trfx_runtime_should_stop()) {
+  while (!trfx_thread_should_stop(local_stop)) {
 
     if (trfx_runtime_is_paused()) {
       usleep(100000);

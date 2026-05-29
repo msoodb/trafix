@@ -13,6 +13,7 @@
 typedef struct {
   int module_index;
   WINDOW *window;
+  volatile int *stop_requested;
 } ThreadArg;
 
 void wait_until_ready();
