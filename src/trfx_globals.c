@@ -9,8 +9,14 @@
 
 // trfx_globals.c
 #include "trfx_globals.h"
+#include <ncurses.h>
 
 pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t global_var_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t memory_info_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t disk_info_mutex = PTHREAD_MUTEX_INITIALIZER;
+int trfx_colors_enabled = 0;
+
+int trfx_color_attr(int color_pair) {
+  return trfx_colors_enabled ? COLOR_PAIR(color_pair) : A_NORMAL;
+}

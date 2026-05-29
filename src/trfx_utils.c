@@ -8,6 +8,7 @@
  */
 
 // trfx_utils.c
+#include "trfx_globals.h"
 #include "trfx_utils.h"
 #include <stdio.h>
 
@@ -73,9 +74,9 @@ void trfx_draw_box(WINDOW *win, int color_pair) {
   if (!win)
     return;
 
-  wattron(win, COLOR_PAIR(color_pair));
+  wattron(win, trfx_color_attr(color_pair));
   box(win, 0, 0);
-  wattroff(win, COLOR_PAIR(color_pair));
+  wattroff(win, trfx_color_attr(color_pair));
 }
 
 void trfx_print_empty_state(WINDOW *win, const char *message) {

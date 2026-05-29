@@ -103,6 +103,36 @@ static void draw_small_terminal_message(int screen_height, int screen_width) {
   pthread_mutex_unlock(&ncurses_mutex);
 }
 
+static int init_color_pair_checked(short pair, short foreground,
+                                   short background) {
+  return init_pair(pair, foreground, background) == OK;
+}
+
+static void init_dashboard_colors(void) {
+  trfx_colors_enabled = 0;
+
+  if (!has_colors())
+    return;
+
+  if (start_color() == ERR)
+    return;
+
+  short background = -1;
+  if (use_default_colors() == ERR)
+    background = COLOR_BLACK;
+
+  if (!init_color_pair_checked(COLOR_HEADER, COLOR_CYAN, background) ||
+      !init_color_pair_checked(COLOR_DATA_GREEN, COLOR_GREEN, background) ||
+      !init_color_pair_checked(COLOR_DATA_RED, COLOR_RED, background) ||
+      !init_color_pair_checked(COLOR_DATA_YELLOW, COLOR_YELLOW, background) ||
+      !init_color_pair_checked(COLOR_BORDER, COLOR_CYAN, background)) {
+    trfx_colors_enabled = 0;
+    return;
+  }
+
+  trfx_colors_enabled = 1;
+}
+
 /*
   Functions dashboard
 */
@@ -111,9 +141,9 @@ WINDOW *create_bordered_window(int height, int width, int y, int x,
   WINDOW *win = newwin(height, width, y, x);
   if (win) {
     pthread_mutex_lock(&ncurses_mutex);
-    wattron(win, COLOR_PAIR(color_pair));
+    wattron(win, trfx_color_attr(color_pair));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(color_pair));
+    wattroff(win, trfx_color_attr(color_pair));
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
   }
@@ -196,9 +226,9 @@ int select_module() {
   while (1) {
     pthread_mutex_lock(&ncurses_mutex);
     werase(popup);
-    wattron(popup, COLOR_PAIR(COLOR_BORDER));
+    wattron(popup, trfx_color_attr(COLOR_BORDER));
     box(popup, 0, 0);
-    wattroff(popup, COLOR_PAIR(COLOR_BORDER));
+    wattroff(popup, trfx_color_attr(COLOR_BORDER));
     mvwprintw(popup, 1, 2, "Select a module:");
     for (int i = 0; i < module_count; i++) {
       if (i == selected_index)
@@ -507,14 +537,7 @@ void start_dashboard() {
   keypad(stdscr, TRUE);
   curs_set(FALSE);
   mousemask(0, NULL);
-  start_color();
-  use_default_colors();
-
-  init_pair(COLOR_HEADER, COLOR_CYAN, -1);
-  init_pair(COLOR_DATA_GREEN, COLOR_GREEN, -1);
-  init_pair(COLOR_DATA_RED, COLOR_RED, -1);
-  init_pair(COLOR_DATA_YELLOW, COLOR_YELLOW, -1);
-  init_pair(COLOR_BORDER, COLOR_CYAN, -1);
+  init_dashboard_colors();
 
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);

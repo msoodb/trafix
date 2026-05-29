@@ -17,6 +17,7 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_utils \
 	$(BUILD_DIR)/test_config \
 	$(BUILD_DIR)/test_runtime \
+	$(BUILD_DIR)/test_globals \
 	$(BUILD_DIR)/test_cli \
 	$(BUILD_DIR)/test_cli_output \
 	$(BUILD_DIR)/test_version \
@@ -52,13 +53,16 @@ $(TARGET): $(OBJ)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/test_utils: tests/test_utils.c src/trfx_utils.c | $(BUILD_DIR)
+$(BUILD_DIR)/test_utils: tests/test_utils.c src/trfx_utils.c src/trfx_globals.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_config: tests/test_config.c src/trfx_config.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_runtime: tests/test_runtime.c src/trfx_runtime.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_globals: tests/test_globals.c src/trfx_globals.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_cli: tests/test_cli.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)

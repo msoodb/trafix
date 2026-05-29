@@ -18,6 +18,9 @@ extern pthread_mutex_t ncurses_mutex;
 extern pthread_mutex_t global_var_mutex;
 extern pthread_mutex_t memory_info_mutex;
 extern pthread_mutex_t disk_info_mutex;
+extern int trfx_colors_enabled;
+
+int trfx_color_attr(int color_pair);
 
 #define STATIC_MODULE_SYSINFO 0
 #define STATIC_MODULE_CPUINFO 1

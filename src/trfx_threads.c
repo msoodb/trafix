@@ -122,9 +122,9 @@ void *system_info_thread(void *arg) {
 
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     mvwprintw(win, row++, line, "%*s: %s", label_width, "Hostname",
               sysinfo.hostname);
@@ -177,9 +177,9 @@ void *cpu_info_thread(void *arg) {
     (void)w;
 
     // Apply color before drawing border
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     int row = 0;
     int line = 3;
@@ -213,9 +213,9 @@ void *cpu_info_thread(void *arg) {
 
       wattron(win, A_BOLD);
       if (temp_color) {
-        wattron(win, COLOR_PAIR(temp_color));
+        wattron(win, trfx_color_attr(temp_color));
         wprintw(win, "%.1f °C", cpu.temperature);
-        wattroff(win, COLOR_PAIR(temp_color));
+        wattroff(win, trfx_color_attr(temp_color));
       } else {
         wprintw(win, "%.1f °C", cpu.temperature);
       }
@@ -238,13 +238,13 @@ void *cpu_info_thread(void *arg) {
       }
       bar[CPU_BAR_WIDTH] = '\0';
 
-      int usage_color = COLOR_PAIR(0);
+      int usage_color = trfx_color_attr(0);
       if (usage >= CPU_USAGE_CRIT) {
-        usage_color = COLOR_PAIR(COLOR_DATA_RED);
+        usage_color = trfx_color_attr(COLOR_DATA_RED);
       } else if (usage >= CPU_USAGE_WARN) {
-        usage_color = COLOR_PAIR(COLOR_DATA_YELLOW);
+        usage_color = trfx_color_attr(COLOR_DATA_YELLOW);
       } else {
-        usage_color = COLOR_PAIR(COLOR_DATA_GREEN);
+        usage_color = trfx_color_attr(COLOR_DATA_GREEN);
       }
 
       if (row < h - 1) {
@@ -282,9 +282,9 @@ void *memory_info_thread(void *arg) {
 
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     pthread_mutex_lock(&memory_info_mutex);
     MemoryInfo mem = get_memory_info();
@@ -304,10 +304,10 @@ void *memory_info_thread(void *arg) {
     mvwprintw(win, row++, 2, " Memory Usage ");
     wattroff(win, A_BOLD);
 
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     mvwprintw(win, row++, line, "%-10s %10s %10s %10s", "Type", "Total", "Used",
               "Free");
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     // Format memory values
     char total_buf[16], used_buf[16], free_buf[16];
@@ -367,9 +367,9 @@ void *disk_info_thread(void *arg) {
     int h, w;
     getmaxyx(win, h, w);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     int row = 0;              // Start after top border
     int col = 2;              // Two-space indent
@@ -381,10 +381,10 @@ void *disk_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     // Header
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     mvwprintw(win, row++, col, "%.*s", usable_width,
               "Mount      Filesystem                  Total    Used    Usage");
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     // Disk rows
     for (int i = 0; i < ndisk && row < h - 2; ++i) {
@@ -452,9 +452,9 @@ void *process_info_thread(void *arg) {
     (void)w;
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     if (h < 5) {
       mvwprintw(win, 1, 2, "Window too small");
@@ -480,9 +480,9 @@ void *process_info_thread(void *arg) {
     int max_rows = h - 2;
     const char *header = "  PID    USER      PR  NI    VIRT    RES      SHR "
                          "S   %%CPU %%MEM   TIME+     COMMAND               ";
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     trfx_print_clipped(win, row++, 1, header);
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     if (processes.status != TRFX_PROCESS_COLLECTOR_OK) {
       trfx_print_empty_state(win, processes.error[0] ? processes.error
@@ -535,9 +535,9 @@ void *process_compact_info_thread(void *arg) {
     (void)w;
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     if (h < 5) {
       mvwprintw(win, 1, 2, "Window too small");
@@ -562,9 +562,9 @@ void *process_compact_info_thread(void *arg) {
     int max_rows = h - 2;
 
     const char *header = "  PID    USER        %CPU  %MEM   COMMAND";
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     trfx_print_clipped(win, row++, 1, header);
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     if (processes.status != TRFX_PROCESS_COLLECTOR_OK) {
       trfx_print_empty_state(win, processes.error[0] ? processes.error
@@ -613,9 +613,9 @@ void *connection_info_thread(void *arg) {
 
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
     mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
@@ -625,9 +625,9 @@ void *connection_info_thread(void *arg) {
     snprintf(header, sizeof(header), "%-6s %-21s %-21s %-13s %-7s %-10s %-6s %-14s",
              "Proto", "Local", "Remote", "State", "UID", "User", "PID",
              "Process");
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     trfx_print_clipped(win, 1, 2, header);
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     int y = 2;
     if (nconn == 0)
@@ -680,19 +680,19 @@ void *socket_owner_info_thread(void *arg) {
     werase(win); // Clear the window
 
     // Draw the border
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     // Print the title
     wattron(win, A_BOLD);
     mvwprintw(win, 0, 2, " [%d] Socket Owners ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    wattron(win, COLOR_PAIR(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER));
     mvwprintw(win, 1, 2, "%-6s %-7s %-16s %-22s %-22s", "Proto", "PID",
               "Process", "Local", "Remote");
-    wattroff(win, COLOR_PAIR(COLOR_HEADER));
+    wattroff(win, trfx_color_attr(COLOR_HEADER));
 
     int y = 2;
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
@@ -824,9 +824,9 @@ void *network_info_thread(void *arg) {
     int max_lines = max_rows - 1;
 
     werase(win);
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
     mvwprintw(win, row++, 2, " [%d] Network Information ", my_index + 1);
@@ -857,9 +857,9 @@ void *network_info_thread(void *arg) {
     }
 
     if (vpn_if[0] && vpn_ip && panel_has_room(row, max_lines)) {
-      wattron(win, COLOR_PAIR(COLOR_DATA_RED));
+      wattron(win, trfx_color_attr(COLOR_DATA_RED));
       mvwprintw(win, row++, line, "VPN Active: %s  |  IP: %s", vpn_if, vpn_ip);
-      wattroff(win, COLOR_PAIR(COLOR_DATA_RED));
+      wattroff(win, trfx_color_attr(COLOR_DATA_RED));
     }
 
     if (panel_has_room(row, max_lines))
@@ -942,9 +942,9 @@ void *help_info_thread(void *arg) {
 
     werase(win);
 
-    wattron(win, COLOR_PAIR(COLOR_BORDER));
+    wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
-    wattroff(win, COLOR_PAIR(COLOR_BORDER));
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     int row = 1;
     int title_col = 2;
