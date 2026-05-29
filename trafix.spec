@@ -15,7 +15,10 @@ BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  ncurses-devel
 
+Requires:       iproute
+Requires:       iw
 Requires:       lm_sensors
+Requires:       procps-ng
 
 %description
 Trafix is a lightweight terminal dashboard that provides real-time insights into
