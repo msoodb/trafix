@@ -3,6 +3,12 @@
 Add one entry at the top of this file for each shipped release. Keep the note
 short, accurate, and tied to the tagged version.
 
+## 0.1.1
+
+- Maintenance release with CI, packaging, install/uninstall, and documentation
+  cleanup.
+- Aligns the shipped docs and release workflow with the current codebase.
+
 ## 0.1.0
 
 - Initial public release of Trafix.
