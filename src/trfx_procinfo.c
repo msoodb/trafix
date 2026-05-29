@@ -12,6 +12,51 @@
 #include <stdlib.h>
 #include <string.h>
 
+TrfxProcessResult trfx_collect_processes(SortType sort_type)
+{
+    TrfxProcessResult result;
+    memset(&result, 0, sizeof(result));
+    result.status = TRFX_PROCESS_COLLECTOR_OK;
+
+    const char *cmd = "ps -eo pid,user,pri,ni,vsize,rss,stat,pcpu,pmem,time,comm "
+                      "--sort=-pmem 2>/dev/null | head -n 50";
+    FILE *fp = popen(cmd, "r");
+    if (!fp) {
+        result.status = TRFX_PROCESS_COLLECTOR_OPEN_FAILED;
+        snprintf(result.error, sizeof(result.error), "Process collector unavailable");
+        return result;
+    }
+
+    char line[MAX_LINE_LEN];
+
+    // Skip header
+    if (!fgets(line, sizeof(line), fp)) {
+        pclose(fp);
+        result.status = TRFX_PROCESS_COLLECTOR_READ_FAILED;
+        snprintf(result.error, sizeof(result.error), "Process data unavailable");
+        return result;
+    }
+
+    while (fgets(line, sizeof(line), fp) && result.count < MAX_PROCESSES) {
+        ProcessInfo *p = &result.processes[result.count];
+
+        memset(p, 0, sizeof(ProcessInfo));
+
+        sscanf(line, "%15s %31s %3s %3s %15s %15s %15s %1s %7s %7s %15s %63[^\n]",
+               p->pid, p->user, p->pr, p->ni, p->virt, p->res, p->shr, p->state,
+               p->cpu, p->mem, p->time, p->command);
+
+        result.count++;
+    }
+
+    pclose(fp);
+
+    // Sort after fetching
+    sort_processes(result.processes, result.count, sort_type);
+
+    return result;
+}
+
 /*
  * Read top processes into the list.
  * Returns number of processes read.
@@ -21,37 +66,12 @@ int get_top_processes(ProcessInfo *list, int max_count, SortType sort_type)
     if (!list || max_count <= 0)
         return 0;
 
-    const char *cmd = "ps -eo pid,user,pri,ni,vsize,rss,stat,pcpu,pmem,time,comm "
-                      "--sort=-pmem 2>/dev/null | head -n 50";
-    FILE *fp = popen(cmd, "r");
-    if (!fp)
+    TrfxProcessResult result = trfx_collect_processes(sort_type);
+    if (result.status != TRFX_PROCESS_COLLECTOR_OK)
         return 0;
 
-    char line[MAX_LINE_LEN];
-    int count = 0;
-
-    // Skip header
-    if (!fgets(line, sizeof(line), fp)) {
-        pclose(fp);
-        return 0;
-    }
-
-    while (fgets(line, sizeof(line), fp) && count < max_count) {
-        ProcessInfo *p = &list[count];
-
-        memset(p, 0, sizeof(ProcessInfo));
-
-        sscanf(line, "%15s %31s %3s %3s %15s %15s %15s %1s %7s %7s %15s %63[^\n]",
-               p->pid, p->user, p->pr, p->ni, p->virt, p->res, p->shr, p->state,
-               p->cpu, p->mem, p->time, p->command);
-
-        count++;
-    }
-
-    pclose(fp);
-
-    // Sort after fetching
-    sort_processes(list, count, sort_type);
+    int count = result.count < max_count ? result.count : max_count;
+    memcpy(list, result.processes, (size_t)count * sizeof(ProcessInfo));
 
     return count;
 }

@@ -36,6 +36,21 @@ extern SortType current_sort_type;
 #define SORT_BY_CPU 1
 #define SORT_BY_PID 2
 
+typedef enum {
+    TRFX_PROCESS_COLLECTOR_OK = 0,
+    TRFX_PROCESS_COLLECTOR_INVALID_ARGUMENT,
+    TRFX_PROCESS_COLLECTOR_OPEN_FAILED,
+    TRFX_PROCESS_COLLECTOR_READ_FAILED
+} TrfxProcessCollectorStatus;
+
+typedef struct {
+    TrfxProcessCollectorStatus status;
+    int count;
+    char error[128];
+    ProcessInfo processes[MAX_PROCESSES];
+} TrfxProcessResult;
+
+TrfxProcessResult trfx_collect_processes(SortType sort_type);
 int get_top_processes(ProcessInfo *list, int max_count, SortType sort_type);
 void sort_processes(ProcessInfo *list, int count, SortType sort_type);
 

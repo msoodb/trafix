@@ -10,6 +10,7 @@
 
 #include <unistd.h>
 #include <ncurses.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -464,8 +465,7 @@ void *process_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    ProcessInfo list[MAX_PROCESSES];
-    int count = get_top_processes(list, MAX_PROCESSES, current_sort_type);
+    TrfxProcessResult processes = trfx_collect_processes(current_sort_type);
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -483,14 +483,24 @@ void *process_info_thread(void *arg) {
     trfx_print_clipped(win, row++, 1, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
-    for (int i = 0; i < count && row < max_rows; i++) {
+    if (processes.status != TRFX_PROCESS_COLLECTOR_OK) {
+      trfx_print_empty_state(win, processes.error[0] ? processes.error
+                                                     : "Process data unavailable");
+    } else if (processes.count == 0) {
+      trfx_print_empty_state(win, "No process rows available");
+    }
+
+    for (int i = 0; i < processes.count && row < max_rows; i++) {
       char line[1024];
       snprintf(line, sizeof(line),
                "%7.7s %-10.10s %2.2s %2.2s %8.8s %7.7s %7.7s %1.1s %5.5s "
                "%5.5s %10.10s %-20.20s",
-               list[i].pid, list[i].user, list[i].pr, list[i].ni, list[i].virt,
-               list[i].res, list[i].shr, list[i].state, list[i].cpu,
-               list[i].mem, list[i].time, list[i].command);
+               processes.processes[i].pid, processes.processes[i].user,
+               processes.processes[i].pr, processes.processes[i].ni,
+               processes.processes[i].virt, processes.processes[i].res,
+               processes.processes[i].shr, processes.processes[i].state,
+               processes.processes[i].cpu, processes.processes[i].mem,
+               processes.processes[i].time, processes.processes[i].command);
 
       trfx_print_clipped(win, row++, 1, line);
     }
@@ -538,8 +548,7 @@ void *process_compact_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    ProcessInfo list[MAX_PROCESSES];
-    int count = get_top_processes(list, MAX_PROCESSES, current_sort_type);
+    TrfxProcessResult processes = trfx_collect_processes(current_sort_type);
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -556,11 +565,19 @@ void *process_compact_info_thread(void *arg) {
     trfx_print_clipped(win, row++, 1, header);
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
-    for (int i = 0; i < count && row < max_rows; i++) {
+    if (processes.status != TRFX_PROCESS_COLLECTOR_OK) {
+      trfx_print_empty_state(win, processes.error[0] ? processes.error
+                                                     : "Process data unavailable");
+    } else if (processes.count == 0) {
+      trfx_print_empty_state(win, "No process rows available");
+    }
+
+    for (int i = 0; i < processes.count && row < max_rows; i++) {
       char line[1024];
       snprintf(line, sizeof(line), "%7.7s %-10.10s %5.5s %5.5s %-20.20s",
-               list[i].pid, list[i].user, list[i].cpu, list[i].mem,
-               list[i].command);
+               processes.processes[i].pid, processes.processes[i].user,
+               processes.processes[i].cpu, processes.processes[i].mem,
+               processes.processes[i].command);
 
       trfx_print_clipped(win, row++, 1, line);
     }
@@ -612,6 +629,9 @@ void *connection_info_thread(void *arg) {
     wattroff(win, COLOR_PAIR(COLOR_HEADER));
 
     int y = 2;
+    if (nconn == 0)
+      trfx_print_empty_state(win, "No TCP/UDP connections visible");
+
     for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
       char local[22];
       char remote[22];
@@ -717,6 +737,7 @@ void *network_info_thread(void *arg) {
     int max_rows, max_cols;
 
     char **interfaces_usage = get_interfaces_usage(&num_interfaces);
+    bool interface_collect_failed = interfaces_usage == NULL;
 
     char connected_if[32] = {0};
     const char *ssid = NULL;
@@ -866,6 +887,12 @@ void *network_info_thread(void *arg) {
     if (panel_has_room(row, max_lines))
       mvwprintw(win, row++, line,
                 "---------------------------------------------");
+
+    if (interface_collect_failed) {
+      trfx_print_empty_state(win, "Interface counters unavailable");
+    } else if (num_interfaces == 0) {
+      trfx_print_empty_state(win, "No interface counters available");
+    }
 
     for (int i = 0; i < num_interfaces && row < max_lines; i++) {
       mvwprintw(win, row++, line, "%s", interfaces_usage[i]);
