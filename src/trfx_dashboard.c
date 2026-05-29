@@ -587,8 +587,9 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
       draw_small_terminal_message(current_height, current_width);
       break;
     }
+    int row2_y = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
     load_row2_modules(calculate_row2_height(current_height), current_width,
-                      FIXED_ROW1_HEIGHT);
+                      row2_y);
     break;
 
   case 'r':
