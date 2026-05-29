@@ -24,7 +24,9 @@ read-only commands:
 - `trafix connections --state STATE` filters by connection state.
 - Unknown arguments fail clearly and do not launch the TUI.
 
-Alerts and top-talkers are roadmap items, not current behavior.
+The shipped filter surface is limited to `connections --proto` and
+`connections --state`. Alerts, top-talkers, and per-process bandwidth are
+roadmap items, not current behavior.
 
 ## Build Dependencies
 
