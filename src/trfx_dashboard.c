@@ -27,6 +27,8 @@
 
 #define FIXED_ROW1_HEIGHT 11
 #define FIXED_ROW3_HEIGHT 4
+#define MIN_ROW2_HEIGHT 3
+#define MIN_TUI_WIDTH 50
 
 #define KEY_ESC 27
 
@@ -58,6 +60,48 @@ typedef struct {
 } WindowSlot;
 // WindowSlot row2_slots[ROW2_MODULES];
 WindowSlot *row2_slots = NULL;
+
+static int calculate_row2_height(int screen_height) {
+  int row2_height = screen_height - FIXED_ROW1_HEIGHT - FIXED_ROW3_HEIGHT;
+  return row2_height < MIN_ROW2_HEIGHT ? MIN_ROW2_HEIGHT : row2_height;
+}
+
+static int tui_size_is_too_small(int screen_height, int screen_width) {
+  return screen_width < MIN_TUI_WIDTH ||
+         screen_height < FIXED_ROW1_HEIGHT + FIXED_ROW3_HEIGHT + MIN_ROW2_HEIGHT;
+}
+
+static void calculate_row1_widths(int screen_width,
+                                  int row1_widths[ROW1_MODULES]) {
+  row1_widths[0] = (int)(screen_width * 0.25);
+  row1_widths[1] = (int)(screen_width * 0.20);
+  row1_widths[2] = (int)(screen_width * 0.25);
+  row1_widths[3] = screen_width - row1_widths[0] - row1_widths[1] -
+                   row1_widths[2];
+}
+
+static void calculate_row2_widths(int screen_width, int row2_widths[]) {
+  if (ROW2_MODULES == 1) {
+    row2_widths[0] = screen_width;
+  } else if (ROW2_MODULES == 2) {
+    row2_widths[0] = screen_width / 2;
+    row2_widths[1] = screen_width - row2_widths[0];
+  } else if (ROW2_MODULES == 3) {
+    row2_widths[0] = screen_width / 3;
+    row2_widths[1] = screen_width / 3;
+    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
+  }
+}
+
+static void draw_small_terminal_message(int screen_height, int screen_width) {
+  pthread_mutex_lock(&ncurses_mutex);
+  erase();
+  box(stdscr, 0, 0);
+  if (screen_height > 2 && screen_width > 4)
+    mvprintw(screen_height / 2, 2, "Terminal too small. Resize or press q.");
+  refresh();
+  pthread_mutex_unlock(&ncurses_mutex);
+}
 
 /*
   Functions dashboard
@@ -310,16 +354,7 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
     exit(EXIT_FAILURE);
   }
 
-  if (ROW2_MODULES == 1) {
-    row2_widths[0] = screen_width;
-  } else if (ROW2_MODULES == 2) {
-    row2_widths[0] = screen_width / 2;
-    row2_widths[1] = screen_width - row2_widths[0];
-  } else if (ROW2_MODULES == 3) {
-    row2_widths[0] = screen_width / 3;
-    row2_widths[1] = screen_width / 3;
-    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
-  }
+  calculate_row2_widths(screen_width, row2_widths);
 
   create_row2_windows(row2_height, row2_widths, row2_y);
 
@@ -343,10 +378,69 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
   free(row2_widths);
 }
 
+static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
+                                     WINDOW *mem_win, WINDOW *disk_win,
+                                     WINDOW *help_win) {
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  if (tui_size_is_too_small(screen_height, screen_width)) {
+    draw_small_terminal_message(screen_height, screen_width);
+    return;
+  }
+
+  int row1_widths[ROW1_MODULES];
+  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  if (!row2_widths)
+    return;
+
+  calculate_row1_widths(screen_width, row1_widths);
+  calculate_row2_widths(screen_width, row2_widths);
+
+  const int row1_height = FIXED_ROW1_HEIGHT;
+  const int row2_height = calculate_row2_height(screen_height);
+  const int row3_height = FIXED_ROW3_HEIGHT;
+  const int row2_y = row1_height;
+  const int row3_y = row1_height + row2_height;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  endwin();
+  refresh();
+  clear();
+
+  wresize(sys_win, row1_height, row1_widths[0]);
+  mvwin(sys_win, 0, 0);
+  wresize(cpu_win, row1_height, row1_widths[1]);
+  mvwin(cpu_win, 0, row1_widths[0]);
+  wresize(mem_win, row1_height, row1_widths[2]);
+  mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
+  wresize(disk_win, row1_height, row1_widths[3]);
+  mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
+
+  int x_offset = 0;
+  for (int i = 0; i < ROW2_MODULES; i++) {
+    if (row2_slots[i].window) {
+      wresize(row2_slots[i].window, row2_height, row2_widths[i]);
+      mvwin(row2_slots[i].window, row2_y, x_offset);
+    }
+    x_offset += row2_widths[i];
+  }
+
+  wresize(help_win, row3_height, screen_width);
+  mvwin(help_win, row3_y, 0);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  trfx_runtime_request_static_refresh_all();
+  free(row2_widths);
+}
+
 void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                     WINDOW *disk_win, int row2_height, int screen_width,
-                     int row2_y) {
+                     WINDOW *disk_win, WINDOW *help_win) {
   switch (ch) {
+  case KEY_RESIZE:
+    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win, help_win);
+    break;
+
   case '1':
   case '2':
   case '3': {
@@ -378,7 +472,14 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
       exit(EXIT_FAILURE);
     }
 
-    load_row2_modules(row2_height, screen_width, row2_y);
+    int current_height, current_width;
+    getmaxyx(stdscr, current_height, current_width);
+    if (tui_size_is_too_small(current_height, current_width)) {
+      draw_small_terminal_message(current_height, current_width);
+      break;
+    }
+    load_row2_modules(calculate_row2_height(current_height), current_width,
+                      FIXED_ROW1_HEIGHT);
     break;
 
   case 'r':
@@ -403,6 +504,7 @@ void start_dashboard() {
 
   initscr();
   noecho();
+  keypad(stdscr, TRUE);
   curs_set(FALSE);
   mousemask(0, NULL);
   start_color();
@@ -417,6 +519,9 @@ void start_dashboard() {
   int screen_height, screen_width;
   getmaxyx(stdscr, screen_height, screen_width);
 
+  if (tui_size_is_too_small(screen_height, screen_width))
+    draw_small_terminal_message(screen_height, screen_width);
+
   row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
   if (!row2_slots) {
     endwin();
@@ -426,32 +531,10 @@ void start_dashboard() {
 
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row3_height = FIXED_ROW3_HEIGHT;
-  const int row2_height = screen_height - row1_height - row3_height;
+  const int row2_height = calculate_row2_height(screen_height);
 
-  int row1_widths[ROW1_MODULES] = {
-      (int)(screen_width * 0.25), (int)(screen_width * 0.20),
-      (int)(screen_width * 0.25),
-      screen_width - (int)(screen_width * 0.25) - (int)(screen_width * 0.20) -
-          (int)(screen_width * 0.25)};
-  /*int row2_widths[ROW2_MODULES] = {screen_width / 3, screen_width / 3,
-    screen_width - 2 * (screen_width / 3)};*/
-  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
-  if (!row2_widths) {
-    endwin();
-    fprintf(stderr, "Failed to allocate memory for row2_widths\n");
-    exit(EXIT_FAILURE);
-  }
-  if (ROW2_MODULES == 1) {
-    row2_widths[0] = screen_width;
-  } else if (ROW2_MODULES == 2) {
-    row2_widths[0] = screen_width / 2;
-    row2_widths[1] = screen_width - row2_widths[0];
-  } else if (ROW2_MODULES == 3) {
-    row2_widths[0] = screen_width / 3;
-    row2_widths[1] = screen_width / 3;
-    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
-  }
-
+  int row1_widths[ROW1_MODULES];
+  calculate_row1_widths(screen_width, row1_widths);
   int row3_widths[ROW3_MODULES] = {screen_width};
 
   int row1_y = 0, row2_y = row1_height, row3_y = row1_height + row2_height;
@@ -494,7 +577,7 @@ void start_dashboard() {
 
   int ch;
   while ((ch = getch()) != 'q' && ch != 'Q') {
-    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win, row2_height, screen_width, row2_y);
+    handle_keypress(ch, sys_win, cpu_win, mem_win, disk_win, help_win);
   }
 
   trfx_runtime_request_stop();
@@ -512,6 +595,5 @@ void start_dashboard() {
   destroy_window(&disk_win);
   destroy_window(&help_win);
 
-  free(row2_widths);
   endwin();
 }
