@@ -11,6 +11,7 @@
 
 #include <ncurses.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -415,6 +416,7 @@ void show_hotkeys_popup(void) {
       "[c] Columns",
       "[x] Kill Process",
       "[z] Drop Connection",
+      "[a] Action Audit",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -581,8 +583,10 @@ static void show_action_feedback_popup(const char *title, const char *message) {
 
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
-  if (!popup)
+  if (!popup) {
+    trfx_runtime_set_paused(0);
     return;
+  }
 
   pthread_mutex_lock(&ncurses_mutex);
   werase(popup);
@@ -608,6 +612,179 @@ static void show_action_feedback_popup(const char *title, const char *message) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
+}
+
+static void show_action_result_popup(const TrfxActionRequest *request,
+                                     const TrfxActionResult *result) {
+  int screen_height, screen_width;
+  int popup_height = 8;
+  int popup_width = 84;
+  char time_line[32];
+  char action_line[256];
+  char detail_line[256];
+  char status_line[256];
+  char message_line[256];
+  char detail_body[240];
+  char message_body[240];
+  time_t now;
+  WINDOW *popup;
+
+  if (!request || !result)
+    return;
+
+  trfx_runtime_set_paused(1);
+  now = time(NULL);
+  format_popup_time(now, time_line, sizeof(time_line));
+  snprintf(action_line, sizeof(action_line), "Action: %s",
+           request->label[0] ? request->label : "unknown");
+  trfx_clip_text(request->description[0] ? request->description : "unknown",
+                 detail_body, sizeof(detail_body), 239);
+  snprintf(detail_line, sizeof(detail_line), "Target: %s", detail_body);
+  snprintf(status_line, sizeof(status_line), "Result: %s",
+           trfx_action_result_status_name(result->status));
+  trfx_clip_text(result->message[0] ? result->message : "no details",
+                 message_body, sizeof(message_body), 239);
+  snprintf(message_line, sizeof(message_line), "Message: %s", message_body);
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 60)
+    popup_width = 60;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " Action Result ");
+  wattroff(popup, A_BOLD);
+  trfx_print_clipped(popup, 1, 2, time_line);
+  trfx_print_clipped(popup, 2, 2, action_line);
+  trfx_print_clipped(popup, 3, 2, detail_line);
+  trfx_print_clipped(popup, 4, 2, status_line);
+  trfx_print_clipped(popup, 5, 2, message_line);
+  trfx_print_clipped(popup, popup_height - 2, 2,
+                     "Press Enter or Esc to close.");
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
+}
+
+static void show_action_audit_popup(void) {
+  size_t count = trfx_action_audit_count();
+  int screen_height, screen_width;
+  int visible_entries;
+  int popup_height;
+  int popup_width = 96;
+  const char *footer = "Newest first. Press Enter, Esc, or q to close.";
+  char line[512];
+  char time_text[32];
+  char label_body[64];
+  char detail_body[128];
+  char message_body[128];
+  WINDOW *popup;
+
+  trfx_runtime_set_paused(1);
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  visible_entries = screen_height - 5;
+  if (visible_entries < 1)
+    visible_entries = 1;
+  if ((size_t)visible_entries > count)
+    visible_entries = (int)count;
+  if (visible_entries < 1)
+    visible_entries = 1;
+
+  popup_height = visible_entries + 4;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 72)
+    popup_width = 72;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup)
+    return;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " Action Audit ");
+  wattroff(popup, A_BOLD);
+
+  if (count == 0) {
+    trfx_print_clipped(popup, 1, 2, "No recorded actions yet.");
+  } else {
+    for (int i = 0; i < visible_entries; i++) {
+      const TrfxActionAuditEntry *entry = trfx_action_audit_at((size_t)i);
+      if (!entry)
+        continue;
+
+      format_popup_time(entry->when, time_text, sizeof(time_text));
+      trfx_clip_text(entry->request.label[0] ? entry->request.label : "unknown",
+                     label_body, sizeof(label_body), 32);
+      trfx_clip_text(entry->request.description[0] ? entry->request.description
+                                                   : "unknown",
+                     detail_body, sizeof(detail_body), 96);
+      trfx_clip_text(entry->message[0] ? entry->message : "no details",
+                     message_body, sizeof(message_body), 96);
+      snprintf(line, sizeof(line), "%s | %.32s | %.96s | %.16s | %.96s",
+               time_text, label_body, detail_body,
+               trfx_action_result_status_name(entry->status), message_body);
+      trfx_print_clipped(popup, i + 1, 2, line);
+    }
+  }
+
+  trfx_print_clipped(popup, popup_height - 2, 2, footer);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
 }
 
 static int select_process_for_kill(ProcessInfo *selected) {
@@ -713,12 +890,16 @@ static void handle_process_kill_action(void) {
 
   trfx_prepare_action_review(&review, &request, (unsigned int)geteuid(),
                              target_uid, 1);
-  if (!show_action_review_popup(&review))
+  if (!show_action_review_popup(&review)) {
+    result = trfx_execute_action_request(&request, 0, (unsigned int)geteuid(),
+                                         error, sizeof(error));
+    show_action_result_popup(&request, &result);
     return;
+  }
 
   result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
                                        error, sizeof(error));
-  show_action_feedback_popup("Kill Process", result.message);
+  show_action_result_popup(&request, &result);
 }
 
 static int select_connection_for_drop(ConnectionInfo *selected) {
@@ -817,12 +998,16 @@ static void handle_connection_drop_action(void) {
 
   trfx_action_request_set_connection_drop(&request, &target);
   trfx_prepare_action_review(&review, &request, (unsigned int)geteuid(), 0, 1);
-  if (!show_action_review_popup(&review))
+  if (!show_action_review_popup(&review)) {
+    result = trfx_execute_action_request(&request, 0, (unsigned int)geteuid(),
+                                         error, sizeof(error));
+    show_action_result_popup(&request, &result);
     return;
+  }
 
   result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
                                        error, sizeof(error));
-  show_action_feedback_popup("Drop Connection", result.message);
+  show_action_result_popup(&request, &result);
 }
 
 int select_module() {
@@ -1190,6 +1375,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'z':
   case 'Z':
     handle_connection_drop_action();
+    break;
+
+  case 'a':
+  case 'A':
+    show_action_audit_popup();
     break;
 
   case 'p':

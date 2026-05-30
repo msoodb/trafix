@@ -155,6 +155,51 @@ static int test_process_lookup_and_execution_fallbacks(void) {
   return 0;
 }
 
+static int test_action_audit_trail(void) {
+  size_t start_count;
+  unsigned int uid = 0;
+  char pid[16];
+  char error[256];
+  TrfxActionRequest request;
+  TrfxActionResult result;
+  const TrfxActionAuditEntry *entry;
+
+  start_count = trfx_action_audit_count();
+
+  trfx_action_request_set_process_kill(&request, "abc", "bad");
+  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_INVALID);
+  ASSERT_INT_EQ((int)trfx_action_audit_count(), (int)start_count + 1);
+
+  entry = trfx_action_audit_at(0);
+  ASSERT_INT_EQ(entry != NULL, 1);
+  ASSERT_INT_EQ(entry->status, TRFX_ACTION_RESULT_INVALID);
+  ASSERT_STR_EQ(entry->request.label, "kill process abc");
+  ASSERT_STR_EQ(entry->message, "invalid process id: abc");
+
+  snprintf(pid, sizeof(pid), "%ld", (long)getpid());
+  ASSERT_INT_EQ(trfx_lookup_process_uid(pid, &uid, error, sizeof(error)), 1);
+
+  trfx_action_request_set_process_kill(&request, pid, "self");
+  result = trfx_execute_action_request(&request, 0, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_CANCELLED);
+  ASSERT_INT_EQ((int)trfx_action_audit_count(), (int)start_count + 2);
+
+  entry = trfx_action_audit_at(0);
+  ASSERT_INT_EQ(entry != NULL, 1);
+  ASSERT_INT_EQ(entry->status, TRFX_ACTION_RESULT_CANCELLED);
+  ASSERT_STR_EQ(entry->request.label, request.label);
+  ASSERT_STR_EQ(entry->message, "action cancelled");
+
+  entry = trfx_action_audit_at(1);
+  ASSERT_INT_EQ(entry != NULL, 1);
+  ASSERT_INT_EQ(entry->status, TRFX_ACTION_RESULT_INVALID);
+
+  return 0;
+}
+
 int main(void) {
   if (test_action_request_init() != 0)
     return 1;
@@ -172,6 +217,9 @@ int main(void) {
     return 1;
 
   if (test_process_lookup_and_execution_fallbacks() != 0)
+    return 1;
+
+  if (test_action_audit_trail() != 0)
     return 1;
 
   return 0;

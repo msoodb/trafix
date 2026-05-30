@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +97,17 @@ static int split_endpoint(const char *endpoint, char *host, size_t host_size,
   host[host_len] = '\0';
   snprintf(port, port_size, "%s", colon + 1);
   return port[0] != '\0';
+}
+
+static pthread_mutex_t audit_mutex = PTHREAD_MUTEX_INITIALIZER;
+static TrfxActionAuditEntry audit_entries[TRFX_ACTION_AUDIT_MAX];
+static size_t audit_count = 0;
+static size_t audit_next = 0;
+
+static TrfxActionResult finalize_action_result(const TrfxActionRequest *request,
+                                               TrfxActionResult result) {
+  trfx_record_action_audit(request, &result);
+  return result;
 }
 
 static int run_ss_drop_action(const TrfxActionRequest *request, char *error,
@@ -211,6 +223,62 @@ void trfx_init_action_result(TrfxActionResult *result) {
   memset(result, 0, sizeof(*result));
   result->status = TRFX_ACTION_RESULT_INVALID;
   snprintf(result->message, sizeof(result->message), "no action selected");
+}
+
+void trfx_record_action_audit(const TrfxActionRequest *request,
+                              const TrfxActionResult *result) {
+  TrfxActionAuditEntry entry;
+
+  memset(&entry, 0, sizeof(entry));
+  entry.when = time(NULL);
+  if (request) {
+    entry.request = *request;
+  } else {
+    trfx_init_action_request(&entry.request);
+  }
+
+  if (result) {
+    entry.status = result->status;
+    if (result->message[0] != '\0') {
+      snprintf(entry.message, sizeof(entry.message), "%s", result->message);
+    } else {
+      snprintf(entry.message, sizeof(entry.message), "%s",
+               trfx_action_result_status_name(result->status));
+    }
+  } else {
+    entry.status = TRFX_ACTION_RESULT_INVALID;
+    snprintf(entry.message, sizeof(entry.message), "no result available");
+  }
+
+  pthread_mutex_lock(&audit_mutex);
+  audit_entries[audit_next] = entry;
+  audit_next = (audit_next + 1) % TRFX_ACTION_AUDIT_MAX;
+  if (audit_count < TRFX_ACTION_AUDIT_MAX)
+    audit_count++;
+  pthread_mutex_unlock(&audit_mutex);
+}
+
+size_t trfx_action_audit_count(void) {
+  size_t count;
+
+  pthread_mutex_lock(&audit_mutex);
+  count = audit_count;
+  pthread_mutex_unlock(&audit_mutex);
+  return count;
+}
+
+const TrfxActionAuditEntry *trfx_action_audit_at(size_t index) {
+  const TrfxActionAuditEntry *entry = NULL;
+  size_t pos;
+
+  pthread_mutex_lock(&audit_mutex);
+  if (index < audit_count) {
+    pos = (audit_next + TRFX_ACTION_AUDIT_MAX - 1 - index) %
+          TRFX_ACTION_AUDIT_MAX;
+    entry = &audit_entries[pos];
+  }
+  pthread_mutex_unlock(&audit_mutex);
+  return entry;
 }
 
 const char *trfx_action_kind_name(TrfxActionKind kind) {
@@ -493,7 +561,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
     snprintf(result.message, sizeof(result.message), "no action selected");
     if (error && error_size > 0)
       snprintf(error, error_size, "%s", result.message);
-    return result;
+    return finalize_action_result(request, result);
   }
 
   if (!confirmed) {
@@ -501,7 +569,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
     snprintf(result.message, sizeof(result.message), "action cancelled");
     if (error && error_size > 0)
       snprintf(error, error_size, "%s", result.message);
-    return result;
+    return finalize_action_result(request, result);
   }
 
   if (request->kind == TRFX_ACTION_KIND_KILL_PROCESS) {
@@ -512,7 +580,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                request->target.pid[0] ? request->target.pid : "-");
       if (error && error_size > 0)
         snprintf(error, error_size, "%s", result.message);
-      return result;
+      return finalize_action_result(request, result);
     }
 
     if (!trfx_lookup_process_uid(request->target.pid, &target_uid, error,
@@ -522,7 +590,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                request->target.pid);
       if (error && error_size > 0 && error[0] == '\0')
         snprintf(error, error_size, "%s", result.message);
-      return result;
+      return finalize_action_result(request, result);
     }
 
     if (effective_uid != 0 && effective_uid != target_uid) {
@@ -531,7 +599,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                "permission denied: requires root or uid %u", target_uid);
       if (error && error_size > 0)
         snprintf(error, error_size, "%s", result.message);
-      return result;
+      return finalize_action_result(request, result);
     }
 
     if (kill(pid_value, SIGTERM) != 0) {
@@ -552,7 +620,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
       }
       if (error && error_size > 0)
         snprintf(error, error_size, "%s", result.message);
-      return result;
+      return finalize_action_result(request, result);
     }
 
     result.status = TRFX_ACTION_RESULT_OK;
@@ -560,7 +628,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
              request->target.pid);
     if (error && error_size > 0)
       snprintf(error, error_size, "%s", result.message);
-    return result;
+    return finalize_action_result(request, result);
   }
 
   if (request->kind == TRFX_ACTION_KIND_DROP_CONNECTION ||
@@ -571,7 +639,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                "permission denied: root required to drop sockets");
       if (error && error_size > 0)
         snprintf(error, error_size, "%s", result.message);
-      return result;
+      return finalize_action_result(request, result);
     }
 
     if (!run_ss_drop_action(request, error, error_size)) {
@@ -588,7 +656,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                  "%s is not supported yet",
                  trfx_action_kind_name(request->kind));
       }
-      return result;
+      return finalize_action_result(request, result);
     }
 
     result.status = TRFX_ACTION_RESULT_OK;
@@ -596,7 +664,7 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
              trfx_action_kind_name(request->kind));
     if (error && error_size > 0)
       snprintf(error, error_size, "%s", result.message);
-    return result;
+    return finalize_action_result(request, result);
   }
 
   result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
@@ -604,5 +672,5 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
            trfx_action_kind_name(request->kind));
   if (error && error_size > 0)
     snprintf(error, error_size, "%s", result.message);
-  return result;
+  return finalize_action_result(request, result);
 }

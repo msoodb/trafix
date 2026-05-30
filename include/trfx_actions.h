@@ -10,6 +10,8 @@
 #ifndef TRFX_ACTIONS_H
 #define TRFX_ACTIONS_H
 
+#include <time.h>
+
 #include "trfx_connections.h"
 #include "trfx_socket_owners.h"
 
@@ -79,6 +81,15 @@ typedef struct {
   char message[256];
 } TrfxActionResult;
 
+#define TRFX_ACTION_AUDIT_MAX 8
+
+typedef struct {
+  time_t when;
+  TrfxActionRequest request;
+  TrfxActionResultStatus status;
+  char message[256];
+} TrfxActionAuditEntry;
+
 void trfx_init_action_request(TrfxActionRequest *request);
 void trfx_action_request_set_process_kill(TrfxActionRequest *request,
                                           const char *pid,
@@ -103,6 +114,10 @@ int trfx_lookup_process_uid(const char *pid, unsigned int *uid,
 int trfx_lookup_process_name(const char *pid, char *process,
                              size_t process_size, char *error,
                              size_t error_size);
+void trfx_record_action_audit(const TrfxActionRequest *request,
+                              const TrfxActionResult *result);
+size_t trfx_action_audit_count(void);
+const TrfxActionAuditEntry *trfx_action_audit_at(size_t index);
 TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
                                              int confirmed,
                                              unsigned int effective_uid,
