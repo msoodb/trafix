@@ -891,6 +891,52 @@ TrfxCollectorStatus trfx_collect_interface_statuses(
     return status->status;
 }
 
+void trfx_format_route_consistency_summary(const TrfxNetworkSnapshot *snapshot,
+                                           char *summary,
+                                           size_t summary_size) {
+    int has_route;
+    int has_active;
+    int route_matches_active;
+
+    if (!snapshot || !summary || summary_size == 0)
+        return;
+
+    has_route = snapshot->route_status == TRFX_COLLECTOR_OK &&
+                snapshot->route.has_default &&
+                snapshot->route.interface[0] != '\0' &&
+                strcmp(snapshot->route.interface, "N/A") != 0;
+    has_active = snapshot->has_active_interface &&
+                 snapshot->active_interface[0] != '\0';
+    route_matches_active =
+        has_route && has_active &&
+        strcmp(snapshot->route.interface, snapshot->active_interface) == 0;
+
+    if (!has_route && !has_active) {
+        snprintf(summary, summary_size, "Route check: unavailable");
+    } else if (route_matches_active) {
+        snprintf(summary, summary_size,
+                 "Route check: route %s | active %s | IP %s | ok",
+                 snapshot->route.interface, snapshot->active_interface,
+                 has_active && snapshot->active_ip[0] ? snapshot->active_ip
+                                                      : "N/A");
+    } else if (has_route && has_active) {
+        snprintf(summary, summary_size,
+                 "Route check: route %s | active %s | IP %s | mismatch",
+                 snapshot->route.interface, snapshot->active_interface,
+                 snapshot->active_ip[0] ? snapshot->active_ip : "N/A");
+    } else if (has_route) {
+        snprintf(summary, summary_size,
+                 "Route check: route %s | active unavailable | IP %s | partial",
+                 snapshot->route.interface,
+                 snapshot->active_ip[0] ? snapshot->active_ip : "N/A");
+    } else {
+        snprintf(summary, summary_size,
+                 "Route check: active %s | IP %s | partial",
+                 snapshot->active_interface,
+                 snapshot->active_ip[0] ? snapshot->active_ip : "N/A");
+    }
+}
+
 void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
     if (!snapshot)
         return;

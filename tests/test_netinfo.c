@@ -9,6 +9,7 @@
 
 #include "test_common.h"
 #include "trfx_netinfo.h"
+#include "trfx_threads.h"
 
 static int test_parse_interface_stats_fixture(void) {
   TrfxInterfaceStat stats[TRFX_MAX_INTERFACES];
@@ -310,6 +311,33 @@ static int test_network_sample_buffer(void) {
   return 0;
 }
 
+static int test_route_consistency_formatter(void) {
+  TrfxNetworkSnapshot snapshot;
+  char line[256];
+
+  trfx_init_network_snapshot(&snapshot);
+  snapshot.route_status = TRFX_COLLECTOR_OK;
+  snapshot.route.has_default = 1;
+  snprintf(snapshot.route.interface, sizeof(snapshot.route.interface), "eth0");
+  snapshot.has_active_interface = 1;
+  snprintf(snapshot.active_interface, sizeof(snapshot.active_interface), "eth0");
+  snprintf(snapshot.active_ip, sizeof(snapshot.active_ip), "192.168.1.10");
+
+  trfx_format_route_consistency_summary(&snapshot, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Route check: route eth0 | active eth0 | IP 192.168.1.10 | ok");
+
+  snprintf(snapshot.active_interface, sizeof(snapshot.active_interface), "wlan0");
+  trfx_format_route_consistency_summary(&snapshot, line, sizeof(line));
+  ASSERT_STR_EQ(line,
+                "Route check: route eth0 | active wlan0 | IP 192.168.1.10 | mismatch");
+
+  trfx_init_network_snapshot(&snapshot);
+  trfx_format_route_consistency_summary(&snapshot, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Route check: unavailable");
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -358,6 +386,9 @@ int main(void) {
     return 1;
 
   if (test_network_sample_buffer() != 0)
+    return 1;
+
+  if (test_route_consistency_formatter() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)

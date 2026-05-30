@@ -323,6 +323,21 @@ static void render_network_summary(WINDOW *win,
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
+static void render_route_consistency_summary(WINDOW *win,
+                                             const TrfxNetworkSnapshot *snapshot,
+                                             int *row, int line,
+                                             int max_lines) {
+  char summary[256];
+
+  if (!win || !snapshot || !row)
+    return;
+
+  trfx_format_route_consistency_summary(snapshot, summary, sizeof(summary));
+
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+}
+
 static void render_bandwidth_talkers_summary(
     WINDOW *win, const TrfxBandwidthReport *report, int *row, int line,
     int max_lines) {
@@ -1360,6 +1375,10 @@ void *network_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     render_network_summary(win, &snapshot, &row, line, max_lines);
+
+    if (panel_has_room(row, max_lines))
+      row++;
+    render_route_consistency_summary(win, &snapshot, &row, line, max_lines);
 
     if (panel_has_room(row, max_lines))
       row++;

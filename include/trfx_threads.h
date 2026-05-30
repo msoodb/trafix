@@ -10,6 +10,8 @@
 #ifndef TRFX_THREADS_H
 #define TRFX_THREADS_H
 
+#include <ncurses.h>
+
 #include "trfx_bandwidth.h"
 
 typedef struct {
