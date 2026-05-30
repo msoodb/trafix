@@ -360,13 +360,13 @@ static void render_bandwidth_talkers_summary(
     trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
     trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
 
-    snprintf(linebuf, sizeof(linebuf), "%c %s %s [%s] %s -> %s | rx %s/s tx %s/s",
+    snprintf(linebuf, sizeof(linebuf),
+             "%c %.15s %.16s [%.24s] %.24s -> %.24s | rx %.10s/s tx %.10s/s",
              i == selected_index ? '>' : ' ', flow->pid[0] ? flow->pid : "-",
              flow->process[0] ? flow->process : "-",
              flow->detail[0] ? flow->detail : flow->label,
-             flow->local[0] ? flow->local : "-", flow->remote[0] ? flow->remote
-                                                                   : "-",
-             rx, tx);
+             flow->local[0] ? flow->local : "-",
+             flow->remote[0] ? flow->remote : "-", rx, tx);
     trfx_print_clipped(win, (*row)++, line, linebuf);
   }
 }
