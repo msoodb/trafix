@@ -59,6 +59,10 @@ static int test_diagnostics_snapshot_collect(void) {
                 status == TRFX_COLLECTOR_OPEN_FAILED,
                 1);
   ASSERT_INT_EQ(snapshot.system.hostname[0] != '\0', 1);
+  ASSERT_INT_EQ(snapshot.cpu.num_cores >= 0, 1);
+  ASSERT_INT_EQ(snapshot.memory.total_ram >= 0, 1);
+  ASSERT_INT_EQ(snapshot.disk_count >= 0, 1);
+  ASSERT_INT_EQ(snapshot.processes.count >= 0, 1);
   ASSERT_INT_EQ(snapshot.network.route_status == TRFX_COLLECTOR_OK ||
                 snapshot.network.route_status == TRFX_COLLECTOR_OPEN_FAILED ||
                 snapshot.network.route_status == TRFX_COLLECTOR_PARSE_FAILED,

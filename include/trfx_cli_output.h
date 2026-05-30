@@ -14,6 +14,7 @@
 
 #include "trfx_cli.h"
 #include "trfx_connections.h"
+#include "trfx_diagnostics.h"
 #include "trfx_netinfo.h"
 #include "trfx_sysinfo.h"
 
@@ -31,5 +32,7 @@ void trfx_print_listeners_json(FILE *out, const ConnectionInfo connections[],
                                int count);
 void trfx_print_system_text(FILE *out, const SystemOverview *overview);
 void trfx_print_system_json(FILE *out, const SystemOverview *overview);
+void trfx_print_diagnostics_text(FILE *out,
+                                 const TrfxDiagnosticsSnapshot *snapshot);
 
 #endif // TRFX_CLI_OUTPUT_H

@@ -75,7 +75,7 @@ $(BUILD_DIR)/test_globals: tests/test_globals.c src/trfx_globals.c | $(BUILD_DIR
 $(BUILD_DIR)/test_cli: tests/test_cli.c src/trfx_cli.c src/trfx_version.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-$(BUILD_DIR)/test_cli_output: tests/test_cli_output.c src/trfx_cli_output.c src/trfx_netinfo.c | $(BUILD_DIR)
+$(BUILD_DIR)/test_cli_output: tests/test_cli_output.c src/trfx_cli_output.c src/trfx_diagnostics.c src/trfx_netinfo.c src/trfx_sysinfo.c src/trfx_cpu.c src/trfx_meminfo.c src/trfx_disk.c src/trfx_procinfo.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_version: tests/test_version.c src/trfx_version.c | $(BUILD_DIR)
@@ -90,7 +90,7 @@ $(BUILD_DIR)/test_netinfo: tests/test_netinfo.c src/trfx_netinfo.c | $(BUILD_DIR
 $(BUILD_DIR)/test_bandwidth: tests/test_bandwidth.c src/trfx_bandwidth.c src/trfx_netinfo.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-$(BUILD_DIR)/test_diagnostics: tests/test_diagnostics.c src/trfx_diagnostics.c src/trfx_netinfo.c src/trfx_sysinfo.c | $(BUILD_DIR)
+$(BUILD_DIR)/test_diagnostics: tests/test_diagnostics.c src/trfx_diagnostics.c src/trfx_netinfo.c src/trfx_sysinfo.c src/trfx_cpu.c src/trfx_meminfo.c src/trfx_disk.c src/trfx_procinfo.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_actions: tests/test_actions.c src/trfx_actions.c | $(BUILD_DIR)

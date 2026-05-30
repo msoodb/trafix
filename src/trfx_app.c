@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "trfx_actions.h"
+#include "trfx_diagnostics.h"
 #include "trfx_cli_output.h"
 #include "trfx_config.h"
 #include "trfx_connections.h"
@@ -93,6 +94,24 @@ int trfx_run_system_command(TrfxCliOutputFormat output_format) {
   trfx_print_system_text(stdout, &overview);
 
   return TRFX_EXIT_OK;
+}
+
+int trfx_run_diagnostics_command(void) {
+  TrfxDiagnosticsSnapshot snapshot;
+  char error[256];
+  TrfxCollectorStatus status;
+
+  status = trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+  if (status != TRFX_COLLECTOR_OK && error[0] != '\0') {
+    fprintf(stderr, "trafix: %s\n", error);
+  }
+
+  trfx_print_diagnostics_text(stdout, &snapshot);
+
+  if (status == TRFX_COLLECTOR_OK || status == TRFX_COLLECTOR_OPEN_FAILED ||
+      status == TRFX_COLLECTOR_PARSE_FAILED)
+    return TRFX_EXIT_OK;
+  return TRFX_EXIT_ERROR;
 }
 
 static int prompt_confirm_action(const TrfxActionReview *review) {

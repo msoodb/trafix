@@ -155,6 +155,9 @@ void trfx_init_diagnostics_snapshot(TrfxDiagnosticsSnapshot *snapshot) {
     return;
 
   memset(snapshot, 0, sizeof(*snapshot));
+  snapshot->disk_count = 0;
+  snapshot->disk_total_used_mb = 0.0;
+  snapshot->disk_total_mb = 0.0;
   trfx_init_diagnostics_log_snapshot(&snapshot->logs);
   trfx_init_network_snapshot(&snapshot->network);
   snapshot->status = TRFX_COLLECTOR_PARSE_FAILED;
@@ -269,6 +272,12 @@ TrfxCollectorStatus trfx_collect_diagnostics_snapshot(
 
   trfx_init_diagnostics_snapshot(snapshot);
   snapshot->system = get_system_overview();
+  snapshot->cpu = get_cpu_info();
+  snapshot->memory = get_memory_info();
+  snapshot->processes = trfx_collect_processes(SORT_BY_MEM);
+  snapshot->disk_count = get_disk_info(snapshot->disks, MAX_DISKS,
+                                       &snapshot->disk_total_used_mb,
+                                       &snapshot->disk_total_mb);
 
   network_status = trfx_collect_network_snapshot(&snapshot->network, error,
                                                  error_size);

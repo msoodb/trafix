@@ -215,3 +215,81 @@ void trfx_print_system_json(FILE *out, const SystemOverview *overview) {
   print_json_string(out, overview->logged_in_users);
   fprintf(out, "}\n");
 }
+
+void trfx_print_diagnostics_text(FILE *out,
+                                 const TrfxDiagnosticsSnapshot *snapshot) {
+  size_t log_count;
+
+  if (!out || !snapshot)
+    return;
+
+  fprintf(out, "SYSTEM\n");
+  fprintf(out, "HOSTNAME          %s\n", snapshot->system.hostname);
+  fprintf(out, "OS                %s\n", snapshot->system.os_version);
+  fprintf(out, "KERNEL            %s\n", snapshot->system.kernel_version);
+  fprintf(out, "UPTIME            %s\n", snapshot->system.uptime);
+  fprintf(out, "LOAD_AVG          %s\n", snapshot->system.load_avg);
+  fprintf(out, "LOGGED_IN_USERS   %s\n", snapshot->system.logged_in_users);
+  fprintf(out, "\n");
+
+  fprintf(out, "NETWORK\n");
+  if (snapshot->network.route.has_default) {
+    fprintf(out, "ROUTE             default via %s dev %s metric %s\n",
+            snapshot->network.route.gateway, snapshot->network.route.interface,
+            snapshot->network.route.metric);
+  } else {
+    fprintf(out, "ROUTE             unavailable\n");
+  }
+  fprintf(out, "DNS               ");
+  if (snapshot->network.dns.count > 0) {
+    for (int i = 0; i < snapshot->network.dns.count; i++) {
+      if (i > 0)
+        fputs(", ", out);
+      fputs(snapshot->network.dns.servers[i], out);
+    }
+    fputc('\n', out);
+  } else {
+    fprintf(out, "unavailable\n");
+  }
+  fprintf(out, "ACTIVE_IFACE      %s (%s) %s %s\n",
+          snapshot->network.has_active_interface ? snapshot->network.active_interface
+                                                 : "unavailable",
+          snapshot->network.active_type,
+          snapshot->network.active_ip[0] ? snapshot->network.active_ip : "N/A",
+          snapshot->network.active_mac[0] ? snapshot->network.active_mac : "N/A");
+  fprintf(out, "VPN               %s\n",
+          snapshot->network.has_vpn_interface ? snapshot->network.vpn_interface
+                                              : "unavailable");
+  fprintf(out, "\n");
+
+  fprintf(out, "PRESSURE\n");
+  fprintf(out, "CPU               avg %.1f%% | temp %.1fC | cores %d\n",
+          snapshot->cpu.avg_usage, snapshot->cpu.temperature,
+          snapshot->cpu.num_cores);
+  fprintf(out, "MEMORY            %.1f%% | RAM %ld/%ld | SWAP %ld/%ld\n",
+          snapshot->memory.mem_percent, snapshot->memory.used_ram,
+          snapshot->memory.total_ram, snapshot->memory.used_swap,
+          snapshot->memory.total_swap);
+  fprintf(out, "DISK              %d mounts | %.1f/%.1f MB used\n",
+          snapshot->disk_count, snapshot->disk_total_used_mb,
+          snapshot->disk_total_mb);
+  fprintf(out, "PROCESSES         %d captured | top %s\n",
+          snapshot->processes.count,
+          snapshot->processes.count > 0 ? snapshot->processes.processes[0].command
+                                        : "unavailable");
+  fprintf(out, "\n");
+
+  fprintf(out, "LOGS\n");
+  log_count = trfx_diagnostics_log_count(&snapshot->logs);
+  if (log_count == 0) {
+    fprintf(out, "  unavailable\n");
+    return;
+  }
+
+  for (size_t i = 0; i < log_count; i++) {
+    const TrfxDiagnosticsLogLine *line = trfx_diagnostics_log_at(&snapshot->logs, i);
+    if (!line)
+      continue;
+    fprintf(out, "  [%s] %s\n", line->source, line->text);
+  }
+}

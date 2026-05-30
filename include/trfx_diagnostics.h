@@ -12,6 +12,10 @@
 
 #include <stddef.h>
 
+#include "trfx_cpu.h"
+#include "trfx_disk.h"
+#include "trfx_meminfo.h"
+#include "trfx_procinfo.h"
 #include "trfx_netinfo.h"
 #include "trfx_sysinfo.h"
 
@@ -31,6 +35,13 @@ typedef struct {
 
 typedef struct {
   SystemOverview system;
+  CPUInfo cpu;
+  MemoryInfo memory;
+  DiskInfo disks[MAX_DISKS];
+  int disk_count;
+  double disk_total_used_mb;
+  double disk_total_mb;
+  TrfxProcessResult processes;
   TrfxNetworkSnapshot network;
   TrfxDiagnosticsLogSnapshot logs;
   TrfxCollectorStatus status;

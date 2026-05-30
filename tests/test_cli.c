@@ -62,6 +62,11 @@ static int test_parse_cli(void) {
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
   ASSERT_STR_EQ(options.error, "");
 
+  char *diagnostics_argv[] = {"trafix", "diagnostics"};
+  options = trfx_parse_cli(2, diagnostics_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_DIAGNOSTICS);
+  ASSERT_STR_EQ(options.error, "");
+
   char *kill_missing_pid_argv[] = {"trafix", "kill"};
   options = trfx_parse_cli(2, kill_missing_pid_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);

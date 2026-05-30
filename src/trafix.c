@@ -31,6 +31,8 @@ int main(int argc, char **argv) {
         return trfx_run_listeners_command(options.output_format);
     case TRFX_CLI_MODE_SYSTEM:
         return trfx_run_system_command(options.output_format);
+    case TRFX_CLI_MODE_DIAGNOSTICS:
+        return trfx_run_diagnostics_command();
     case TRFX_CLI_MODE_DROP:
         return trfx_run_drop_command(&options);
     case TRFX_CLI_MODE_KILL:

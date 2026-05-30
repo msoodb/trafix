@@ -35,6 +35,11 @@ static int is_command(const char *arg, TrfxCliMode *mode) {
     return 1;
   }
 
+  if (strcmp(arg, "diagnostics") == 0) {
+    *mode = TRFX_CLI_MODE_DIAGNOSTICS;
+    return 1;
+  }
+
   if (strcmp(arg, "drop") == 0) {
     *mode = TRFX_CLI_MODE_DROP;
     return 1;
@@ -106,6 +111,11 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       options.mode = TRFX_CLI_MODE_INVALID;
       snprintf(options.error, sizeof(options.error),
                "drop requires a target type and endpoints");
+      return options;
+    }
+
+    if (strcmp(arg, "diagnostics") == 0) {
+      options.mode = TRFX_CLI_MODE_DIAGNOSTICS;
       return options;
     }
 
@@ -252,6 +262,7 @@ void trfx_print_cli_help(void) {
   printf("  connections      Print TCP/UDP connections\n");
   printf("  listeners        Print listening sockets\n");
   printf("  system           Print system overview\n");
+  printf("  diagnostics      Print a troubleshooting snapshot\n");
   printf("  kill PID         Request a controlled process kill\n");
   printf("  drop TYPE ...    Request a controlled socket drop\n");
 }
