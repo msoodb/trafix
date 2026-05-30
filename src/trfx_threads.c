@@ -38,24 +38,6 @@ static int panel_has_room(int row, int max_lines) {
   return row < max_lines;
 }
 
-static void format_dns_summary(const TrfxDnsSummary *summary, char *buf,
-                               size_t bufsize) {
-  if (!buf || bufsize == 0)
-    return;
-
-  if (!summary || summary->count == 0) {
-    snprintf(buf, bufsize, "N/A");
-    return;
-  }
-
-  buf[0] = '\0';
-  for (int i = 0; i < summary->count; i++) {
-    if (i > 0)
-      strncat(buf, ", ", bufsize - strlen(buf) - 1);
-    strncat(buf, summary->servers[i], bufsize - strlen(buf) - 1);
-  }
-}
-
 static void trfx_format_endpoint_for_tui(const char *value, char *buf,
                                          size_t bufsize) {
   if (!buf || bufsize == 0)
@@ -169,6 +151,107 @@ static void format_socket_owner_line(const SocketOwnerInfo *owner,
   snprintf(line, line_size, "%-6s %-7s %-*s %-*s %-*s", proto, pid,
            process_width, process, endpoint_width, local, endpoint_width,
            remote);
+}
+
+static void format_network_route_line(const TrfxNetworkSnapshot *snapshot,
+                                      char *line, size_t line_size) {
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  if (snapshot->route_status == TRFX_COLLECTOR_OK &&
+      snapshot->route.has_default) {
+    snprintf(line, line_size, "Route: default via %s dev %s metric %s",
+             snapshot->route.gateway, snapshot->route.interface,
+             snapshot->route.metric);
+    return;
+  }
+
+  snprintf(line, line_size, "Route: unavailable");
+}
+
+static void format_network_dns_line(const TrfxNetworkSnapshot *snapshot,
+                                    char *line, size_t line_size) {
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  if (snapshot->dns_status == TRFX_COLLECTOR_OK && snapshot->dns.count > 0) {
+    char dns[256];
+    dns[0] = '\0';
+    for (int i = 0; i < snapshot->dns.count; i++) {
+      if (i > 0)
+        strncat(dns, ", ", sizeof(dns) - strlen(dns) - 1);
+      strncat(dns, snapshot->dns.servers[i],
+              sizeof(dns) - strlen(dns) - 1);
+    }
+    snprintf(line, line_size, "DNS: %s", dns);
+    return;
+  }
+
+  snprintf(line, line_size, "DNS: unavailable");
+}
+
+static void format_network_active_line(const TrfxNetworkSnapshot *snapshot,
+                                       char *line, size_t line_size) {
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  if (!snapshot->has_active_interface) {
+    snprintf(line, line_size, "Active: no interface with an IPv4 address");
+    return;
+  }
+
+  if (snapshot->active_ssid[0] != '\0' && strcmp(snapshot->active_ssid, "N/A") != 0) {
+    snprintf(line, line_size,
+             "Active: %s (%s) | IP: %s | SSID: %s | MAC: %s",
+             snapshot->active_interface, snapshot->active_type,
+             snapshot->active_ip, snapshot->active_ssid,
+             snapshot->active_mac[0] ? snapshot->active_mac : "N/A");
+    return;
+  }
+
+  snprintf(line, line_size, "Active: %s (%s) | IP: %s | MAC: %s",
+           snapshot->active_interface, snapshot->active_type,
+           snapshot->active_ip, snapshot->active_mac[0] ? snapshot->active_mac
+                                                        : "N/A");
+}
+
+static void format_network_vpn_line(const TrfxNetworkSnapshot *snapshot,
+                                    char *line, size_t line_size) {
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  if (!snapshot->has_vpn_interface) {
+    snprintf(line, line_size, "VPN: none detected");
+    return;
+  }
+
+  snprintf(line, line_size, "VPN: %s | IP: %s", snapshot->vpn_interface,
+           snapshot->vpn_ip);
+}
+
+static void render_network_summary(WINDOW *win,
+                                   const TrfxNetworkSnapshot *snapshot,
+                                   int *row, int line, int max_lines) {
+  char summary[512];
+
+  if (!win || !snapshot || !row)
+    return;
+
+  format_network_route_line(snapshot, summary, sizeof(summary));
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+
+  format_network_dns_line(snapshot, summary, sizeof(summary));
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+
+  format_network_active_line(snapshot, summary, sizeof(summary));
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+
+  format_network_vpn_line(snapshot, summary, sizeof(summary));
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
 }
 
 void wait_until_ready() {
@@ -806,83 +889,15 @@ void *network_info_thread(void *arg) {
 
     int num_interfaces = 0;
     int max_rows, max_cols;
+    TrfxNetworkSnapshot snapshot;
+    char snapshot_error[128];
+
+    trfx_init_network_snapshot(&snapshot);
+    TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
+        &snapshot, snapshot_error, sizeof(snapshot_error));
 
     char **interfaces_usage = get_interfaces_usage(&num_interfaces);
     bool interface_collect_failed = interfaces_usage == NULL;
-
-    char connected_if[32] = {0};
-    const char *ssid = NULL;
-    char *ip = NULL;
-
-    for (int i = 0; i < num_interfaces; i++) {
-      char name[32];
-      if (sscanf(interfaces_usage[i], " %31s", name) != 1)
-        continue;
-
-      if (strcmp(name, "lo") == 0 || strncmp(name, "br-", 3) == 0 ||
-          strncmp(name, "docker", 6) == 0 || strncmp(name, "veth", 4) == 0 ||
-          strncmp(name, "virbr", 5) == 0 || strncmp(name, "vmnet", 5) == 0) {
-        continue;
-      }
-
-      ip = get_ip_address(name);
-      if (ip) {
-        snprintf(connected_if, sizeof(connected_if), "%.31s", name);
-        ssid = get_wifi_ssid(name);
-        break;
-      }
-    }
-
-    char vpn_if[32] = {0};
-    const char *vpn_ip = NULL;
-
-    for (int i = 0; i < num_interfaces; i++) {
-      char name[32];
-      if (sscanf(interfaces_usage[i], " %31s", name) != 1)
-        continue;
-
-      if (is_vpn_interface(name)) {
-        char *vip = get_ip_address(name);
-        if (vip) {
-          snprintf(vpn_if, sizeof(vpn_if), "%.31s", name);
-          vpn_ip = vip;
-          break;
-        }
-      }
-    }
-
-    TrfxRouteSummary route;
-    TrfxDnsSummary dns_summary;
-    char dns_error[128];
-    char dns[256];
-    TrfxCollectorStatus route_status = TRFX_COLLECTOR_PARSE_FAILED;
-    route.has_default = 0;
-    snprintf(route.gateway, sizeof(route.gateway), "N/A");
-    snprintf(route.metric, sizeof(route.metric), "N/A");
-    snprintf(route.interface, sizeof(route.interface), "N/A");
-
-    FILE *route_fp = popen("ip route 2>/dev/null", "r");
-    if (route_fp) {
-      route_status = trfx_collect_route_summary_file(route_fp, &route);
-      pclose(route_fp);
-    }
-    if (route_status != TRFX_COLLECTOR_OK) {
-      route.has_default = 0;
-      snprintf(route.gateway, sizeof(route.gateway), "N/A");
-      snprintf(route.metric, sizeof(route.metric), "N/A");
-      snprintf(route.interface, sizeof(route.interface), "N/A");
-    }
-
-    TrfxCollectorStatus dns_status = trfx_collect_dns_summary_path(
-        "/etc/resolv.conf", &dns_summary, dns_error, sizeof(dns_error));
-    if (dns_status != TRFX_COLLECTOR_OK) {
-      dns_summary.count = 0;
-    }
-    format_dns_summary(&dns_summary, dns, sizeof(dns));
-
-    char *mac = connected_if[0] ? get_mac_address(connected_if) : NULL;
-    WifiInfo wifi = connected_if[0] ? get_wifi_info(connected_if)
-                                    : (WifiInfo){0};
 
     // Lock only for ncurses rendering
     pthread_mutex_lock(&ncurses_mutex);
@@ -899,53 +914,14 @@ void *network_info_thread(void *arg) {
     wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [%d] Network Information ", my_index + 1);
+    mvwprintw(win, row++, 2, " [%d] Network Overview ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    if (panel_has_room(row, max_lines))
-      mvwprintw(win, row++, line, "Default Gateway: %s | Iface: %s | Metric: %s",
-                route.gateway, route.interface, route.metric);
-    if (panel_has_room(row, max_lines))
-      mvwprintw(win, row++, line, "DNS Servers: %s", dns);
-    if (panel_has_room(row, max_lines))
-      row++;
+    render_network_summary(win, &snapshot, &row, line, max_lines);
 
-    if (connected_if[0]) {
-      const char *type = is_wifi_interface(connected_if) ? "Wi-Fi" : "Ethernet";
-      if (is_wifi_interface(connected_if) && ssid) {
-        if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "> Connected: %s (%s: %s)  |  IP: %s",
-                  connected_if, type, ssid, ip);
-      } else {
-        if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "> Connected: %s (%s)       |  IP: %s",
-                  connected_if, type, ip);
-      }
-    } else {
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "No active network connection detected.");
-    }
-
-    if (vpn_if[0] && vpn_ip && panel_has_room(row, max_lines)) {
-      wattron(win, trfx_color_attr(COLOR_DATA_RED));
-      mvwprintw(win, row++, line, "VPN Active: %s  |  IP: %s", vpn_if, vpn_ip);
-      wattroff(win, trfx_color_attr(COLOR_DATA_RED));
-    }
-
-    if (panel_has_room(row, max_lines))
-      row++;
-    if (ssid) {
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "  Wi-Fi: %s", ssid);
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "  Signal Strength: %s dBm",
-                  wifi.signal_strength);
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "  Bitrate: %s", wifi.bitrate);
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "  Frequency: %s MHz", wifi.freq);
-      if (panel_has_room(row, max_lines))
-        mvwprintw(win, row++, line, "  MAC Address: %s", mac ? mac : "N/A");
+    if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
+        panel_has_room(row, max_lines)) {
+      mvwprintw(win, row++, line, "Snapshot: %s", snapshot_error);
     }
 
     if (panel_has_room(row, max_lines))
