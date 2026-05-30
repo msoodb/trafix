@@ -11,6 +11,7 @@
 #define TRFX_CONNECTIONS_H
 
 #include <stdio.h>
+#include <pthread.h>
 
 #define MAX_CONNECTIONS 512
 
@@ -58,6 +59,11 @@ void trfx_init_connection_summary_result(TrfxConnectionSummaryResult *result);
 int trfx_collect_connection_summary(const ConnectionInfo *connections, int count,
                                     TrfxConnectionSummaryResult *result,
                                     char *error, size_t error_size);
+void trfx_connection_state_init(void);
+void trfx_connection_state_update(const TrfxConnectionSummaryResult *connections);
+int trfx_connection_state_copy(TrfxConnectionSummaryResult *connections,
+                               int *focus_index);
+void trfx_connection_state_move_focus(int delta);
 const char *trfx_tcp_state_name(int state_num);
 const char *trfx_udp_state_name(int state_num);
 int get_connection_info(ConnectionInfo *connections, int max_conns);

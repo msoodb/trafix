@@ -16,6 +16,11 @@
 #include "trfx_connections.h"
 #include "trfx_socket_owners.h"
 
+static pthread_mutex_t connection_state_mutex = PTHREAD_MUTEX_INITIALIZER;
+static TrfxConnectionSummaryResult connection_state_connections;
+static int connection_state_initialized = 0;
+static int connection_focus_index = 0;
+
 static int hex_byte(const char *hex, unsigned char *byte) {
     unsigned value;
 
@@ -117,6 +122,66 @@ const char *trfx_udp_state_name(int state_num) {
         case 7: return "UNCONN";
         default: return "UNKNOWN";
     }
+}
+
+void trfx_connection_state_init(void) {
+    pthread_mutex_lock(&connection_state_mutex);
+    if (!connection_state_initialized) {
+        trfx_init_connection_summary_result(&connection_state_connections);
+        connection_state_initialized = 1;
+    }
+    pthread_mutex_unlock(&connection_state_mutex);
+}
+
+void trfx_connection_state_update(const TrfxConnectionSummaryResult *connections) {
+    int visible_count;
+
+    pthread_mutex_lock(&connection_state_mutex);
+    if (!connection_state_initialized) {
+        trfx_init_connection_summary_result(&connection_state_connections);
+        connection_state_initialized = 1;
+    }
+    if (connections)
+        connection_state_connections = *connections;
+    visible_count = connection_state_connections.count;
+    if (visible_count <= 0) {
+        connection_focus_index = 0;
+    } else if (connection_focus_index >= visible_count) {
+        connection_focus_index = visible_count - 1;
+    }
+    pthread_mutex_unlock(&connection_state_mutex);
+}
+
+int trfx_connection_state_copy(TrfxConnectionSummaryResult *connections,
+                               int *focus_index) {
+    int available = 0;
+
+    pthread_mutex_lock(&connection_state_mutex);
+    if (connection_state_initialized) {
+        if (connections)
+            *connections = connection_state_connections;
+        if (focus_index)
+            *focus_index = connection_focus_index;
+        available = 1;
+    }
+    pthread_mutex_unlock(&connection_state_mutex);
+
+    return available;
+}
+
+void trfx_connection_state_move_focus(int delta) {
+    int visible_count;
+
+    pthread_mutex_lock(&connection_state_mutex);
+    visible_count = connection_state_connections.count;
+    if (visible_count > 0) {
+        connection_focus_index += delta;
+        if (connection_focus_index < 0)
+            connection_focus_index = visible_count - 1;
+        else if (connection_focus_index >= visible_count)
+            connection_focus_index = 0;
+    }
+    pthread_mutex_unlock(&connection_state_mutex);
 }
 
 static const char *socket_state_name(const char *proto, int state_num) {

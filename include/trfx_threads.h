@@ -13,6 +13,7 @@
 #include <ncurses.h>
 
 #include "trfx_bandwidth.h"
+#include "trfx_connections.h"
 
 typedef struct {
   int module_index;

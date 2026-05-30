@@ -173,10 +173,11 @@ static void render_connection_group_summary(
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
-static int connection_matches_hot_flow(const TrfxConnectionSummary *connection,
-                                       const TrfxBandwidthReport *report) {
+static const TrfxBandwidthFlow *
+connection_find_hot_flow(const TrfxConnectionSummary *connection,
+                         const TrfxBandwidthReport *report) {
   if (!connection || !report)
-    return 0;
+    return NULL;
 
   for (int i = 0; i < report->flow_count; i++) {
     const TrfxBandwidthFlow *flow = &report->flows[i];
@@ -188,11 +189,16 @@ static int connection_matches_hot_flow(const TrfxConnectionSummary *connection,
         (flow->pid[0] != '\0' && strcmp(flow->pid, connection->pid) == 0 &&
          flow->process[0] != '\0' &&
          strcmp(flow->process, connection->process) == 0)) {
-      return 1;
+      return flow;
     }
   }
 
-  return 0;
+  return NULL;
+}
+
+static int connection_matches_hot_flow(const TrfxConnectionSummary *connection,
+                                       const TrfxBandwidthReport *report) {
+  return connection_find_hot_flow(connection, report) != NULL;
 }
 
 static int connection_state_matches(const ConnectionInfo *connection,
@@ -1083,6 +1089,7 @@ void *process_info_thread(void *arg) {
 
   free(arg);
   wait_until_ready();
+  trfx_connection_state_init();
 
   while (!trfx_thread_should_stop(local_stop)) {
 
@@ -1263,6 +1270,7 @@ void *connection_info_thread(void *arg) {
     trfx_collect_connection_summary(snapshot.connections, snapshot.connection_count,
                                     &connections, connection_error,
                                     sizeof(connection_error));
+    trfx_connection_state_update(&connections);
     trfx_init_bandwidth_report(&bandwidth_report);
     trfx_bandwidth_state_copy(NULL, &bandwidth_report, NULL);
 
@@ -1292,7 +1300,7 @@ void *connection_info_thread(void *arg) {
                                     getmaxy(win) - 1);
     if (panel_has_room(y, getmaxy(win) - 1)) {
       trfx_print_clipped(win, y++, 2,
-                         "Marked rows: * measured top flow | ! unowned");
+                         "Marked rows: > selected | * measured top flow | ! unowned");
     }
     snprintf(header, sizeof(header), "%-6s %-*s %-*s %-13s %-7s %-*s %-7s %-*s",
              "Proto", endpoint_width, "Local", endpoint_width, "Remote",
@@ -1314,6 +1322,9 @@ void *connection_info_thread(void *arg) {
     }
 
     int previous_rank = -1;
+    int selected_index = 0;
+    if (!trfx_connection_state_copy(NULL, &selected_index))
+      selected_index = 0;
     for (int i = 0; i < connections.count && y < getmaxy(win) - 1; ++i) {
       char line[256];
       int current_rank = connection_summary_state_rank(&connections.rows[i]);
@@ -1329,7 +1340,9 @@ void *connection_info_thread(void *arg) {
                                     sizeof(line));
       {
         char marked_line[320];
-        snprintf(marked_line, sizeof(marked_line), "%c %s", marker, line);
+        char selection = i == selected_index ? '>' : ' ';
+        snprintf(marked_line, sizeof(marked_line), "%c%c %s", selection, marker,
+                 line);
         trfx_print_clipped(win, y++, 2, marked_line);
       }
       previous_rank = current_rank;

@@ -101,6 +101,54 @@ static int test_connection_summary_model(void) {
   return 0;
 }
 
+static int test_connection_focus_state(void) {
+  TrfxConnectionSummaryResult result;
+  TrfxConnectionSummaryResult copied;
+  int focus_index = -1;
+
+  trfx_init_connection_summary_result(&result);
+  snprintf(result.rows[0].protocol, sizeof(result.rows[0].protocol), "TCP");
+  snprintf(result.rows[0].state, sizeof(result.rows[0].state), "ESTABLISHED");
+  snprintf(result.rows[0].local_endpoint, sizeof(result.rows[0].local_endpoint),
+           "127.0.0.1:80");
+  snprintf(result.rows[0].remote_endpoint,
+           sizeof(result.rows[0].remote_endpoint), "127.0.0.2:443");
+  snprintf(result.rows[0].pid, sizeof(result.rows[0].pid), "11");
+  snprintf(result.rows[0].process, sizeof(result.rows[0].process), "nginx");
+  result.rows[0].has_owner = 1;
+  result.rows[0].is_established = 1;
+
+  snprintf(result.rows[1].protocol, sizeof(result.rows[1].protocol), "UDP");
+  snprintf(result.rows[1].state, sizeof(result.rows[1].state), "UNCONN");
+  snprintf(result.rows[1].local_endpoint, sizeof(result.rows[1].local_endpoint),
+           "[::1]:53");
+  snprintf(result.rows[1].remote_endpoint,
+           sizeof(result.rows[1].remote_endpoint), "[::]:0");
+  result.rows[1].is_listener = 1;
+  result.count = 2;
+
+  trfx_connection_state_init();
+  trfx_connection_state_update(&result);
+
+  ASSERT_INT_EQ(trfx_connection_state_copy(&copied, &focus_index), 1);
+  ASSERT_INT_EQ(copied.count, 2);
+  ASSERT_INT_EQ(focus_index, 0);
+
+  trfx_connection_state_move_focus(1);
+  ASSERT_INT_EQ(trfx_connection_state_copy(&copied, &focus_index), 1);
+  ASSERT_INT_EQ(focus_index, 1);
+
+  trfx_connection_state_move_focus(1);
+  ASSERT_INT_EQ(trfx_connection_state_copy(&copied, &focus_index), 1);
+  ASSERT_INT_EQ(focus_index, 0);
+
+  trfx_connection_state_move_focus(-1);
+  ASSERT_INT_EQ(trfx_connection_state_copy(&copied, &focus_index), 1);
+  ASSERT_INT_EQ(focus_index, 1);
+
+  return 0;
+}
+
 static int test_socket_owner_inode_lookup(void) {
   TrfxSocketOwnerMapEntry owners[] = {
       {12345, "42", "curl"},
@@ -211,6 +259,9 @@ int main(void) {
     return 1;
 
   if (test_connection_summary_model() != 0)
+    return 1;
+
+  if (test_connection_focus_state() != 0)
     return 1;
 
   if (test_tcp_state_names() != 0)

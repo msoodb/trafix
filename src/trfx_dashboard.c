@@ -250,6 +250,28 @@ static void format_popup_time(time_t value, char *buf, size_t buf_size) {
   strftime(buf, buf_size, "%H:%M:%S", &tm_value);
 }
 
+static const TrfxBandwidthFlow *find_hot_flow_for_connection(
+    const TrfxConnectionSummary *connection, const TrfxBandwidthReport *report) {
+  if (!connection || !report)
+    return NULL;
+
+  for (int i = 0; i < report->flow_count; i++) {
+    const TrfxBandwidthFlow *flow = &report->flows[i];
+
+    if ((flow->proto[0] != '\0' &&
+         strcmp(flow->proto, connection->protocol) == 0 &&
+         strcmp(flow->local, connection->local_endpoint) == 0 &&
+         strcmp(flow->remote, connection->remote_endpoint) == 0) ||
+        (flow->pid[0] != '\0' && strcmp(flow->pid, connection->pid) == 0 &&
+         flow->process[0] != '\0' &&
+         strcmp(flow->process, connection->process) == 0)) {
+      return flow;
+    }
+  }
+
+  return NULL;
+}
+
 static void show_bandwidth_detail_popup(void) {
   TrfxNetworkSampleBuffer samples;
   TrfxBandwidthReport report;
@@ -359,6 +381,151 @@ out:
   trfx_runtime_set_paused(0);
 }
 
+void show_connection_detail_popup(void) {
+  TrfxConnectionSummaryResult connections;
+  TrfxNetworkSnapshot snapshot;
+  TrfxBandwidthReport bandwidth_report;
+  char snapshot_error[128] = {0};
+  char rx[32];
+  char tx[32];
+  char footer[] = "Press Enter, Esc, or q to close.";
+  char title[] = "Connection Detail";
+  char lines[10][256];
+  int line_count = 0;
+  int focus_index = 0;
+  int screen_height, screen_width;
+  int popup_width;
+  int popup_height;
+  WINDOW *popup;
+
+  trfx_runtime_set_paused(1);
+  trfx_connection_state_init();
+  trfx_init_connection_summary_result(&connections);
+  trfx_connection_state_copy(&connections, &focus_index);
+
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  if (connections.count <= 0) {
+    snprintf(lines[line_count++], sizeof(lines[0]), "Selection: unavailable");
+    snprintf(lines[line_count++], sizeof(lines[0]), "No visible connections");
+  } else {
+    if (focus_index < 0)
+      focus_index = 0;
+    if (focus_index >= connections.count)
+      focus_index = connections.count - 1;
+
+    trfx_init_network_snapshot(&snapshot);
+    trfx_collect_network_snapshot(&snapshot, snapshot_error,
+                                 sizeof(snapshot_error));
+    trfx_init_bandwidth_report(&bandwidth_report);
+    trfx_bandwidth_state_copy(NULL, &bandwidth_report, NULL);
+
+    const TrfxConnectionSummary *connection = &connections.rows[focus_index];
+    const TrfxBandwidthFlow *flow =
+        find_hot_flow_for_connection(connection, &bandwidth_report);
+    char local[64];
+    char remote[64];
+    char owner_line[256];
+    char activity_line[256];
+    char context_line[256];
+
+    trfx_format_endpoint_for_tui(connection->local_endpoint, local,
+                                 sizeof(local));
+    trfx_format_endpoint_for_tui(connection->remote_endpoint, remote,
+                                 sizeof(remote));
+
+    snprintf(lines[line_count++], sizeof(lines[0]), "Selection: %d/%d",
+             focus_index + 1, connections.count);
+    snprintf(lines[line_count++], sizeof(lines[0]), "Proto: %s | State: %s",
+             connection->protocol[0] ? connection->protocol : "-",
+             connection->state[0] ? connection->state : "-");
+    snprintf(lines[line_count++], sizeof(lines[0]), "Local: %s", local);
+    snprintf(lines[line_count++], sizeof(lines[0]), "Remote: %s", remote);
+
+    if (connection->has_owner) {
+      snprintf(owner_line, sizeof(owner_line), "Owner: UID %s | PID %s | %s",
+               connection->uid[0] ? connection->uid : "-",
+               connection->pid[0] ? connection->pid : "-",
+               connection->process[0] ? connection->process : "-");
+    } else {
+      snprintf(owner_line, sizeof(owner_line),
+               "Owner: unavailable for this connection");
+    }
+    snprintf(lines[line_count++], sizeof(lines[0]), "%s", owner_line);
+
+    if (flow) {
+      trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
+      trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
+      snprintf(activity_line, sizeof(activity_line),
+               "Activity: measured top flow | rx %s/s | tx %s/s", rx, tx);
+    } else {
+      snprintf(activity_line, sizeof(activity_line),
+               "Activity: not among measured top flows");
+    }
+    snprintf(lines[line_count++], sizeof(lines[0]), "%s", activity_line);
+
+    snprintf(context_line, sizeof(context_line),
+             "Context: %d rows | owners %d | %s", connections.count,
+             snapshot.socket_owner_count,
+             snapshot_error[0] ? snapshot_error : "snapshot ok");
+    snprintf(lines[line_count++], sizeof(lines[0]), "%s", context_line);
+  }
+
+  popup_width = (int)strlen(title) + 6;
+  for (int i = 0; i < line_count; i++) {
+    int line_width = (int)strlen(lines[i]) + 4;
+    if (line_width > popup_width)
+      popup_width = line_width;
+  }
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 72)
+    popup_width = 72;
+
+  popup_height = line_count + 4;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " %s ", title);
+  wattroff(popup, A_BOLD);
+
+  for (int i = 0; i < line_count && i < popup_height - 2; i++)
+    trfx_print_clipped(popup, i + 1, 2, lines[i]);
+  trfx_print_clipped(popup, popup_height - 2, 2, footer);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
+}
+
 void draw_centered_message(WINDOW *win, const char *message) {
   int height, width;
   getmaxyx(win, height, width);
@@ -420,6 +587,7 @@ void show_hotkeys_popup(void) {
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
       {"[c]", "Cycle the available column layouts"},
+      {"[d]", "Open the focused bandwidth detail"},
       {"[x]", "Open the controlled process kill flow"},
       {"[z]", "Open the controlled connection drop flow"},
       {"[a]", "Show the recent action audit trail"},
@@ -427,6 +595,8 @@ void show_hotkeys_popup(void) {
       {"[n]", "Inspect route and DNS health"},
       {"[v]", "Review network and system pressure"},
       {"[t]", "Show or hide the top system panels"},
+      {"[J/K]", "Move the selected connection row"},
+      {"[o]", "Open the selected connection detail"},
       {"[p]", "Pause or resume live updates"},
       {"[h]", "Open this help popup"},
       {"[q]", "Quit Trafix"},
@@ -1688,15 +1858,26 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     break;
 
   case 'j':
-  case 'J':
   case KEY_DOWN:
     trfx_bandwidth_state_move_focus(1);
     break;
 
   case 'k':
-  case 'K':
   case KEY_UP:
     trfx_bandwidth_state_move_focus(-1);
+    break;
+
+  case 'J':
+    trfx_connection_state_move_focus(1);
+    break;
+
+  case 'K':
+    trfx_connection_state_move_focus(-1);
+    break;
+
+  case 'O':
+  case 'o':
+    show_connection_detail_popup();
     break;
 
   case 'd':
