@@ -9,6 +9,8 @@
 
 #include "test_common.h"
 
+#include <unistd.h>
+
 #include "trfx_actions.h"
 
 static int test_action_request_init(void) {
@@ -114,6 +116,38 @@ static int test_action_review_permissions(void) {
   return 0;
 }
 
+static int test_process_lookup_and_execution_fallbacks(void) {
+  unsigned int uid = 0;
+  char pid[16];
+  char error[256];
+  TrfxActionRequest request;
+  TrfxActionResult result;
+
+  snprintf(pid, sizeof(pid), "%ld", (long)getpid());
+  ASSERT_INT_EQ(trfx_lookup_process_uid(pid, &uid, error, sizeof(error)), 1);
+  ASSERT_INT_EQ(uid, (unsigned int)geteuid());
+
+  trfx_action_request_set_process_kill(&request, "abc", "bad");
+  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_INVALID);
+  ASSERT_STR_EQ(result.message, "invalid process id: abc");
+
+  trfx_action_request_set_process_kill(&request, pid, "self");
+  result = trfx_execute_action_request(&request, 0, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_CANCELLED);
+  ASSERT_STR_EQ(result.message, "action cancelled");
+
+  trfx_action_request_set_connection_drop(&request, NULL);
+  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_UNSUPPORTED);
+  ASSERT_STR_EQ(result.message, "drop connection is not supported yet");
+
+  return 0;
+}
+
 int main(void) {
   if (test_action_request_init() != 0)
     return 1;
@@ -128,6 +162,9 @@ int main(void) {
     return 1;
 
   if (test_action_review_permissions() != 0)
+    return 1;
+
+  if (test_process_lookup_and_execution_fallbacks() != 0)
     return 1;
 
   return 0;

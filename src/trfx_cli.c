@@ -35,6 +35,11 @@ static int is_command(const char *arg, TrfxCliMode *mode) {
     return 1;
   }
 
+  if (strcmp(arg, "kill") == 0) {
+    *mode = TRFX_CLI_MODE_KILL;
+    return 1;
+  }
+
   return 0;
 }
 
@@ -60,7 +65,7 @@ static void set_unknown_argument(TrfxCliOptions *options, const char *arg) {
 
 TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
   TrfxCliOptions options = {TRFX_CLI_MODE_TUI, TRFX_CLI_OUTPUT_TEXT,
-                            0, {0}, 0, {0}, {0}};
+                            0, {0}, 0, {0}, 0, {0}, 0, {0}};
 
   if (argc <= 1) {
     return options;
@@ -79,9 +84,32 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       return options;
     }
 
+    if (strcmp(arg, "kill") == 0) {
+      options.mode = TRFX_CLI_MODE_INVALID;
+      snprintf(options.error, sizeof(options.error), "kill requires a PID");
+      return options;
+    }
+
     if (is_command(arg, &options.mode)) {
       return options;
     }
+  }
+
+  if (argc >= 3 && strcmp(argv[1], "kill") == 0) {
+    options.mode = TRFX_CLI_MODE_KILL;
+    snprintf(options.target_pid, sizeof(options.target_pid), "%s", argv[2]);
+    options.has_target_pid = 1;
+
+    for (int i = 3; i < argc; i++) {
+      if (strcmp(argv[i], "--yes") == 0 || strcmp(argv[i], "-y") == 0) {
+        options.confirmed = 1;
+      } else {
+        set_unknown_argument(&options, argv[i]);
+        return options;
+      }
+    }
+
+    return options;
   }
 
   if (argc >= 3 && is_command(argv[1], &options.mode)) {
@@ -172,6 +200,7 @@ void trfx_print_cli_help(void) {
   printf("  connections      Print TCP/UDP connections\n");
   printf("  listeners        Print listening sockets\n");
   printf("  system           Print system overview\n");
+  printf("  kill PID         Request a controlled process kill\n");
 }
 
 void trfx_print_cli_version(void) {

@@ -62,6 +62,27 @@ static int test_parse_cli(void) {
   ASSERT_INT_EQ(options.output_format, TRFX_CLI_OUTPUT_TEXT);
   ASSERT_STR_EQ(options.error, "");
 
+  char *kill_missing_pid_argv[] = {"trafix", "kill"};
+  options = trfx_parse_cli(2, kill_missing_pid_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);
+  ASSERT_STR_EQ(options.error, "kill requires a PID");
+
+  char *kill_argv[] = {"trafix", "kill", "1234"};
+  options = trfx_parse_cli(3, kill_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_KILL);
+  ASSERT_INT_EQ(options.has_target_pid, 1);
+  ASSERT_STR_EQ(options.target_pid, "1234");
+  ASSERT_INT_EQ(options.confirmed, 0);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *kill_yes_argv[] = {"trafix", "kill", "4321", "--yes"};
+  options = trfx_parse_cli(4, kill_yes_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_KILL);
+  ASSERT_INT_EQ(options.has_target_pid, 1);
+  ASSERT_STR_EQ(options.target_pid, "4321");
+  ASSERT_INT_EQ(options.confirmed, 1);
+  ASSERT_STR_EQ(options.error, "");
+
   char *listeners_argv[] = {"trafix", "listeners"};
   options = trfx_parse_cli(2, listeners_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_LISTENERS);

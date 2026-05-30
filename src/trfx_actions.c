@@ -9,8 +9,12 @@
 
 #include "trfx_actions.h"
 
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static void set_string(char *dest, size_t dest_size, const char *value) {
   if (!dest || dest_size == 0)
@@ -22,6 +26,40 @@ static void set_string(char *dest, size_t dest_size, const char *value) {
   }
 
   snprintf(dest, dest_size, "%s", value);
+}
+
+static int parse_pid_value(const char *pid, pid_t *value) {
+  char *end = NULL;
+  long parsed;
+
+  if (!pid || pid[0] == '\0' || !value)
+    return 0;
+
+  errno = 0;
+  parsed = strtol(pid, &end, 10);
+  if (errno != 0 || !end || *end != '\0' || parsed <= 0)
+    return 0;
+
+  *value = (pid_t)parsed;
+  return 1;
+}
+
+static int lookup_process_uid_file(FILE *fp, unsigned int *uid) {
+  char line[256];
+
+  if (!fp || !uid)
+    return 0;
+
+  while (fgets(line, sizeof(line), fp)) {
+    unsigned int real_uid;
+
+    if (sscanf(line, "Uid:%u", &real_uid) == 1) {
+      *uid = real_uid;
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 void trfx_init_action_request(TrfxActionRequest *request) {
@@ -46,6 +84,15 @@ void trfx_init_action_review(TrfxActionReview *review) {
   review->permission = TRFX_ACTION_PERMISSION_UNKNOWN;
   snprintf(review->prompt, sizeof(review->prompt), "no action selected");
   snprintf(review->details, sizeof(review->details), "no action selected");
+}
+
+void trfx_init_action_result(TrfxActionResult *result) {
+  if (!result)
+    return;
+
+  memset(result, 0, sizeof(*result));
+  result->status = TRFX_ACTION_RESULT_INVALID;
+  snprintf(result->message, sizeof(result->message), "no action selected");
 }
 
 const char *trfx_action_kind_name(TrfxActionKind kind) {
@@ -88,6 +135,26 @@ const char *trfx_action_permission_status_name(
   case TRFX_ACTION_PERMISSION_UNKNOWN:
   default:
     return "unknown";
+  }
+}
+
+const char *trfx_action_result_status_name(TrfxActionResultStatus status) {
+  switch (status) {
+  case TRFX_ACTION_RESULT_OK:
+    return "ok";
+  case TRFX_ACTION_RESULT_CANCELLED:
+    return "cancelled";
+  case TRFX_ACTION_RESULT_PERMISSION_DENIED:
+    return "permission denied";
+  case TRFX_ACTION_RESULT_UNSUPPORTED:
+    return "unsupported";
+  case TRFX_ACTION_RESULT_NOT_FOUND:
+    return "not found";
+  case TRFX_ACTION_RESULT_FAILED:
+    return "failed";
+  case TRFX_ACTION_RESULT_INVALID:
+  default:
+    return "invalid";
   }
 }
 
@@ -216,4 +283,172 @@ void trfx_prepare_action_review(TrfxActionReview *review,
   review->can_execute = 1;
   snprintf(review->prompt, sizeof(review->prompt), "confirm %.240s?",
            request->description);
+}
+
+int trfx_lookup_process_uid(const char *pid, unsigned int *uid, char *error,
+                            size_t error_size) {
+  char path[256];
+  FILE *fp;
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  if (!pid || !uid) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "invalid argument");
+    return 0;
+  }
+
+  snprintf(path, sizeof(path), "/proc/%s/status", pid);
+  fp = fopen(path, "r");
+  if (!fp) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "process %s not found", pid);
+    return 0;
+  }
+
+  if (!lookup_process_uid_file(fp, uid)) {
+    fclose(fp);
+    if (error && error_size > 0)
+      snprintf(error, error_size, "uid unavailable for process %s", pid);
+    return 0;
+  }
+
+  fclose(fp);
+  return 1;
+}
+
+int trfx_lookup_process_name(const char *pid, char *process, size_t process_size,
+                             char *error, size_t error_size) {
+  char path[256];
+  FILE *fp;
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  if (!pid || !process || process_size == 0) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "invalid argument");
+    return 0;
+  }
+
+  snprintf(path, sizeof(path), "/proc/%s/comm", pid);
+  fp = fopen(path, "r");
+  if (!fp) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "process %s not found", pid);
+    return 0;
+  }
+
+  if (!fgets(process, (int)process_size, fp)) {
+    fclose(fp);
+    if (error && error_size > 0)
+      snprintf(error, error_size, "process name unavailable for %s", pid);
+    return 0;
+  }
+
+  fclose(fp);
+  process[strcspn(process, "\n")] = '\0';
+  if (process[0] == '\0')
+    snprintf(process, process_size, "-");
+  return 1;
+}
+
+TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
+                                             int confirmed,
+                                             unsigned int effective_uid,
+                                             char *error,
+                                             size_t error_size) {
+  TrfxActionResult result;
+  unsigned int target_uid = 0;
+  pid_t pid_value;
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  trfx_init_action_result(&result);
+  if (request)
+    result.request = *request;
+
+  if (!request || request->kind == TRFX_ACTION_KIND_NONE) {
+    result.status = TRFX_ACTION_RESULT_INVALID;
+    snprintf(result.message, sizeof(result.message), "no action selected");
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (!confirmed) {
+    result.status = TRFX_ACTION_RESULT_CANCELLED;
+    snprintf(result.message, sizeof(result.message), "action cancelled");
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (request->kind != TRFX_ACTION_KIND_KILL_PROCESS) {
+    result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
+    snprintf(result.message, sizeof(result.message),
+             "%s is not supported yet", trfx_action_kind_name(request->kind));
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (!parse_pid_value(request->target.pid, &pid_value)) {
+    result.status = TRFX_ACTION_RESULT_INVALID;
+    snprintf(result.message, sizeof(result.message),
+             "invalid process id: %s",
+             request->target.pid[0] ? request->target.pid : "-");
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (!trfx_lookup_process_uid(request->target.pid, &target_uid, error,
+                               error_size)) {
+    result.status = TRFX_ACTION_RESULT_NOT_FOUND;
+    snprintf(result.message, sizeof(result.message), "process %s not found",
+             request->target.pid);
+    if (error && error_size > 0 && error[0] == '\0')
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (effective_uid != 0 && effective_uid != target_uid) {
+    result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
+    snprintf(result.message, sizeof(result.message),
+             "permission denied: requires root or uid %u", target_uid);
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  if (kill(pid_value, SIGTERM) != 0) {
+    result.system_errno = errno;
+    if (errno == ESRCH) {
+      result.status = TRFX_ACTION_RESULT_NOT_FOUND;
+      snprintf(result.message, sizeof(result.message), "process %s not found",
+               request->target.pid);
+    } else if (errno == EPERM) {
+      result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
+      snprintf(result.message, sizeof(result.message),
+               "permission denied while killing %s", request->target.pid);
+    } else {
+      result.status = TRFX_ACTION_RESULT_FAILED;
+      snprintf(result.message, sizeof(result.message),
+               "failed to kill %s: %s", request->target.pid,
+               strerror(errno));
+    }
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  result.status = TRFX_ACTION_RESULT_OK;
+  snprintf(result.message, sizeof(result.message), "sent SIGTERM to %s",
+           request->target.pid);
+  if (error && error_size > 0)
+    snprintf(error, error_size, "%s", result.message);
+  return result;
 }

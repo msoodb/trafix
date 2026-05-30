@@ -412,6 +412,7 @@ void show_hotkeys_popup(void) {
       "[s] Sort Processes",
       "[r] Refresh",
       "[c] Columns",
+      "[x] Kill Process",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -554,6 +555,168 @@ int show_action_review_popup(const TrfxActionReview *review) {
   trfx_runtime_set_paused(0);
 
   return confirmed;
+}
+
+static void show_action_feedback_popup(const char *title, const char *message) {
+  int screen_height, screen_width;
+  int popup_height = 6;
+  int popup_width = 72;
+  WINDOW *popup;
+
+  if (!message)
+    message = "no details";
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 40)
+    popup_width = 40;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup)
+    return;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " %s ", title ? title : "Message");
+  wattroff(popup, A_BOLD);
+  trfx_print_clipped(popup, 1, 2, message);
+  trfx_print_clipped(popup, 3, 2, "Press Enter or Esc to close.");
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 || ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+}
+
+static int select_process_for_kill(ProcessInfo *selected) {
+  ProcessInfo processes[MAX_PROCESSES];
+  int count = get_top_processes(processes, MAX_PROCESSES, current_sort_type);
+  int screen_height, screen_width;
+  int visible_count = count < 8 ? count : 8;
+  int selected_index = 0;
+
+  if (!selected)
+    return 0;
+
+  if (count <= 0) {
+    show_action_feedback_popup("Kill Process", "No processes available");
+    return 0;
+  }
+
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  int popup_height = visible_count + 5;
+  int popup_width = 88;
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 60)
+    popup_width = 60;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup)
+    return 0;
+
+  keypad(popup, TRUE);
+  while (1) {
+    pthread_mutex_lock(&ncurses_mutex);
+    werase(popup);
+    wattron(popup, trfx_color_attr(COLOR_BORDER));
+    box(popup, 0, 0);
+    wattroff(popup, trfx_color_attr(COLOR_BORDER));
+    wattron(popup, A_BOLD);
+    mvwprintw(popup, 0, 2, " Select Process To Kill ");
+    wattroff(popup, A_BOLD);
+    mvwprintw(popup, 1, 2, "%-7s %-16s %-8s %s", "PID", "USER", "CPU",
+              "COMMAND");
+    for (int i = 0; i < visible_count; i++) {
+      int row = i + 2;
+      if (i == selected_index)
+        wattron(popup, A_REVERSE);
+      mvwprintw(popup, row, 2, "%-7s %-16.16s %-8.8s %-s", processes[i].pid,
+                processes[i].user, processes[i].cpu, processes[i].command);
+      if (i == selected_index)
+        wattroff(popup, A_REVERSE);
+    }
+    trfx_print_clipped(popup, popup_height - 2, 2,
+                       "Enter to confirm, Esc to cancel.");
+    wrefresh(popup);
+    pthread_mutex_unlock(&ncurses_mutex);
+
+    int ch = wgetch(popup);
+    if (ch == KEY_UP) {
+      selected_index = (selected_index - 1 + visible_count) % visible_count;
+    } else if (ch == KEY_DOWN) {
+      selected_index = (selected_index + 1) % visible_count;
+    } else if (ch == KEY_ENTER || ch == '\n' || ch == 10) {
+      *selected = processes[selected_index];
+      break;
+    } else if (ch == KEY_ESC || ch == 'q' || ch == 'Q') {
+      memset(selected, 0, sizeof(*selected));
+      return 0;
+    }
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  return 1;
+}
+
+static void handle_process_kill_action(void) {
+  ProcessInfo target;
+  TrfxActionRequest request;
+  TrfxActionReview review;
+  TrfxActionResult result;
+  char error[256];
+  unsigned int target_uid = 0;
+
+  memset(&target, 0, sizeof(target));
+  if (!select_process_for_kill(&target))
+    return;
+
+  trfx_action_request_set_process_kill(&request, target.pid, target.command);
+
+  if (!trfx_lookup_process_uid(target.pid, &target_uid, error, sizeof(error))) {
+    show_action_feedback_popup("Kill Process", error[0] ? error : "process not found");
+    return;
+  }
+
+  trfx_prepare_action_review(&review, &request, (unsigned int)geteuid(),
+                             target_uid, 1);
+  if (!show_action_review_popup(&review))
+    return;
+
+  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  show_action_feedback_popup("Kill Process", result.message);
 }
 
 int select_module() {
@@ -911,6 +1074,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case KEY_ENTER:
   case 10:
     show_bandwidth_detail_popup();
+    break;
+
+  case 'x':
+  case 'X':
+    handle_process_kill_action();
     break;
 
   case 'p':
