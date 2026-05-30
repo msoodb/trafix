@@ -60,7 +60,33 @@ typedef struct {
 } TrfxDnsSummary;
 
 typedef struct {
+    char name[32];
+    char operstate[16];
+    char carrier[16];
+    char type[16];
+    char ipv4[64];
+    char ipv6[64];
+    char ssid[64];
+    char mac[32];
+    unsigned long rx_bytes;
+    unsigned long tx_bytes;
+    int is_up;
+    int has_ipv4;
+    int has_ipv6;
+    int is_wifi;
+    int is_vpn;
+} TrfxInterfaceStatus;
+
+typedef struct {
+    TrfxCollectorStatus status;
+    int count;
+    char error[128];
+    TrfxInterfaceStatus items[TRFX_MAX_INTERFACES];
+} TrfxInterfaceStatusResult;
+
+typedef struct {
     TrfxInterfaceStatsResult interfaces;
+    TrfxInterfaceStatusResult interface_statuses;
     TrfxRouteSummary route;
     TrfxDnsSummary dns;
     TrfxCollectorStatus route_status;
@@ -116,6 +142,10 @@ void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot);
 TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
                                                   char *error,
                                                   size_t error_size);
+void trfx_init_interface_statuses(TrfxInterfaceStatusResult *status);
+TrfxCollectorStatus trfx_collect_interface_statuses(
+    const TrfxInterfaceStatsResult *interfaces,
+    TrfxInterfaceStatusResult *status, char *error, size_t error_size);
 void trfx_init_network_sample_buffer(TrfxNetworkSampleBuffer *buffer);
 void trfx_network_sample_buffer_push(TrfxNetworkSampleBuffer *buffer,
                                      const TrfxNetworkSnapshot *snapshot,

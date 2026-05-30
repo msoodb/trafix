@@ -669,6 +669,228 @@ static int connection_is_listener(const ConnectionInfo *connection) {
            strcmp(connection->state, "UNCONN") == 0;
 }
 
+static void set_text(char *dest, size_t dest_size, const char *value,
+                     const char *fallback) {
+    if (!dest || dest_size == 0)
+        return;
+
+    if (value && value[0] != '\0') {
+        snprintf(dest, dest_size, "%s", value);
+    } else {
+        snprintf(dest, dest_size, "%s", fallback ? fallback : "N/A");
+    }
+}
+
+static void trim_line_end(char *text) {
+    size_t len;
+
+    if (!text)
+        return;
+
+    len = strlen(text);
+    while (len > 0 && (text[len - 1] == '\n' || text[len - 1] == '\r')) {
+        text[len - 1] = '\0';
+        len--;
+    }
+}
+
+static void read_interface_operstate(const char *name, char *operstate,
+                                     size_t operstate_size) {
+    char path[128];
+    FILE *fp;
+
+    if (!operstate || operstate_size == 0)
+        return;
+
+    snprintf(operstate, operstate_size, "unknown");
+
+    if (!trfx_is_valid_interface_name(name))
+        return;
+
+    snprintf(path, sizeof(path), "/sys/class/net/%s/operstate", name);
+    fp = fopen(path, "r");
+    if (!fp)
+        return;
+
+    if (fgets(operstate, (int)operstate_size, fp) == NULL) {
+        snprintf(operstate, operstate_size, "unknown");
+    } else {
+        trim_line_end(operstate);
+        if (operstate[0] == '\0')
+            snprintf(operstate, operstate_size, "unknown");
+    }
+
+    fclose(fp);
+}
+
+static void read_interface_carrier(const char *name, char *carrier,
+                                   size_t carrier_size) {
+    char path[128];
+    FILE *fp;
+    char buf[16];
+
+    if (!carrier || carrier_size == 0)
+        return;
+
+    snprintf(carrier, carrier_size, "unknown");
+
+    if (!trfx_is_valid_interface_name(name))
+        return;
+
+    snprintf(path, sizeof(path), "/sys/class/net/%s/carrier", name);
+    fp = fopen(path, "r");
+    if (!fp)
+        return;
+
+    if (fgets(buf, sizeof(buf), fp) != NULL) {
+        trim_line_end(buf);
+        if (strcmp(buf, "1") == 0) {
+            snprintf(carrier, carrier_size, "up");
+        } else if (strcmp(buf, "0") == 0) {
+            snprintf(carrier, carrier_size, "down");
+        }
+    }
+
+    fclose(fp);
+}
+
+static void collect_interface_addresses(const char *name, char *ipv4,
+                                        size_t ipv4_size, char *ipv6,
+                                        size_t ipv6_size) {
+    struct ifaddrs *ifaddr, *ifa;
+
+    if (!ipv4 || ipv4_size == 0 || !ipv6 || ipv6_size == 0)
+        return;
+
+    snprintf(ipv4, ipv4_size, "N/A");
+    snprintf(ipv6, ipv6_size, "N/A");
+
+    if (!trfx_is_valid_interface_name(name))
+        return;
+
+    if (getifaddrs(&ifaddr) == -1)
+        return;
+
+    for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || strcmp(ifa->ifa_name, name) != 0)
+            continue;
+
+        if (ifa->ifa_addr->sa_family == AF_INET && strcmp(ipv4, "N/A") == 0) {
+            char addr[INET_ADDRSTRLEN];
+            struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+            if (inet_ntop(AF_INET, &sa->sin_addr, addr, sizeof(addr)))
+                snprintf(ipv4, ipv4_size, "%s", addr);
+        } else if (ifa->ifa_addr->sa_family == AF_INET6 &&
+                   strcmp(ipv6, "N/A") == 0) {
+            char addr[INET6_ADDRSTRLEN];
+            struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+            if (inet_ntop(AF_INET6, &sa6->sin6_addr, addr, sizeof(addr)))
+                snprintf(ipv6, ipv6_size, "%s", addr);
+        }
+    }
+
+    freeifaddrs(ifaddr);
+}
+
+static void init_interface_status(TrfxInterfaceStatus *status) {
+    if (!status)
+        return;
+
+    memset(status, 0, sizeof(*status));
+    set_text(status->operstate, sizeof(status->operstate), "unknown", "unknown");
+    set_text(status->carrier, sizeof(status->carrier), "unknown", "unknown");
+    set_text(status->type, sizeof(status->type), "N/A", "N/A");
+    set_text(status->ipv4, sizeof(status->ipv4), "N/A", "N/A");
+    set_text(status->ipv6, sizeof(status->ipv6), "N/A", "N/A");
+    set_text(status->ssid, sizeof(status->ssid), "N/A", "N/A");
+    set_text(status->mac, sizeof(status->mac), "N/A", "N/A");
+}
+
+static void fill_interface_status(const TrfxInterfaceStat *stat,
+                                  TrfxInterfaceStatus *status) {
+    WifiInfo wifi = {"N/A", "N/A", "N/A", "N/A"};
+
+    if (!stat || !status)
+        return;
+
+    init_interface_status(status);
+    snprintf(status->name, sizeof(status->name), "%.31s", stat->name);
+    status->rx_bytes = stat->rx_bytes;
+    status->tx_bytes = stat->tx_bytes;
+
+    read_interface_operstate(stat->name, status->operstate,
+                             sizeof(status->operstate));
+    read_interface_carrier(stat->name, status->carrier,
+                           sizeof(status->carrier));
+    collect_interface_addresses(stat->name, status->ipv4, sizeof(status->ipv4),
+                                status->ipv6, sizeof(status->ipv6));
+
+    status->has_ipv4 = strcmp(status->ipv4, "N/A") != 0;
+    status->has_ipv6 = strcmp(status->ipv6, "N/A") != 0;
+    status->is_wifi = is_wifi_interface(stat->name);
+    status->is_vpn = is_vpn_interface(stat->name);
+    status->is_up = (strcmp(status->operstate, "up") == 0 ||
+                     strcmp(status->carrier, "up") == 0);
+
+    if (status->is_vpn) {
+        set_text(status->type, sizeof(status->type), "VPN", "VPN");
+    } else if (strcmp(stat->name, "lo") == 0) {
+        set_text(status->type, sizeof(status->type), "Loopback", "Loopback");
+    } else if (status->is_wifi) {
+        set_text(status->type, sizeof(status->type), "Wi-Fi", "Wi-Fi");
+        if (get_wifi_info) {
+            wifi = get_wifi_info(stat->name);
+            set_text(status->ssid, sizeof(status->ssid), wifi.ssid, "N/A");
+        }
+    } else {
+        set_text(status->type, sizeof(status->type), "Ethernet", "Ethernet");
+    }
+
+    if (get_mac_address)
+        set_text(status->mac, sizeof(status->mac), get_mac_address(stat->name),
+                 "N/A");
+}
+
+void trfx_init_interface_statuses(TrfxInterfaceStatusResult *status) {
+    if (!status)
+        return;
+
+    memset(status, 0, sizeof(*status));
+    status->status = TRFX_COLLECTOR_PARSE_FAILED;
+    status->error[0] = '\0';
+}
+
+TrfxCollectorStatus trfx_collect_interface_statuses(
+    const TrfxInterfaceStatsResult *interfaces, TrfxInterfaceStatusResult *status,
+    char *error, size_t error_size) {
+    int i;
+
+    if (!interfaces || !status)
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    trfx_init_interface_statuses(status);
+    status->status = interfaces->status;
+
+    if (interfaces->status == TRFX_COLLECTOR_INVALID_ARGUMENT) {
+        snprintf(status->error, sizeof(status->error), "%s",
+                 interfaces->error[0] ? interfaces->error
+                                       : "invalid interface snapshot");
+        if (error && error_size > 0)
+            snprintf(error, error_size, "%s", status->error);
+        return status->status;
+    }
+
+    for (i = 0; i < interfaces->count && i < TRFX_MAX_INTERFACES; i++) {
+        fill_interface_status(&interfaces->stats[i], &status->items[i]);
+        status->count++;
+    }
+
+    return status->status;
+}
+
 void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
     if (!snapshot)
         return;
@@ -676,6 +898,7 @@ void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
     memset(snapshot, 0, sizeof(*snapshot));
 
     snapshot->interfaces.status = TRFX_COLLECTOR_PARSE_FAILED;
+    trfx_init_interface_statuses(&snapshot->interface_statuses);
     snapshot->route_status = TRFX_COLLECTOR_PARSE_FAILED;
     snapshot->dns_status = TRFX_COLLECTOR_PARSE_FAILED;
 
@@ -718,6 +941,9 @@ TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
         final_status == TRFX_COLLECTOR_OK) {
         final_status = local_snapshot.interfaces.status;
     }
+    trfx_collect_interface_statuses(&local_snapshot.interfaces,
+                                    &local_snapshot.interface_statuses, error,
+                                    error_size);
 
     FILE *route_fp = popen("ip route 2>/dev/null", "r");
     if (route_fp) {

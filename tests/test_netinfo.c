@@ -218,6 +218,8 @@ static int test_network_snapshot_init(void) {
   trfx_init_network_snapshot(&snapshot);
 
   ASSERT_INT_EQ(snapshot.interfaces.status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(snapshot.interface_statuses.status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(snapshot.interface_statuses.count, 0);
   ASSERT_INT_EQ(snapshot.route_status, TRFX_COLLECTOR_PARSE_FAILED);
   ASSERT_INT_EQ(snapshot.dns_status, TRFX_COLLECTOR_PARSE_FAILED);
   ASSERT_INT_EQ(snapshot.has_active_interface, 0);
@@ -227,6 +229,40 @@ static int test_network_snapshot_init(void) {
   ASSERT_STR_EQ(snapshot.route.metric, "N/A");
   ASSERT_STR_EQ(snapshot.active_type, "N/A");
   ASSERT_STR_EQ(snapshot.vpn_interface, "");
+
+  return 0;
+}
+
+static int test_interface_status_collection(void) {
+  TrfxInterfaceStatsResult interfaces =
+      trfx_collect_interface_stats_path("tests/fixtures/proc_net_dev");
+  TrfxInterfaceStatusResult statuses;
+  char error[128];
+  int i;
+
+  ASSERT_INT_EQ(interfaces.status, TRFX_COLLECTOR_OK);
+
+  trfx_init_interface_statuses(&statuses);
+  ASSERT_INT_EQ(statuses.status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(statuses.count, 0);
+
+  ASSERT_INT_EQ(trfx_collect_interface_statuses(&interfaces, &statuses, error,
+                                                sizeof(error)),
+                TRFX_COLLECTOR_OK);
+  ASSERT_STR_EQ(error, "");
+  ASSERT_INT_EQ(statuses.count, interfaces.count);
+  ASSERT_STR_EQ(statuses.items[0].name, "lo");
+  ASSERT_INT_EQ((int)statuses.items[0].rx_bytes, 4096);
+  ASSERT_INT_EQ((int)statuses.items[0].tx_bytes, 8192);
+  ASSERT_STR_EQ(statuses.items[1].name, "eth0");
+  ASSERT_INT_EQ((int)statuses.items[1].rx_bytes, 1048576);
+  ASSERT_INT_EQ((int)statuses.items[1].tx_bytes, 2097152);
+
+  for (i = 0; i < statuses.count; i++) {
+    ASSERT_INT_EQ(statuses.items[i].operstate[0] != '\0', 1);
+    ASSERT_INT_EQ(statuses.items[i].carrier[0] != '\0', 1);
+    ASSERT_INT_EQ(statuses.items[i].type[0] != '\0', 1);
+  }
 
   return 0;
 }
@@ -316,6 +352,9 @@ int main(void) {
     return 1;
 
   if (test_network_snapshot_init() != 0)
+    return 1;
+
+  if (test_interface_status_collection() != 0)
     return 1;
 
   if (test_network_sample_buffer() != 0)
