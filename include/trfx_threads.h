@@ -10,6 +10,8 @@
 #ifndef TRFX_THREADS_H
 #define TRFX_THREADS_H
 
+#include "trfx_bandwidth.h"
+
 typedef struct {
   int module_index;
   WINDOW *window;
@@ -30,5 +32,10 @@ void *socket_owner_info_thread(void *arg);
 void *network_info_thread(void *arg);
 
 void *help_info_thread(void *arg);
+
+void trfx_bandwidth_state_init(void);
+int trfx_bandwidth_state_copy(TrfxNetworkSampleBuffer *samples,
+                              TrfxBandwidthReport *report, int *focus_index);
+void trfx_bandwidth_state_move_focus(int delta);
   
 #endif // TRFX_THREADS_H

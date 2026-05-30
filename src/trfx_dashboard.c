@@ -14,12 +14,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "trfx_config.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
+#include "trfx_utils.h"
 
 #define TOTAL_ROWS 3
 #define ROW1_MODULES 4
@@ -228,6 +230,129 @@ WINDOW *create_bordered_window(int height, int width, int y, int x,
 
 static WINDOW *create_plain_window(int height, int width, int y, int x) {
   return newwin(height, width, y, x);
+}
+
+static void format_popup_time(time_t value, char *buf, size_t buf_size) {
+  struct tm tm_value;
+
+  if (!buf || buf_size == 0)
+    return;
+
+  if (localtime_r(&value, &tm_value) == NULL) {
+    snprintf(buf, buf_size, "unknown");
+    return;
+  }
+
+  strftime(buf, buf_size, "%H:%M:%S", &tm_value);
+}
+
+static void show_bandwidth_detail_popup(void) {
+  TrfxNetworkSampleBuffer samples;
+  TrfxBandwidthReport report;
+  int focus_index = 0;
+  int sample_count;
+  int screen_height, screen_width;
+
+  trfx_runtime_set_paused(1);
+
+  if (!trfx_bandwidth_state_copy(&samples, &report, &focus_index))
+    goto out;
+
+  if (report.flow_count <= 0)
+    goto out;
+
+  if (focus_index < 0)
+    focus_index = 0;
+  if (focus_index >= report.flow_count)
+    focus_index = report.flow_count - 1;
+
+  const TrfxBandwidthFlow *flow = &report.flows[focus_index];
+  const char *title = "Bandwidth Detail";
+  char rx[32];
+  char tx[32];
+  char time_line[64];
+  char detail_line[256];
+  char lines[8][256];
+  int line_count = 0;
+
+  trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
+  trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
+
+  snprintf(lines[line_count++], sizeof(lines[0]), "Mode: %s",
+           trfx_bandwidth_mode_name(report.mode));
+  snprintf(lines[line_count++], sizeof(lines[0]), "Source: %s", report.source);
+  snprintf(lines[line_count++], sizeof(lines[0]), "PID: %s | Process: %s",
+           flow->pid[0] ? flow->pid : "-", flow->process[0] ? flow->process : "-");
+  snprintf(lines[line_count++], sizeof(lines[0]), "Proto: %s | %s -> %s",
+           flow->proto[0] ? flow->proto : "-", flow->local[0] ? flow->local : "-",
+           flow->remote[0] ? flow->remote : "-");
+  snprintf(lines[line_count++], sizeof(lines[0]), "Rank: %d/%d | %s",
+           focus_index + 1, report.flow_count,
+           flow->detail[0] ? flow->detail : flow->label);
+  snprintf(lines[line_count++], sizeof(lines[0]), "Bandwidth: rx %s/s | tx %s/s",
+           rx, tx);
+
+  sample_count = (int)trfx_network_sample_buffer_count(&samples);
+  for (int i = sample_count - 1; i >= 0 && line_count < 8; i--) {
+    const TrfxNetworkSample *sample =
+        trfx_network_sample_buffer_at(&samples, (size_t)i);
+    if (!sample)
+      continue;
+
+    format_popup_time(sample->captured_at, time_line, sizeof(time_line));
+    snprintf(detail_line, sizeof(detail_line),
+             "Sample %d: %s | interfaces %d | connections %d | owners %d", i + 1,
+             time_line, sample->snapshot.interfaces.count,
+             sample->snapshot.connection_count,
+             sample->snapshot.socket_owner_count);
+    snprintf(lines[line_count++], sizeof(lines[0]), "%s", detail_line);
+  }
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  int popup_width = (int)strlen(title) + 6;
+  for (int i = 0; i < line_count; i++) {
+    int line_width = (int)strlen(lines[i]) + 4;
+    if (line_width > popup_width)
+      popup_width = line_width;
+  }
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 60)
+    popup_width = 60;
+
+  int popup_height = line_count + 4;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup)
+    goto out;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " %s ", title);
+  wattroff(popup, A_BOLD);
+  for (int i = 0; i < line_count && i < popup_height - 2; i++)
+    trfx_print_clipped(popup, i + 1, 2, lines[i]);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  int ch;
+  while ((ch = getch()) != KEY_ESC && ch != '\n' && ch != KEY_ENTER)
+    ;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+out:
+  trfx_runtime_set_paused(0);
 }
 
 void draw_centered_message(WINDOW *win, const char *message) {
@@ -689,6 +814,25 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     trfx_runtime_request_static_refresh_all();
     if (SHOW_TOP_PANELS)
       refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+    break;
+
+  case 'j':
+  case 'J':
+  case KEY_DOWN:
+    trfx_bandwidth_state_move_focus(1);
+    break;
+
+  case 'k':
+  case 'K':
+  case KEY_UP:
+    trfx_bandwidth_state_move_focus(-1);
+    break;
+
+  case 'd':
+  case 'D':
+  case KEY_ENTER:
+  case 10:
+    show_bandwidth_detail_popup();
     break;
 
   case 'p':

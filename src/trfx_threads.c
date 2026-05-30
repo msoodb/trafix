@@ -36,6 +36,12 @@
 
 SortType current_sort_type = SORT_BY_MEM;
 
+static pthread_mutex_t bandwidth_state_mutex = PTHREAD_MUTEX_INITIALIZER;
+static TrfxNetworkSampleBuffer bandwidth_state_samples;
+static TrfxBandwidthReport bandwidth_state_report;
+static int bandwidth_state_initialized = 0;
+static int bandwidth_focus_index = 0;
+
 static int panel_has_room(int row, int max_lines) {
   return row < max_lines;
 }
@@ -321,9 +327,14 @@ static void render_bandwidth_talkers_summary(
     WINDOW *win, const TrfxBandwidthReport *report, int *row, int line,
     int max_lines) {
   char summary[256];
+  int selected_index;
 
   if (!win || !report || !row)
     return;
+
+  pthread_mutex_lock(&bandwidth_state_mutex);
+  selected_index = bandwidth_focus_index;
+  pthread_mutex_unlock(&bandwidth_state_mutex);
 
   if (!panel_has_room(*row, max_lines))
     return;
@@ -349,16 +360,81 @@ static void render_bandwidth_talkers_summary(
     trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
     trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
 
-    snprintf(linebuf, sizeof(linebuf),
-             "%s %s [%s] %s -> %s | rx %s/s tx %s/s",
-             flow->pid[0] ? flow->pid : "-", flow->process[0] ? flow->process
-                                                             : "-",
+    snprintf(linebuf, sizeof(linebuf), "%c %s %s [%s] %s -> %s | rx %s/s tx %s/s",
+             i == selected_index ? '>' : ' ', flow->pid[0] ? flow->pid : "-",
+             flow->process[0] ? flow->process : "-",
              flow->detail[0] ? flow->detail : flow->label,
              flow->local[0] ? flow->local : "-", flow->remote[0] ? flow->remote
                                                                    : "-",
              rx, tx);
     trfx_print_clipped(win, (*row)++, line, linebuf);
   }
+}
+
+void trfx_bandwidth_state_init(void) {
+  pthread_mutex_lock(&bandwidth_state_mutex);
+  if (!bandwidth_state_initialized) {
+    trfx_init_network_sample_buffer(&bandwidth_state_samples);
+    trfx_init_bandwidth_report(&bandwidth_state_report);
+    bandwidth_state_initialized = 1;
+  }
+  pthread_mutex_unlock(&bandwidth_state_mutex);
+}
+
+static void bandwidth_state_update(const TrfxNetworkSampleBuffer *samples,
+                                   const TrfxBandwidthReport *report) {
+  int visible_count;
+
+  pthread_mutex_lock(&bandwidth_state_mutex);
+  if (samples)
+    bandwidth_state_samples = *samples;
+  if (report)
+    bandwidth_state_report = *report;
+  visible_count = bandwidth_state_report.flow_count < 3
+                      ? bandwidth_state_report.flow_count
+                      : 3;
+  if (visible_count <= 0) {
+    bandwidth_focus_index = 0;
+  } else if (bandwidth_focus_index >= visible_count) {
+    bandwidth_focus_index = visible_count - 1;
+  }
+  pthread_mutex_unlock(&bandwidth_state_mutex);
+}
+
+int trfx_bandwidth_state_copy(TrfxNetworkSampleBuffer *samples,
+                              TrfxBandwidthReport *report, int *focus_index) {
+  int available = 0;
+
+  pthread_mutex_lock(&bandwidth_state_mutex);
+  if (bandwidth_state_initialized) {
+    if (samples)
+      *samples = bandwidth_state_samples;
+    if (report)
+      *report = bandwidth_state_report;
+    if (focus_index)
+      *focus_index = bandwidth_focus_index;
+    available = 1;
+  }
+  pthread_mutex_unlock(&bandwidth_state_mutex);
+
+  return available;
+}
+
+void trfx_bandwidth_state_move_focus(int delta) {
+  int visible_count;
+
+  pthread_mutex_lock(&bandwidth_state_mutex);
+  visible_count = bandwidth_state_report.flow_count < 3
+                      ? bandwidth_state_report.flow_count
+                      : 3;
+  if (visible_count > 0) {
+    bandwidth_focus_index += delta;
+    if (bandwidth_focus_index < 0)
+      bandwidth_focus_index = visible_count - 1;
+    else if (bandwidth_focus_index >= visible_count)
+      bandwidth_focus_index = 0;
+  }
+  pthread_mutex_unlock(&bandwidth_state_mutex);
 }
 
 void wait_until_ready() {
@@ -1026,16 +1102,12 @@ void *network_info_thread(void *arg) {
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
-  static TrfxNetworkSampleBuffer bandwidth_samples;
-  static int bandwidth_samples_initialized = 0;
+  TrfxNetworkSampleBuffer bandwidth_samples;
 
   free(arg);
   wait_until_ready();
-
-  if (!bandwidth_samples_initialized) {
-    trfx_init_network_sample_buffer(&bandwidth_samples);
-    bandwidth_samples_initialized = 1;
-  }
+  trfx_bandwidth_state_init();
+  trfx_init_network_sample_buffer(&bandwidth_samples);
 
   while (!trfx_thread_should_stop(local_stop)) {
 
@@ -1121,6 +1193,7 @@ void *network_info_thread(void *arg) {
     pthread_mutex_unlock(&ncurses_mutex);
 
     free_interfaces_usage(interfaces_usage, num_interfaces);
+    bandwidth_state_update(&bandwidth_samples, &bandwidth_report);
 
     trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
   }
