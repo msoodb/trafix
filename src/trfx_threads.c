@@ -146,6 +146,57 @@ static void format_connection_summary_row(const TrfxConnectionSummary *connectio
            process_width, process_width, connection->process);
 }
 
+static int connection_summary_state_rank(const TrfxConnectionSummary *row) {
+  if (!row)
+    return 100;
+
+  if (strcmp(row->state, "ESTABLISHED") == 0)
+    return 0;
+  if (strcmp(row->state, "LISTEN") == 0 || strcmp(row->state, "UNCONN") == 0)
+    return 1;
+  if (strcmp(row->state, "SYN_SENT") == 0 || strcmp(row->state, "SYN_RECV") == 0)
+    return 2;
+  return 3;
+}
+
+static void render_connection_group_summary(
+    WINDOW *win, const TrfxConnectionSummaryResult *connections, int *row,
+    int line, int max_lines) {
+  int tcp_count = 0;
+  int udp_count = 0;
+  int established_count = 0;
+  int listen_count = 0;
+  int other_count = 0;
+  char summary[256];
+
+  if (!win || !connections || !row)
+    return;
+
+  for (int i = 0; i < connections->count; i++) {
+    const TrfxConnectionSummary *current = &connections->rows[i];
+
+    if (strcmp(current->protocol, "TCP") == 0)
+      tcp_count++;
+    else if (strcmp(current->protocol, "UDP") == 0)
+      udp_count++;
+
+    if (strcmp(current->state, "ESTABLISHED") == 0)
+      established_count++;
+    else if (strcmp(current->state, "LISTEN") == 0 ||
+             strcmp(current->state, "UNCONN") == 0)
+      listen_count++;
+    else
+      other_count++;
+  }
+
+  snprintf(summary, sizeof(summary),
+           "Groups: ESTABLISHED %d | LISTEN/UNCONN %d | Other %d | TCP %d | UDP %d",
+           established_count, listen_count, other_count, tcp_count, udp_count);
+
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+}
+
 static int connection_state_matches(const ConnectionInfo *connection,
                                     const char *state) {
   if (!connection || !state)
@@ -1226,6 +1277,7 @@ void *connection_info_thread(void *arg) {
     mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
     wattroff(win, A_BOLD);
 
+    int y = 3;
     char header[256];
     int panel_width = getmaxx(win);
     int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
@@ -1235,6 +1287,8 @@ void *connection_info_thread(void *arg) {
     char summary[256];
     format_connection_summary(&snapshot, summary, sizeof(summary));
     trfx_print_clipped(win, 1, 2, summary);
+    render_connection_group_summary(win, &connections, &y, 2,
+                                    getmaxy(win) - 1);
     snprintf(header, sizeof(header), "%-6s %-*s %-*s %-13s %-7s %-*s %-7s %-*s",
              "Proto", endpoint_width, "Local", endpoint_width, "Remote",
              "State", "UID", user_width, "User", "PID", process_width,
@@ -1243,7 +1297,6 @@ void *connection_info_thread(void *arg) {
     trfx_print_clipped(win, 2, 2, header);
     wattroff(win, trfx_color_attr(COLOR_HEADER));
 
-    int y = 3;
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(y, getmaxy(win) - 1)) {
       mvwprintw(win, y++, 2, "Connection snapshot: %s", snapshot_error);
@@ -1255,11 +1308,19 @@ void *connection_info_thread(void *arg) {
                                                  : "No connection rows available");
     }
 
+    int previous_rank = -1;
     for (int i = 0; i < connections.count && y < getmaxy(win) - 1; ++i) {
       char line[256];
+      int current_rank = connection_summary_state_rank(&connections.rows[i]);
+
+      if (previous_rank != -1 && current_rank != previous_rank &&
+          panel_has_room(y, getmaxy(win) - 1)) {
+        mvwprintw(win, y++, 2, "----------------------------------------");
+      }
       format_connection_summary_row(&connections.rows[i], panel_width, line,
                                     sizeof(line));
       trfx_print_clipped(win, y++, 2, line);
+      previous_rank = current_rank;
     }
 
     wrefresh(win);
