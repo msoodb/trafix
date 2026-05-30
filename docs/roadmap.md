@@ -3,10 +3,10 @@
 
 # Trafix Roadmap
 
-Trafix is already a working Linux observability TUI and CLI. The next stages
-should turn it into a serious operator tool for understanding, drilling into,
-and acting on network problems without turning the codebase into a pile of
-special cases.
+Trafix is already a working Linux observability TUI and CLI. Phases 8 through
+12 are shipped. The remaining work is now focused on deeper network overview
+refinement and later polish without turning the codebase into a pile of special
+cases.
 
 The roadmap is organized around four goals:
 
@@ -18,50 +18,29 @@ The roadmap is organized around four goals:
 The phase task lists live under `taklists/` and are designed to stay small
 enough to implement, verify, and commit one task at a time.
 
-## Phase 8: Network Observability Foundation
+## Shipped Phases
 
-Build a clearer network-first view of the machine:
+- Phase 8: Network Observability Foundation
+- Phase 9: Socket And Bandwidth Depth
+- Phase 10: Safe Network Actions
+- Phase 11: Diagnostics And Correlation
+- Phase 12: Polish, Automation, And Release Hardening
 
-- normalize interface, route, socket, and listener data
-- make the top-level network picture easier to scan
-- add stable drill-down views for connections and sockets
-- keep narrow-layout rendering clean
+## Phase 13: Network Overview Refinement
 
-## Phase 9: Socket And Bandwidth Depth
+Turn the Network panel into a real operator overview instead of a summary line:
 
-Add the deeper network answers an operator usually asks next:
+- show each interface with state, carrier, addresses, and current rates
+- surface default-route, DNS, and active-interface consistency clearly
+- add totals and live traffic summaries that help answer "what is moving?"
+- keep VPN and tunnel visibility explicit instead of implied
+- preserve clean clipping and fallback states in narrow terminals
 
-- identify top talkers and active flows
-- estimate bandwidth at the socket or process level where the kernel allows it
-- show a focused suspect-connection view
-- preserve a clear fallback when the system cannot expose a measurement
+## Future Phases
 
-## Phase 10: Safe Network Actions
-
-Add controlled intervention paths:
-
-- kill a process from the TUI or CLI when the operator explicitly chooses it
-- close or drop a suspicious socket or connection when the platform allows it
-- require confirmation and permission checks for destructive actions
-- record what action was taken and why
-
-## Phase 11: Diagnostics And Correlation
-
-Make Trafix better at explaining the cause of a network problem:
-
-- pull in logs and recent diagnostics context
-- correlate network symptoms with CPU, memory, and disk pressure
-- surface route, DNS, and interface health clues
-- produce a compact troubleshooting snapshot
-
-## Phase 12: Polish, Automation, And Release Hardening
-
-Make the tool feel complete and maintainable:
-
-- add alerts and thresholds for important states
-- add saved profiles and repeatable operator workflows
-- add performance and regression checks
-- keep packaging, docs, and examples aligned with shipped behavior
+Any later phase numbers will follow the same pattern: ship the code, verify it
+locally, update the docs, and keep the task list small enough to review one
+item at a time.
 
 ## Operating Rule
 
@@ -71,4 +50,3 @@ Do not promote a feature from roadmap to shipped behavior until it has:
 - a local verification path
 - documentation that matches the implementation
 - a task list item that has been completed and reviewed
-
