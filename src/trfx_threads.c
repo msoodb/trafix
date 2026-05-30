@@ -844,11 +844,11 @@ void *connection_info_thread(void *arg) {
     int y = 3;
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(y, getmaxy(win) - 1)) {
-      mvwprintw(win, y++, 2, "Snapshot: %s", snapshot_error);
+      mvwprintw(win, y++, 2, "Connection snapshot: %s", snapshot_error);
     }
 
     if (snapshot.connection_count == 0)
-      trfx_print_empty_state(win, "No TCP/UDP connections visible");
+      trfx_print_empty_state(win, "No connection rows available");
 
     for (int i = 0; i < snapshot.connection_count && y < getmaxy(win) - 1; ++i) {
       char line[256];
@@ -928,7 +928,7 @@ void *socket_owner_info_thread(void *arg) {
 
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(y, getmaxy(win) - 1)) {
-      mvwprintw(win, y++, 2, "Snapshot: %s", snapshot_error);
+      mvwprintw(win, y++, 2, "Socket snapshot: %s", snapshot_error);
     }
 
     if (owned_count == 0) {
@@ -1004,7 +1004,7 @@ void *network_info_thread(void *arg) {
 
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(row, max_lines)) {
-      mvwprintw(win, row++, line, "Snapshot: %s", snapshot_error);
+      mvwprintw(win, row++, line, "Network snapshot: %s", snapshot_error);
     }
 
     if (panel_has_room(row, max_lines))
