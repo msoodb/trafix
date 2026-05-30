@@ -298,16 +298,6 @@ static void render_network_summary(WINDOW *win,
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
-static void hide_top_panel_window(WINDOW *win) {
-  if (!win)
-    return;
-
-  pthread_mutex_lock(&ncurses_mutex);
-  werase(win);
-  wrefresh(win);
-  pthread_mutex_unlock(&ncurses_mutex);
-}
-
 void wait_until_ready() {
   while (!trfx_runtime_is_ready() && !trfx_runtime_should_stop())
     usleep((useconds_t)TUI_READY_CHECK_INTERVAL_MS * 1000);
@@ -324,7 +314,6 @@ void *system_info_thread(void *arg) {
     }
 
     if (!SHOW_TOP_PANELS) {
-      hide_top_panel_window(win);
       trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
       continue;
     }
@@ -383,7 +372,6 @@ void *cpu_info_thread(void *arg) {
     }
 
     if (!SHOW_TOP_PANELS) {
-      hide_top_panel_window(win);
       trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
       continue;
     }
@@ -501,7 +489,6 @@ void *memory_info_thread(void *arg) {
     }
 
     if (!SHOW_TOP_PANELS) {
-      hide_top_panel_window(win);
       trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
       continue;
     }
@@ -582,7 +569,6 @@ void *disk_info_thread(void *arg) {
     }
 
     if (!SHOW_TOP_PANELS) {
-      hide_top_panel_window(win);
       trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
       continue;
     }

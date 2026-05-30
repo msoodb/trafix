@@ -110,18 +110,6 @@ static void draw_small_terminal_message(int screen_height, int screen_width) {
   pthread_mutex_unlock(&ncurses_mutex);
 }
 
-static void clear_top_panels_locked(WINDOW *sys_win, WINDOW *cpu_win,
-                                    WINDOW *mem_win, WINDOW *disk_win) {
-  WINDOW *wins[] = {sys_win, cpu_win, mem_win, disk_win};
-
-  for (int i = 0; i < 4; ++i) {
-    if (!wins[i])
-      continue;
-    werase(wins[i]);
-    wrefresh(wins[i]);
-  }
-}
-
 static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
                                  WINDOW *mem_win, WINDOW *disk_win) {
   int screen_height, screen_width;
@@ -154,8 +142,6 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
     wresize(disk_win, row1_height, row1_widths[3]);
     mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  } else {
-    clear_top_panels_locked(sys_win, cpu_win, mem_win, disk_win);
   }
 
   int x_offset = 0;
@@ -163,12 +149,15 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     if (row2_slots[i].window) {
       wresize(row2_slots[i].window, row2_height, row2_widths[i]);
       mvwin(row2_slots[i].window, row2_y, x_offset);
+      touchwin(row2_slots[i].window);
+      wrefresh(row2_slots[i].window);
     }
     x_offset += row2_widths[i];
   }
   pthread_mutex_unlock(&ncurses_mutex);
 
-  trfx_runtime_request_static_refresh_all();
+  if (SHOW_TOP_PANELS)
+    trfx_runtime_request_static_refresh_all();
   free(row2_widths);
 }
 
@@ -220,10 +209,7 @@ WINDOW *create_bordered_window(int height, int width, int y, int x,
 }
 
 static WINDOW *create_plain_window(int height, int width, int y, int x) {
-  WINDOW *win = newwin(height, width, y, x);
-  if (win)
-    wrefresh(win);
-  return win;
+  return newwin(height, width, y, x);
 }
 
 void draw_centered_message(WINDOW *win, const char *message) {
@@ -600,8 +586,6 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
     wresize(disk_win, row1_height, row1_widths[3]);
     mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  } else {
-    clear_top_panels_locked(sys_win, cpu_win, mem_win, disk_win);
   }
 
   int x_offset = 0;
@@ -609,6 +593,8 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     if (row2_slots[i].window) {
       wresize(row2_slots[i].window, row2_height, row2_widths[i]);
       mvwin(row2_slots[i].window, row2_y, x_offset);
+      touchwin(row2_slots[i].window);
+      wrefresh(row2_slots[i].window);
     }
     x_offset += row2_widths[i];
   }
