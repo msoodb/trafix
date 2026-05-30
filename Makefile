@@ -24,6 +24,7 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_connections \
 	$(BUILD_DIR)/test_netinfo \
 	$(BUILD_DIR)/test_bandwidth \
+	$(BUILD_DIR)/test_performance_guardrails \
 	$(BUILD_DIR)/test_diagnostics \
 	$(BUILD_DIR)/test_actions
 BENCH_BINS = \
@@ -88,6 +89,9 @@ $(BUILD_DIR)/test_netinfo: tests/test_netinfo.c src/trfx_netinfo.c | $(BUILD_DIR
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_bandwidth: tests/test_bandwidth.c src/trfx_bandwidth.c src/trfx_netinfo.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_performance_guardrails: tests/test_performance_guardrails.c src/trfx_bandwidth.c src/trfx_netinfo.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_diagnostics: tests/test_diagnostics.c src/trfx_diagnostics.c src/trfx_config.c src/trfx_netinfo.c src/trfx_sysinfo.c src/trfx_cpu.c src/trfx_meminfo.c src/trfx_disk.c src/trfx_procinfo.c | $(BUILD_DIR)
