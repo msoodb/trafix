@@ -81,11 +81,28 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       .has_state_filter = 0,
       .has_target_pid = 0,
       .has_drop_target = 0,
+      .has_profile = 0,
       .confirmed = 0,
   };
 
   if (argc <= 1) {
     return options;
+  }
+
+  if (argc == 2 && strcmp(argv[1], "--profile") == 0) {
+    options.mode = TRFX_CLI_MODE_INVALID;
+    snprintf(options.error, sizeof(options.error), "profile requires a name");
+    return options;
+  }
+
+  if (argc >= 3 && strcmp(argv[1], "--profile") == 0) {
+    snprintf(options.profile_name, sizeof(options.profile_name), "%s", argv[2]);
+    options.has_profile = 1;
+    if (argc == 3)
+      return options;
+
+    argc -= 2;
+    argv += 2;
   }
 
   if (argc == 2) {
@@ -256,6 +273,7 @@ void trfx_print_cli_help(void) {
   printf("Options:\n");
   printf("  -h, --help       Show this help message\n");
   printf("  -v, --version    Show version information\n");
+  printf("  --profile NAME   Load a saved profile before running\n");
   printf("\n");
   printf("Commands:\n");
   printf("  interfaces       Print interface counters\n");

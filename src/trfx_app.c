@@ -27,9 +27,16 @@
 #include "trfx_netinfo.h"
 #include "trfx_sysinfo.h"
 
-int trfx_run_tui(void) {
+int trfx_run_tui(const TrfxCliOptions *options) {
+  char error[256];
   srand(time(NULL));
-  read_config(CONFIG_FILE);
+  if (!trfx_load_runtime_config(options && options->has_profile
+                                    ? options->profile_name
+                                    : NULL,
+                                error, sizeof(error))) {
+    fprintf(stderr, "trafix: %s\n", error[0] ? error : "failed to load profile");
+    return TRFX_EXIT_ERROR;
+  }
   start_dashboard();
   return TRFX_EXIT_OK;
 }
@@ -96,10 +103,18 @@ int trfx_run_system_command(TrfxCliOutputFormat output_format) {
   return TRFX_EXIT_OK;
 }
 
-int trfx_run_diagnostics_command(void) {
+int trfx_run_diagnostics_command(const TrfxCliOptions *options) {
   TrfxDiagnosticsSnapshot snapshot;
   char error[256];
   TrfxCollectorStatus status;
+
+  if (!trfx_load_runtime_config(options && options->has_profile
+                                    ? options->profile_name
+                                    : NULL,
+                                error, sizeof(error))) {
+    fprintf(stderr, "trafix: %s\n", error[0] ? error : "failed to load profile");
+    return TRFX_EXIT_ERROR;
+  }
 
   status = trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
   if (status != TRFX_COLLECTOR_OK && error[0] != '\0') {

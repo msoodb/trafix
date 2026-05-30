@@ -16,6 +16,7 @@
 #define TRFX_CLI_TARGET_PID_MAX 16
 #define TRFX_CLI_DROP_KIND_MAX 16
 #define TRFX_CLI_ENDPOINT_MAX 64
+#define TRFX_CLI_PROFILE_NAME_MAX 64
 
 typedef enum {
   TRFX_CLI_MODE_TUI = 0,
@@ -56,6 +57,8 @@ typedef struct {
   char drop_proto[TRFX_CLI_PROTO_FILTER_MAX];
   char drop_local[TRFX_CLI_ENDPOINT_MAX];
   char drop_remote[TRFX_CLI_ENDPOINT_MAX];
+  int has_profile;
+  char profile_name[TRFX_CLI_PROFILE_NAME_MAX];
   int confirmed;
   char error[TRFX_CLI_ERROR_MAX];
 } TrfxCliOptions;

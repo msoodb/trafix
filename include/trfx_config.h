@@ -10,6 +10,8 @@
 #ifndef TRFX_CONFIG_H
 #define TRFX_CONFIG_H
 
+#include <stddef.h>
+
 #define CONFIG_FILE "/etc/trafix/config.cfg"
 
 extern int TEMP_WARN_RED;
@@ -26,5 +28,7 @@ extern int TUI_READY_CHECK_INTERVAL_MS;
 extern int TUI_SMALL_PANEL_REFRESH_MS;
 
 void read_config(const char *config_file);
+int trfx_load_runtime_config(const char *profile_name, char *error,
+                             size_t error_size);
 
 #endif

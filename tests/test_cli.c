@@ -67,6 +67,21 @@ static int test_parse_cli(void) {
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_DIAGNOSTICS);
   ASSERT_STR_EQ(options.error, "");
 
+  char *profile_only_argv[] = {"trafix", "--profile", "office"};
+  options = trfx_parse_cli(3, profile_only_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_TUI);
+  ASSERT_INT_EQ(options.has_profile, 1);
+  ASSERT_STR_EQ(options.profile_name, "office");
+  ASSERT_STR_EQ(options.error, "");
+
+  char *profile_diagnostics_argv[] = {"trafix", "--profile", "office",
+                                      "diagnostics"};
+  options = trfx_parse_cli(4, profile_diagnostics_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_DIAGNOSTICS);
+  ASSERT_INT_EQ(options.has_profile, 1);
+  ASSERT_STR_EQ(options.profile_name, "office");
+  ASSERT_STR_EQ(options.error, "");
+
   char *kill_missing_pid_argv[] = {"trafix", "kill"};
   options = trfx_parse_cli(2, kill_missing_pid_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_INVALID);

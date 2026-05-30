@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static int test_read_config(void) {
@@ -74,8 +75,89 @@ static int test_read_config(void) {
   return 0;
 }
 
+static int test_runtime_profile_load(void) {
+  char base_dir[] = "/tmp/trafix-config-XXXXXX";
+  char profile_dir[512];
+  char base_path[512];
+  char profile_path[512];
+  char error[128];
+  FILE *file;
+
+  if (!mkdtemp(base_dir)) {
+    perror("mkdtemp");
+    return 1;
+  }
+
+  snprintf(profile_dir, sizeof(profile_dir), "%s/profiles", base_dir);
+  if (mkdir(profile_dir, 0700) != 0) {
+    perror("mkdir");
+    rmdir(base_dir);
+    return 1;
+  }
+
+  snprintf(base_path, sizeof(base_path), "%s/base.cfg", base_dir);
+  file = fopen(base_path, "w");
+  if (!file) {
+    perror("fopen");
+    rmdir(profile_dir);
+    rmdir(base_dir);
+    return 1;
+  }
+  fputs("TEMP_WARN_RED = 81\n", file);
+  fputs("SHOW_TOP_PANELS = TRUE\n", file);
+  fclose(file);
+
+  if (strlen(profile_dir) + strlen("/work.cfg") + 1 > sizeof(profile_path)) {
+    rmdir(profile_dir);
+    rmdir(base_dir);
+    return 1;
+  }
+  strcpy(profile_path, profile_dir);
+  strcat(profile_path, "/work.cfg");
+  file = fopen(profile_path, "w");
+  if (!file) {
+    perror("fopen");
+    unlink(base_path);
+    rmdir(profile_dir);
+    rmdir(base_dir);
+    return 1;
+  }
+  fputs("ALERT_MEMORY_WARN_PERCENT = 77\n", file);
+  fputs("ALERT_REQUIRE_DNS = FALSE\n", file);
+  fclose(file);
+
+  setenv("TRAFX_CONFIG_FILE", base_path, 1);
+  setenv("TRAFX_PROFILE_DIR", profile_dir, 1);
+
+  TEMP_WARN_RED = 75;
+  SHOW_TOP_PANELS = 0;
+  ALERT_MEMORY_WARN_PERCENT = 90;
+  ALERT_REQUIRE_DNS = 1;
+
+  ASSERT_INT_EQ(trfx_load_runtime_config("work", error, sizeof(error)), 1);
+  ASSERT_INT_EQ(TEMP_WARN_RED, 81);
+  ASSERT_INT_EQ(SHOW_TOP_PANELS, 1);
+  ASSERT_INT_EQ(ALERT_MEMORY_WARN_PERCENT, 77);
+  ASSERT_INT_EQ(ALERT_REQUIRE_DNS, 0);
+
+  ASSERT_INT_EQ(trfx_load_runtime_config("missing", error, sizeof(error)), 0);
+  ASSERT_INT_EQ(strstr(error, "profile not found") != NULL, 1);
+
+  unsetenv("TRAFX_CONFIG_FILE");
+  unsetenv("TRAFX_PROFILE_DIR");
+  unlink(profile_path);
+  unlink(base_path);
+  rmdir(profile_dir);
+  rmdir(base_dir);
+
+  return 0;
+}
+
 int main(void) {
   if (test_read_config() != 0)
+    return 1;
+
+  if (test_runtime_profile_load() != 0)
     return 1;
 
   return 0;

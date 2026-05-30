@@ -162,3 +162,85 @@ void read_config(const char *config_file) {
 
   fclose(file);
 }
+
+static int is_valid_profile_name(const char *profile_name) {
+  if (!profile_name || profile_name[0] == '\0')
+    return 0;
+
+  for (const char *p = profile_name; *p; p++) {
+    if (!(isalnum((unsigned char)*p) || *p == '_' || *p == '-' || *p == '.'))
+      return 0;
+  }
+
+  return 1;
+}
+
+static int build_profile_path(const char *profile_name, char *path,
+                              size_t path_size) {
+  const char *base_dir = getenv("TRAFX_PROFILE_DIR");
+  char resolved_base[512];
+  const char *home;
+  size_t base_len;
+  size_t name_len;
+
+  if (!is_valid_profile_name(profile_name) || !path || path_size == 0)
+    return 0;
+
+  if (!base_dir || base_dir[0] == '\0') {
+    home = getenv("HOME");
+    if (!home || home[0] == '\0')
+      return 0;
+
+    snprintf(resolved_base, sizeof(resolved_base), "%s/.config/trafix/profiles",
+             home);
+    base_dir = resolved_base;
+  }
+
+  base_len = strlen(base_dir);
+  name_len = strlen(profile_name);
+  if (base_len + 1 + name_len + 4 + 1 > path_size)
+    return 0;
+
+  memcpy(path, base_dir, base_len);
+  path[base_len] = '/';
+  memcpy(path + base_len + 1, profile_name, name_len);
+  memcpy(path + base_len + 1 + name_len, ".cfg", 5);
+  return 1;
+}
+
+int trfx_load_runtime_config(const char *profile_name, char *error,
+                             size_t error_size) {
+  char profile_path[512];
+  FILE *fp;
+  const char *base_config = getenv("TRAFX_CONFIG_FILE");
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  if (!base_config || base_config[0] == '\0')
+    base_config = CONFIG_FILE;
+
+  read_config(base_config);
+
+  if (!profile_name || profile_name[0] == '\0')
+    return 1;
+
+  if (!build_profile_path(profile_name, profile_path, sizeof(profile_path))) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size,
+               "invalid profile name or missing profile directory");
+    }
+    return 0;
+  }
+
+  fp = fopen(profile_path, "r");
+  if (!fp) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "profile not found: %s", profile_path);
+    return 0;
+  }
+  fclose(fp);
+
+  read_config(profile_path);
+  return 1;
+}
