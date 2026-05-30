@@ -92,9 +92,9 @@ and render panels:
 - memory usage
 - disk usage
 - active connections
-- network information
+- network overview and interface rates
 - process information
-- socket owners
+- socket inventory drill-down
 
 Collectors currently read from Linux sources such as `/proc`, `/sys`,
 `getifaddrs(3)`, `statvfs(3)`, `uname(2)`, and `utmpx`.
@@ -121,12 +121,14 @@ Shows mounted filesystem usage and totals.
 ### Connections
 
 Shows current TCP/UDP connection rows parsed from `/proc/net/tcp`,
-`/proc/net/udp`, `/proc/net/tcp6`, and `/proc/net/udp6`.
+`/proc/net/udp`, `/proc/net/tcp6`, and `/proc/net/udp6`, plus a compact summary
+grouped by protocol, state, and ownership.
 
 ### Network
 
-Shows default route information, DNS servers, active interface details, optional
-Wi-Fi details, VPN interface detection, and interface-level byte rates.
+Shows a compact top-level network overview with default route information, DNS
+servers, active interface details, optional Wi-Fi details, VPN interface
+detection, and interface-level byte rates.
 
 ### Processes
 
@@ -134,7 +136,8 @@ Shows process data gathered from `ps`.
 
 ### Socket Owners
 
-Shows sockets mapped to owning PID/process where visible from `/proc/*/fd`.
+Shows a socket inventory drill-down focused on owned sockets, PID/process
+context, and local/remote endpoints where visible from `/proc/*/fd`.
 This panel does **not** measure per-socket bandwidth.
 
 ## Bandwidth Scope

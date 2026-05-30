@@ -60,6 +60,18 @@ threading, rendering, keyboard handling, or collectors.
 - Cycle columns again with the top row hidden.
 - Confirm the dashboard remains responsive and borders stay intact.
 
+## Network Views
+
+- Start the TUI.
+- Confirm the Network panel shows a compact route, DNS, active interface, and
+  VPN summary before the interface-rate list.
+- Confirm the Connections panel shows a grouped summary line for protocol,
+  state, and ownership before the table.
+- Confirm the Socket Inventory panel shows owned sockets with UID, PID,
+  process, local, and remote columns.
+- Resize the terminal narrower.
+- Confirm the summary lines clip instead of breaking the border.
+
 ## Pause And Resume
 
 - Press `p`.
@@ -95,6 +107,10 @@ threading, rendering, keyboard handling, or collectors.
 - Run as an unprivileged user.
 - Confirm connections, socket owners, process, and network panels show readable
   headers and clear empty or unavailable states when data cannot be collected.
+- Confirm connection and socket inventory panels report when no visible rows are
+  available instead of leaving a blank framed area.
+- Confirm the network panel reports missing route, DNS, or interface snapshot
+  data clearly when collectors fail or permissions are limited.
 - Confirm no panel shows only a blank bordered box when a collector returns no
   rows.
 
