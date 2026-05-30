@@ -1,0 +1,75 @@
+Phase 10 Task List: Safe Network Actions
+----------------------------------------
+
+Goal
+----
+Let Trafix intervene when the operator chooses to act, while keeping the
+workflow explicit, permission-aware, and recoverable.
+
+Constraints
+-----------
+- No destructive action should run without confirmation.
+- The TUI must clearly show what target is being acted on.
+- Keep every task small enough to validate locally.
+- After every task, run `make` and `make test` locally.
+
+Task 1: Define A Safe Action Model
+-----------------------------------
+Create one internal model for process kill, socket close, and connection drop
+actions.
+
+Acceptance checks:
+- The model records the target and action type clearly.
+- The implementation does not perform the action automatically.
+- Tests can construct and inspect the new action object.
+
+Task 2: Add Confirmation And Permission Checks
+----------------------------------------------
+Require the operator to confirm destructive actions and report permission
+problems before execution.
+
+Acceptance checks:
+- The confirmation step is visible in the TUI.
+- Permission denied states are explicit.
+- Cancelled actions leave no side effects.
+
+Task 3: Add Process Kill From The TUI And CLI
+---------------------------------------------
+Allow the operator to stop a suspect process from the dashboard or a matching
+command-line path.
+
+Acceptance checks:
+- The action targets the selected process only.
+- Invalid process identifiers fail cleanly.
+- The action path does not interfere with normal navigation.
+
+Task 4: Add Connection Or Socket Drop Where Supported
+-----------------------------------------------------
+Allow a controlled close/drop action for suspicious connections or sockets on
+systems that support it.
+
+Acceptance checks:
+- Unsupported systems report a clear fallback.
+- The action is tied to the selected target.
+- The dashboard returns to a sane state after the action.
+
+Task 5: Add Action Audit Feedback
+----------------------------------
+Show what action was requested, whether it succeeded, and why it failed when it
+did.
+
+Acceptance checks:
+- Success and failure states are readable.
+- The feedback does not break the main dashboard.
+- The action trail is visible enough for troubleshooting.
+
+Task 6: Update Docs And Manual Checks
+-------------------------------------
+Document the new management actions and add manual checks for the safety
+workflow.
+
+Acceptance checks:
+- The docs state the permission and confirmation rules.
+- The manual checklist covers a kill/drop scenario.
+- The docs do not overpromise unsupported actions.
+

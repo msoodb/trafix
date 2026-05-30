@@ -1,0 +1,74 @@
+Phase 12 Task List: Polish, Automation, And Release Hardening
+-------------------------------------------------------------
+
+Goal
+----
+Make Trafix feel complete: configurable alerts, repeatable workflows,
+performance guardrails, and release documentation that matches the shipped
+tool.
+
+Constraints
+-----------
+- Keep the tool stable and small where possible.
+- Do not let polish work hide functional regressions.
+- Keep every task small enough to verify locally.
+- After every task, run `make` and `make test` locally.
+
+Task 1: Add Configurable Alerts
+-------------------------------
+Let the operator define thresholds for important network and system states.
+
+Acceptance checks:
+- Alerts are configurable from the existing config file.
+- Alerts do not fire for unsupported metrics.
+- Alert text is clear and concise.
+
+Task 2: Add Saved Profiles
+--------------------------
+Allow repeatable operator setups for different hosts or usage patterns.
+
+Acceptance checks:
+- Profiles load predictably.
+- The default profile remains unchanged.
+- Missing profile files fail clearly.
+
+Task 3: Add Performance Guardrails
+-----------------------------------
+Measure refresh cost and catch regressions before they make the dashboard feel
+slow.
+
+Acceptance checks:
+- The checks run locally.
+- The results are easy to interpret.
+- The guardrails do not require root.
+
+Task 4: Add Release And Packaging Polish
+----------------------------------------
+Keep packaging, install paths, and release notes aligned with the shipped
+behavior.
+
+Acceptance checks:
+- The docs match the packaged payload.
+- The release notes are current.
+- Install and uninstall behavior remain correct.
+
+Task 5: Add A Compact Operator Guide
+------------------------------------
+Document the main workflows an operator will actually use: observe, drill down,
+act, and diagnose.
+
+Acceptance checks:
+- The guide is short and task-focused.
+- The examples match the current CLI and TUI behavior.
+- The guide avoids promising unfinished features.
+
+Task 6: Final Consistency Review
+---------------------------------
+Review the shipped feature set against the roadmap and remove any mismatch
+between code, docs, and packaging.
+
+Acceptance checks:
+- The shipped behavior is documented accurately.
+- Roadmap items are clearly marked as future work.
+- The repo remains buildable and testable after the review.
+

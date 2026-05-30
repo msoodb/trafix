@@ -1,0 +1,74 @@
+Phase 11 Task List: Diagnostics And Correlation
+-----------------------------------------------
+
+Goal
+----
+Make Trafix explain network trouble by correlating logs, routes, DNS, and
+system pressure with the active network state.
+
+Constraints
+-----------
+- Keep diagnostics readable in text mode.
+- Prefer local sources first and optional external tools second.
+- Keep every task small enough to test on its own.
+- After every task, run `make` and `make test` locally.
+
+Task 1: Add A Diagnostics Data Hub
+-----------------------------------
+Centralize the diagnostic sources so the TUI can read logs, routes, DNS, and
+system metrics through one consistent layer.
+
+Acceptance checks:
+- The hub has a stable internal API.
+- Existing collectors still work.
+- Missing sources fail gracefully.
+
+Task 2: Add A Log View
+----------------------
+Surface recent system or kernel log lines that are relevant to a network issue.
+
+Acceptance checks:
+- The view has a clear fallback when logs are unavailable.
+- It does not block the UI.
+- Long lines are clipped safely.
+
+Task 3: Add Route And DNS Checks
+--------------------------------
+Show route and DNS diagnostics in a compact view that helps explain reachability
+problems.
+
+Acceptance checks:
+- Default route and resolver data are visible.
+- Missing route or DNS data is called out clearly.
+- The panel stays readable in narrow layouts.
+
+Task 4: Add Network Health Correlation
+--------------------------------------
+Correlate network symptoms with CPU, memory, disk, and process pressure so the
+operator can see whether the problem is local or external.
+
+Acceptance checks:
+- The correlation view stays compact.
+- Missing system metrics fall back cleanly.
+- The view does not duplicate unrelated raw panels.
+
+Task 5: Add A Troubleshooting Snapshot Export
+---------------------------------------------
+Produce a compact snapshot that can be copied into an issue, bug report, or
+support request.
+
+Acceptance checks:
+- The export is text-first and readable.
+- The snapshot includes the active diagnostic context.
+- The export path is testable locally.
+
+Task 6: Update Docs And Manual Checks
+-------------------------------------
+Document the diagnostic views and add manual checks for the troubleshooting
+workflow.
+
+Acceptance checks:
+- The docs explain what the diagnostics use as input.
+- The manual checklist covers a log-and-route failure case.
+- The shipped behavior and docs match.
+

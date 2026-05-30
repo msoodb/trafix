@@ -1,0 +1,72 @@
+Phase 8 Task List: Network Observability Foundation
+---------------------------------------------------
+
+Goal
+----
+Make the network view feel first-class: clear inventory, clean drill-downs,
+and stable rendering for interfaces, routes, sockets, and listeners.
+
+Constraints
+-----------
+- Do not add destructive actions in this phase.
+- Keep every task small enough to build and test on its own.
+- Keep narrow-layout rendering clean.
+- After every task, run `make` and `make test` locally.
+
+Task 1: Define A Normalized Network Snapshot
+--------------------------------------------
+Create a single internal shape for interface, route, socket, and listener data
+that the UI can reuse.
+
+Acceptance checks:
+- The new structure is read from one place.
+- Existing network panels can keep using their current collectors.
+- The build and tests still pass after the refactor.
+
+Task 2: Add A Compact Network Overview Panel
+--------------------------------------------
+Show the operator the top-level network picture in one compact panel.
+
+Acceptance checks:
+- The panel shows interface and route summary data.
+- DNS and VPN clues remain readable.
+- The panel fits the existing layout without breaking borders.
+
+Task 3: Add A Socket Inventory Drill-Down
+-----------------------------------------
+Show socket ownership and endpoint data in a more focused view.
+
+Acceptance checks:
+- The view lists local and remote endpoints when available.
+- PID, UID, and process data stay aligned.
+- Long values are clipped safely.
+
+Task 4: Add Connection Summary Grouping
+---------------------------------------
+Group connections by protocol, state, or ownership so the operator can scan
+active flows quickly.
+
+Acceptance checks:
+- The grouping does not change the raw connection collector.
+- The summary remains stable in narrow layouts.
+- IPv4 and IPv6 data both remain readable.
+
+Task 5: Add Network-Focused Empty States
+----------------------------------------
+Make empty or permission-limited network panels explain themselves clearly.
+
+Acceptance checks:
+- Empty panels do not look broken or blank.
+- Permission limits show a clear message.
+- The behavior is consistent across network-related views.
+
+Task 6: Update Docs And Manual Checks
+--------------------------------------
+Document the new network overview and drill-down views, then add manual checks
+for them.
+
+Acceptance checks:
+- The README and technical docs mention the new network views.
+- The manual checklist covers the new behavior.
+- Documentation stays aligned with the shipped TUI.
+

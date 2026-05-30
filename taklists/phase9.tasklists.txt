@@ -1,0 +1,74 @@
+Phase 9 Task List: Socket And Bandwidth Depth
+---------------------------------------------
+
+Goal
+----
+Make Trafix answer the harder network questions: who is talking, how much, and
+what changed over time.
+
+Constraints
+-----------
+- Keep any accounting fallback visible when the kernel cannot provide data.
+- Do not add destructive actions yet.
+- Keep the implementation testable without privileged access where possible.
+- After every task, run `make` and `make test` locally.
+
+Task 1: Add A Time-Sampled Stats Buffer
+---------------------------------------
+Store short-lived samples for network and socket activity so the UI can show a
+recent trend instead of only a current snapshot.
+
+Acceptance checks:
+- The buffer does not leak memory.
+- The existing panels still render with no sample history.
+- Tests cover the new sample storage behavior.
+
+Task 2: Add Per-Socket Or Per-Process Bandwidth Accounting
+----------------------------------------------------------
+Introduce a backend that reports bandwidth at socket or process granularity
+when the platform supports it, with a clear fallback otherwise.
+
+Acceptance checks:
+- The feature exposes supported and unsupported states clearly.
+- The current interface-level bandwidth reporting still works.
+- The fallback does not crash the TUI.
+
+Task 3: Add Top-Talker Summaries
+--------------------------------
+Show the most active sockets and processes in a compact summary view.
+
+Acceptance checks:
+- The view can sort by current activity.
+- Long names and addresses stay clipped.
+- The summary remains useful in narrow terminals.
+
+Task 4: Add A Suspect-Connection Detail View
+--------------------------------------------
+Let an operator focus on one connection or socket and inspect its nearby
+metadata, history, and ownership.
+
+Acceptance checks:
+- The detail view opens from a selected row.
+- The selected item stays visible and understandable.
+- Closing the detail view returns cleanly to the previous panel.
+
+Task 5: Add Trend And History Rendering
+---------------------------------------
+Display short trends for the newest network samples so sudden changes are easy
+to notice.
+
+Acceptance checks:
+- Trends do not break the existing text layout.
+- Missing samples render as a clear fallback.
+- The dashboard remains responsive while trends update.
+
+Task 6: Update Docs And Manual Checks
+-------------------------------------
+Document the new bandwidth and drill-down behavior, then extend the manual
+checklist to cover it.
+
+Acceptance checks:
+- The docs explain what is measured and what is still a fallback.
+- The checklist covers the new activity views.
+- The shipped behavior and the docs match.
+

@@ -8,6 +8,8 @@ This document is a roadmap of possible monitoring areas. It is not a list of
 features currently implemented in Trafix.
 
 For current behavior, see `docs/trafix_technical_doc.md`.
+For the execution roadmap and phase task lists, see `docs/roadmap.md` and
+`taklists/`.
 
 1. System Overview
     Hostname
