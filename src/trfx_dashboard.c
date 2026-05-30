@@ -419,6 +419,7 @@ void show_hotkeys_popup(void) {
       "[z] Drop Connection",
       "[a] Action Audit",
       "[g] Diagnostics",
+      "[n] Route/DNS Checks",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -559,6 +560,103 @@ void show_diagnostics_popup(void) {
   }
 
   trfx_print_clipped(popup, popup_height - 2, 2, footer);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
+}
+
+static void show_route_dns_popup(void) {
+  TrfxDiagnosticsSnapshot snapshot;
+  char error[256];
+  char route_line[256];
+  char dns_line[256];
+  char active_line[256];
+  char footer[] = "Press Enter, Esc, or q to close.";
+  int screen_height, screen_width;
+  int popup_width = 88;
+  int popup_height = 9;
+  WINDOW *popup;
+
+  trfx_runtime_set_paused(1);
+  trfx_init_diagnostics_snapshot(&snapshot);
+  trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 68)
+    popup_width = 68;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  if (snapshot.network.route.has_default) {
+    snprintf(route_line, sizeof(route_line), "Route: default via %s dev %s metric %s",
+             snapshot.network.route.gateway, snapshot.network.route.interface,
+             snapshot.network.route.metric);
+  } else {
+    snprintf(route_line, sizeof(route_line), "Route: unavailable");
+  }
+
+  if (snapshot.network.dns.count > 0) {
+    char dns_body[192] = "";
+    for (int i = 0; i < snapshot.network.dns.count; i++) {
+      if (i > 0)
+        strncat(dns_body, ", ", sizeof(dns_body) - strlen(dns_body) - 1);
+      strncat(dns_body, snapshot.network.dns.servers[i],
+              sizeof(dns_body) - strlen(dns_body) - 1);
+    }
+    snprintf(dns_line, sizeof(dns_line), "DNS: %s", dns_body);
+  } else {
+    snprintf(dns_line, sizeof(dns_line), "DNS: unavailable");
+  }
+
+  if (snapshot.network.has_active_interface) {
+    snprintf(active_line, sizeof(active_line),
+             "Active: %s %s %s%s%s", snapshot.network.active_interface,
+             snapshot.network.active_type,
+             snapshot.network.active_ip[0] ? snapshot.network.active_ip : "N/A",
+             snapshot.network.active_ssid[0] ? " | SSID " : "",
+             snapshot.network.active_ssid[0] ? snapshot.network.active_ssid : "");
+  } else {
+    snprintf(active_line, sizeof(active_line), "Active: unavailable");
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " Route And DNS Checks ");
+  wattroff(popup, A_BOLD);
+  trfx_print_clipped(popup, 1, 2, route_line);
+  trfx_print_clipped(popup, 2, 2, dns_line);
+  trfx_print_clipped(popup, 3, 2, active_line);
+  trfx_print_clipped(popup, 5, 2, footer);
+  if (error[0] != '\0')
+    trfx_print_clipped(popup, 6, 2, error);
   wrefresh(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
@@ -1478,6 +1576,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'g':
   case 'G':
     show_diagnostics_popup();
+    break;
+
+  case 'n':
+  case 'N':
+    show_route_dns_popup();
     break;
 
   case 'p':
