@@ -218,10 +218,14 @@ void trfx_print_system_json(FILE *out, const SystemOverview *overview) {
 
 void trfx_print_diagnostics_text(FILE *out,
                                  const TrfxDiagnosticsSnapshot *snapshot) {
+  TrfxAlertSummary alerts;
   size_t log_count;
 
   if (!out || !snapshot)
     return;
+
+  trfx_init_alert_summary(&alerts);
+  trfx_collect_diagnostics_alerts(snapshot, &alerts);
 
   fprintf(out, "SYSTEM\n");
   fprintf(out, "HOSTNAME          %s\n", snapshot->system.hostname);
@@ -277,6 +281,19 @@ void trfx_print_diagnostics_text(FILE *out,
           snapshot->processes.count,
           snapshot->processes.count > 0 ? snapshot->processes.processes[0].command
                                         : "unavailable");
+  fprintf(out, "\n");
+
+  fprintf(out, "ALERTS\n");
+  if (trfx_diagnostics_alert_count(&alerts) == 0) {
+    fprintf(out, "  none\n");
+  } else {
+    for (size_t i = 0; i < trfx_diagnostics_alert_count(&alerts); i++) {
+      const char *alert = trfx_diagnostics_alert_at(&alerts, i);
+      if (!alert)
+        continue;
+      fprintf(out, "  %s\n", alert);
+    }
+  }
   fprintf(out, "\n");
 
   fprintf(out, "LOGS\n");

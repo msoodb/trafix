@@ -14,6 +14,10 @@
 
 extern int TEMP_WARN_RED;
 extern int TEMP_WARN_YELLOW;
+extern int ALERT_MEMORY_WARN_PERCENT;
+extern int ALERT_DISK_WARN_PERCENT;
+extern int ALERT_REQUIRE_DEFAULT_ROUTE;
+extern int ALERT_REQUIRE_DNS;
 extern int ROW2_MODULES;
 extern int SHOW_TOP_PANELS;
 extern int TUI_REFRESH_INTERVAL_MS;

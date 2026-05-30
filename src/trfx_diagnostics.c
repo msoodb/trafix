@@ -8,6 +8,7 @@
  */
 
 #include "trfx_diagnostics.h"
+#include "trfx_config.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -53,6 +54,26 @@ static void diagnostics_log_snapshot_add(TrfxDiagnosticsLogSnapshot *snapshot,
            "%s", source_name && source_name[0] ? source_name : "logs");
   snprintf(snapshot->lines[slot].text, sizeof(snapshot->lines[slot].text),
            "%.255s", line);
+}
+
+static void diagnostics_alert_summary_reset(TrfxAlertSummary *summary) {
+  if (!summary)
+    return;
+
+  memset(summary, 0, sizeof(*summary));
+}
+
+static void diagnostics_alert_summary_add(TrfxAlertSummary *summary,
+                                          const char *line) {
+  if (!summary || !line || line[0] == '\0')
+    return;
+
+  if (summary->count >= TRFX_DIAGNOSTICS_MAX_ALERTS)
+    return;
+
+  snprintf(summary->lines[summary->count], sizeof(summary->lines[summary->count]),
+           "%.127s", line);
+  summary->count++;
 }
 
 static TrfxCollectorStatus diagnostics_collect_log_file(FILE *fp,
@@ -163,6 +184,10 @@ void trfx_init_diagnostics_snapshot(TrfxDiagnosticsSnapshot *snapshot) {
   snapshot->status = TRFX_COLLECTOR_PARSE_FAILED;
 }
 
+void trfx_init_alert_summary(TrfxAlertSummary *summary) {
+  diagnostics_alert_summary_reset(summary);
+}
+
 const TrfxDiagnosticsLogLine *trfx_diagnostics_log_at(
     const TrfxDiagnosticsLogSnapshot *snapshot, size_t index) {
   if (!snapshot || index >= (size_t)snapshot->count)
@@ -176,6 +201,70 @@ size_t trfx_diagnostics_log_count(const TrfxDiagnosticsLogSnapshot *snapshot) {
     return 0;
 
   return (size_t)snapshot->count;
+}
+
+const char *trfx_diagnostics_alert_at(const TrfxAlertSummary *summary,
+                                      size_t index) {
+  if (!summary || index >= (size_t)summary->count)
+    return NULL;
+
+  return summary->lines[index];
+}
+
+size_t trfx_diagnostics_alert_count(const TrfxAlertSummary *summary) {
+  if (!summary)
+    return 0;
+
+  return (size_t)summary->count;
+}
+
+void trfx_collect_diagnostics_alerts(const TrfxDiagnosticsSnapshot *snapshot,
+                                     TrfxAlertSummary *summary) {
+  double disk_usage_percent;
+
+  if (!snapshot || !summary)
+    return;
+
+  diagnostics_alert_summary_reset(summary);
+
+  if (snapshot->cpu.temperature >= 0.0f &&
+      snapshot->cpu.temperature >= (float)TEMP_WARN_RED) {
+    char line[128];
+    snprintf(line, sizeof(line), "CPU temperature high: %.1fC >= %dC",
+             snapshot->cpu.temperature, TEMP_WARN_RED);
+    diagnostics_alert_summary_add(summary, line);
+  }
+
+  if (snapshot->memory.total_ram > 0 &&
+      snapshot->memory.mem_percent >= (float)ALERT_MEMORY_WARN_PERCENT) {
+    char line[128];
+    snprintf(line, sizeof(line), "Memory pressure high: %.1f%% >= %d%%",
+             snapshot->memory.mem_percent, ALERT_MEMORY_WARN_PERCENT);
+    diagnostics_alert_summary_add(summary, line);
+  }
+
+  if (snapshot->disk_count > 0 && snapshot->disk_total_mb > 0.0 &&
+      ALERT_DISK_WARN_PERCENT > 0) {
+    disk_usage_percent =
+        (snapshot->disk_total_used_mb / snapshot->disk_total_mb) * 100.0;
+    if (disk_usage_percent >= (double)ALERT_DISK_WARN_PERCENT) {
+      char line[128];
+      snprintf(line, sizeof(line), "Disk pressure high: %.1f%% >= %d%%",
+               disk_usage_percent, ALERT_DISK_WARN_PERCENT);
+      diagnostics_alert_summary_add(summary, line);
+    }
+  }
+
+  if (ALERT_REQUIRE_DEFAULT_ROUTE &&
+      snapshot->network.route_status == TRFX_COLLECTOR_OK &&
+      !snapshot->network.route.has_default) {
+    diagnostics_alert_summary_add(summary, "Default route missing");
+  }
+
+  if (ALERT_REQUIRE_DNS && snapshot->network.dns_status == TRFX_COLLECTOR_OK &&
+      snapshot->network.dns.count == 0) {
+    diagnostics_alert_summary_add(summary, "DNS servers missing");
+  }
 }
 
 TrfxCollectorStatus trfx_collect_diagnostics_log_path(

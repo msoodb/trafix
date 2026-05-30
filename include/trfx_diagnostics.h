@@ -20,11 +20,17 @@
 #include "trfx_sysinfo.h"
 
 #define TRFX_DIAGNOSTICS_MAX_LOG_LINES 12
+#define TRFX_DIAGNOSTICS_MAX_ALERTS 8
 
 typedef struct {
   char source[32];
   char text[256];
 } TrfxDiagnosticsLogLine;
+
+typedef struct {
+  int count;
+  char lines[TRFX_DIAGNOSTICS_MAX_ALERTS][128];
+} TrfxAlertSummary;
 
 typedef struct {
   TrfxCollectorStatus status;
@@ -49,9 +55,15 @@ typedef struct {
 
 void trfx_init_diagnostics_log_snapshot(TrfxDiagnosticsLogSnapshot *snapshot);
 void trfx_init_diagnostics_snapshot(TrfxDiagnosticsSnapshot *snapshot);
+void trfx_init_alert_summary(TrfxAlertSummary *summary);
 const TrfxDiagnosticsLogLine *trfx_diagnostics_log_at(
     const TrfxDiagnosticsLogSnapshot *snapshot, size_t index);
 size_t trfx_diagnostics_log_count(const TrfxDiagnosticsLogSnapshot *snapshot);
+const char *trfx_diagnostics_alert_at(const TrfxAlertSummary *summary,
+                                      size_t index);
+size_t trfx_diagnostics_alert_count(const TrfxAlertSummary *summary);
+void trfx_collect_diagnostics_alerts(const TrfxDiagnosticsSnapshot *snapshot,
+                                    TrfxAlertSummary *summary);
 TrfxCollectorStatus trfx_collect_diagnostics_log_path(
     const char *path, const char *source_name,
     TrfxDiagnosticsLogSnapshot *snapshot, char *error, size_t error_size);

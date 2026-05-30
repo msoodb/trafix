@@ -217,6 +217,8 @@ static int test_diagnostics_text_snapshot(void) {
   ASSERT_INT_EQ(strstr(output, "SYSTEM") != NULL, 1);
   ASSERT_INT_EQ(strstr(output, "NETWORK") != NULL, 1);
   ASSERT_INT_EQ(strstr(output, "PRESSURE") != NULL, 1);
+  ASSERT_INT_EQ(strstr(output, "ALERTS") != NULL, 1);
+  ASSERT_INT_EQ(strstr(output, "none") != NULL, 1);
   ASSERT_INT_EQ(strstr(output, "LOGS") != NULL, 1);
   ASSERT_INT_EQ(strstr(output, "trafix-test") != NULL, 1);
   ASSERT_INT_EQ(strstr(output, "1.1.1.1, 8.8.8.8") != NULL, 1);

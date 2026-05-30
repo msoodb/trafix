@@ -75,6 +75,42 @@ static int test_diagnostics_snapshot_collect(void) {
   return 0;
 }
 
+static int test_diagnostics_alerts(void) {
+  TrfxDiagnosticsSnapshot snapshot;
+  TrfxAlertSummary alerts;
+
+  trfx_init_diagnostics_snapshot(&snapshot);
+  snapshot.cpu.temperature = 82.0f;
+  snapshot.memory.total_ram = 8192;
+  snapshot.memory.mem_percent = 91.0f;
+  snapshot.disk_count = 1;
+  snapshot.disk_total_used_mb = 950.0;
+  snapshot.disk_total_mb = 1000.0;
+  snapshot.network.route_status = TRFX_COLLECTOR_OK;
+  snapshot.network.dns_status = TRFX_COLLECTOR_OK;
+  snapshot.network.route.has_default = 0;
+  snapshot.network.dns.count = 0;
+
+  trfx_init_alert_summary(&alerts);
+  trfx_collect_diagnostics_alerts(&snapshot, &alerts);
+
+  ASSERT_INT_EQ(trfx_diagnostics_alert_count(&alerts) >= 4, 1);
+  ASSERT_INT_EQ(strstr(trfx_diagnostics_alert_at(&alerts, 0),
+                       "CPU temperature high") != NULL,
+                1);
+  ASSERT_INT_EQ(strstr(trfx_diagnostics_alert_at(&alerts, 1),
+                       "Memory pressure high") != NULL,
+                1);
+  ASSERT_INT_EQ(strstr(trfx_diagnostics_alert_at(&alerts, 2),
+                       "Disk pressure high") != NULL,
+                1);
+  ASSERT_INT_EQ(strstr(trfx_diagnostics_alert_at(&alerts, 3),
+                       "Default route missing") != NULL,
+                1);
+
+  return 0;
+}
+
 int main(void) {
   if (test_diagnostics_log_path() != 0)
     return 1;
@@ -83,6 +119,9 @@ int main(void) {
     return 1;
 
   if (test_diagnostics_snapshot_collect() != 0)
+    return 1;
+
+  if (test_diagnostics_alerts() != 0)
     return 1;
 
   return 0;

@@ -490,8 +490,10 @@ void show_hotkeys_popup(void) {
 
 void show_diagnostics_popup(void) {
   TrfxDiagnosticsSnapshot snapshot;
+  TrfxAlertSummary alerts;
   TrfxCollectorStatus status;
   char error[256];
+  char alerts_line[384];
   int screen_height, screen_width;
   int popup_width = 104;
   int visible_lines;
@@ -505,10 +507,30 @@ void show_diagnostics_popup(void) {
 
   trfx_runtime_set_paused(1);
   trfx_init_diagnostics_snapshot(&snapshot);
+  trfx_init_alert_summary(&alerts);
   status = trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+  trfx_collect_diagnostics_alerts(&snapshot, &alerts);
+
+  snprintf(alerts_line, sizeof(alerts_line), "Alerts: ");
+  if (trfx_diagnostics_alert_count(&alerts) == 0) {
+    strncat(alerts_line, "none", sizeof(alerts_line) - strlen(alerts_line) - 1);
+  } else {
+    for (size_t i = 0; i < trfx_diagnostics_alert_count(&alerts); i++) {
+      const char *alert = trfx_diagnostics_alert_at(&alerts, i);
+      if (!alert)
+        continue;
+      if (i > 0)
+        strncat(alerts_line, "; ",
+                sizeof(alerts_line) - strlen(alerts_line) - 1);
+      strncat(alerts_line, alert,
+              sizeof(alerts_line) - strlen(alerts_line) - 1);
+    }
+  }
 
   getmaxyx(stdscr, screen_height, screen_width);
-  visible_lines = screen_height - 6;
+  visible_lines = screen_height - 7;
+  if (status != TRFX_COLLECTOR_OK && error[0] != '\0')
+    visible_lines--;
   if (visible_lines < 1)
     visible_lines = 1;
 
@@ -518,6 +540,8 @@ void show_diagnostics_popup(void) {
     popup_width = 72;
 
   int popup_height = visible_lines + 4;
+  if (status != TRFX_COLLECTOR_OK && error[0] != '\0')
+    popup_height++;
   if (popup_height > screen_height - 2)
     popup_height = screen_height - 2;
   int popup_y = (screen_height - popup_height) / 2;
@@ -540,8 +564,16 @@ void show_diagnostics_popup(void) {
 
   if (status != TRFX_COLLECTOR_OK && error[0] != '\0') {
     trfx_print_clipped(popup, 1, 2, error);
-  } else if (trfx_diagnostics_log_count(&snapshot.logs) == 0) {
-    trfx_print_clipped(popup, 1, 2, "No readable log lines available.");
+    trfx_print_clipped(popup, 2, 2, alerts_line);
+  } else {
+    trfx_print_clipped(popup, 1, 2, alerts_line);
+  }
+
+  if (trfx_diagnostics_log_count(&snapshot.logs) == 0) {
+    trfx_print_clipped(popup, status != TRFX_COLLECTOR_OK && error[0] != '\0'
+                                 ? 3
+                                 : 2,
+                       2, "No readable log lines available.");
   } else {
     now = time(NULL);
     format_popup_time(now, time_text, sizeof(time_text));
@@ -556,7 +588,9 @@ void show_diagnostics_popup(void) {
 
       snprintf(line, sizeof(line), "[%s] %s | %s", entry->source,
                time_text, entry->text);
-      trfx_print_clipped(popup, i + 1, 2, line);
+      trfx_print_clipped(popup,
+                         i + (status != TRFX_COLLECTOR_OK && error[0] != '\0' ? 3 : 2),
+                         2, line);
     }
   }
 

@@ -33,6 +33,10 @@ static int test_read_config(void) {
   fputs("# test config\n", file);
   fputs("TEMP_WARN_YELLOW = 42\n", file);
   fputs("TEMP_WARN_RED = 84\n", file);
+  fputs("ALERT_MEMORY_WARN_PERCENT = 88\n", file);
+  fputs("ALERT_DISK_WARN_PERCENT = 89\n", file);
+  fputs("ALERT_REQUIRE_DEFAULT_ROUTE = FALSE\n", file);
+  fputs("ALERT_REQUIRE_DNS = 0\n", file);
   fputs("ROW2_MODULES = 2\n", file);
   fputs("TUI_REFRESH_INTERVAL_MS = 750\n", file);
   fputs("TUI_PAUSE_INTERVAL_MS = 75\n", file);
@@ -42,6 +46,10 @@ static int test_read_config(void) {
 
   TEMP_WARN_YELLOW = 50;
   TEMP_WARN_RED = 75;
+  ALERT_MEMORY_WARN_PERCENT = 90;
+  ALERT_DISK_WARN_PERCENT = 90;
+  ALERT_REQUIRE_DEFAULT_ROUTE = 1;
+  ALERT_REQUIRE_DNS = 1;
   ROW2_MODULES = 3;
   TUI_REFRESH_INTERVAL_MS = 1000;
   TUI_PAUSE_INTERVAL_MS = 100;
@@ -53,6 +61,10 @@ static int test_read_config(void) {
 
   ASSERT_INT_EQ(TEMP_WARN_YELLOW, 42);
   ASSERT_INT_EQ(TEMP_WARN_RED, 84);
+  ASSERT_INT_EQ(ALERT_MEMORY_WARN_PERCENT, 88);
+  ASSERT_INT_EQ(ALERT_DISK_WARN_PERCENT, 89);
+  ASSERT_INT_EQ(ALERT_REQUIRE_DEFAULT_ROUTE, 0);
+  ASSERT_INT_EQ(ALERT_REQUIRE_DNS, 0);
   ASSERT_INT_EQ(ROW2_MODULES, 2);
   ASSERT_INT_EQ(TUI_REFRESH_INTERVAL_MS, 750);
   ASSERT_INT_EQ(TUI_PAUSE_INTERVAL_MS, 75);

@@ -16,6 +16,10 @@
 
 int TEMP_WARN_YELLOW = 50;
 int TEMP_WARN_RED = 75;
+int ALERT_MEMORY_WARN_PERCENT = 90;
+int ALERT_DISK_WARN_PERCENT = 90;
+int ALERT_REQUIRE_DEFAULT_ROUTE = 1;
+int ALERT_REQUIRE_DNS = 1;
 int ROW2_MODULES = 3;
 int SHOW_TOP_PANELS = 1;
 int TUI_REFRESH_INTERVAL_MS = 1000;
@@ -63,21 +67,21 @@ static int parse_bool(const char *value, int default_value, const char *name,
 
 static void trim_whitespace(char *str) {
   char *end;
+  char *start = str;
 
-  // Trim leading space
-  while (isspace((unsigned char)*str))
-    str++;
+  while (isspace((unsigned char)*start))
+    start++;
 
-  // All spaces?
+  if (start != str)
+    memmove(str, start, strlen(start) + 1);
+
   if (*str == 0)
     return;
 
-  // Trim trailing space
   end = str + strlen(str) - 1;
   while (end > str && isspace((unsigned char)*end))
     end--;
 
-  // Write new null terminator
   *(end + 1) = 0;
 }
 
@@ -117,6 +121,16 @@ void read_config(const char *config_file) {
       TEMP_WARN_YELLOW = atoi(value);
     } else if (strcmp(key, "TEMP_WARN_RED") == 0) {
       TEMP_WARN_RED = atoi(value);
+    } else if (strcmp(key, "ALERT_MEMORY_WARN_PERCENT") == 0) {
+      ALERT_MEMORY_WARN_PERCENT =
+          parse_bounded_int(value, 90, 1, 100, key, line_num);
+    } else if (strcmp(key, "ALERT_DISK_WARN_PERCENT") == 0) {
+      ALERT_DISK_WARN_PERCENT =
+          parse_bounded_int(value, 90, 1, 100, key, line_num);
+    } else if (strcmp(key, "ALERT_REQUIRE_DEFAULT_ROUTE") == 0) {
+      ALERT_REQUIRE_DEFAULT_ROUTE = parse_bool(value, 1, key, line_num);
+    } else if (strcmp(key, "ALERT_REQUIRE_DNS") == 0) {
+      ALERT_REQUIRE_DNS = parse_bool(value, 1, key, line_num);
     } else if (strcmp(key, "ROW2_MODULES") == 0) {
       ROW2_MODULES = atoi(value);
       if (ROW2_MODULES < 1 || ROW2_MODULES > 3) {
