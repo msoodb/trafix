@@ -827,3 +827,47 @@ TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
     *snapshot = local_snapshot;
     return final_status;
 }
+
+void trfx_init_network_sample_buffer(TrfxNetworkSampleBuffer *buffer) {
+    if (!buffer)
+        return;
+
+    memset(buffer, 0, sizeof(*buffer));
+}
+
+void trfx_network_sample_buffer_push(TrfxNetworkSampleBuffer *buffer,
+                                     const TrfxNetworkSnapshot *snapshot,
+                                     time_t captured_at) {
+    size_t slot;
+
+    if (!buffer || !snapshot)
+        return;
+
+    slot = (buffer->head + buffer->count) % TRFX_NETWORK_SAMPLE_HISTORY;
+    buffer->samples[slot].captured_at = captured_at;
+    buffer->samples[slot].snapshot = *snapshot;
+
+    if (buffer->count < TRFX_NETWORK_SAMPLE_HISTORY) {
+        buffer->count++;
+    } else {
+        buffer->head = (buffer->head + 1) % TRFX_NETWORK_SAMPLE_HISTORY;
+    }
+}
+
+size_t trfx_network_sample_buffer_count(const TrfxNetworkSampleBuffer *buffer) {
+    if (!buffer)
+        return 0;
+
+    return buffer->count;
+}
+
+const TrfxNetworkSample *trfx_network_sample_buffer_at(
+    const TrfxNetworkSampleBuffer *buffer, size_t index) {
+    size_t slot;
+
+    if (!buffer || index >= buffer->count)
+        return NULL;
+
+    slot = (buffer->head + index) % TRFX_NETWORK_SAMPLE_HISTORY;
+    return &buffer->samples[slot];
+}

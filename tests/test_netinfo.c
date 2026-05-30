@@ -231,6 +231,49 @@ static int test_network_snapshot_init(void) {
   return 0;
 }
 
+static int test_network_sample_buffer(void) {
+  TrfxNetworkSampleBuffer buffer;
+  TrfxNetworkSnapshot snapshot;
+
+  trfx_init_network_sample_buffer(&buffer);
+  ASSERT_INT_EQ((int)trfx_network_sample_buffer_count(&buffer), 0);
+
+  trfx_init_network_snapshot(&snapshot);
+  snapshot.connection_count = 1;
+  snprintf(snapshot.connections[0].protocol,
+           sizeof(snapshot.connections[0].protocol), "TCP");
+
+  for (int i = 0; i < TRFX_NETWORK_SAMPLE_HISTORY + 2; i++) {
+    snapshot.connection_count = i + 1;
+    trfx_network_sample_buffer_push(&buffer, &snapshot, (time_t)i);
+  }
+
+  ASSERT_INT_EQ((int)trfx_network_sample_buffer_count(&buffer),
+                TRFX_NETWORK_SAMPLE_HISTORY);
+
+  const TrfxNetworkSample *first = trfx_network_sample_buffer_at(&buffer, 0);
+  const TrfxNetworkSample *last =
+      trfx_network_sample_buffer_at(&buffer,
+                                     trfx_network_sample_buffer_count(&buffer) - 1);
+  if (!first || !last) {
+    fprintf(stderr, "%s:%d: expected populated samples\n", __FILE__,
+            __LINE__);
+    return 1;
+  }
+  ASSERT_INT_EQ((int)first->captured_at, 2);
+  ASSERT_INT_EQ((int)last->captured_at, TRFX_NETWORK_SAMPLE_HISTORY + 1);
+  ASSERT_INT_EQ(last->snapshot.connection_count,
+                TRFX_NETWORK_SAMPLE_HISTORY + 2);
+
+  if (trfx_network_sample_buffer_at(&buffer, 99) != NULL) {
+    fprintf(stderr, "%s:%d: expected NULL for out-of-range sample\n",
+            __FILE__, __LINE__);
+    return 1;
+  }
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -273,6 +316,9 @@ int main(void) {
     return 1;
 
   if (test_network_snapshot_init() != 0)
+    return 1;
+
+  if (test_network_sample_buffer() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)

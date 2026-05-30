@@ -11,12 +11,14 @@
 #define TRFX_NETINFO_H
 
 #include <stdio.h>
+#include <time.h>
 
 #include "trfx_connections.h"
 #include "trfx_socket_owners.h"
 
 #define TRFX_MAX_INTERFACES 20
 #define TRFX_MAX_DNS_SERVERS 10
+#define TRFX_NETWORK_SAMPLE_HISTORY 12
 
 typedef struct {
     char name[32];
@@ -80,6 +82,17 @@ typedef struct {
     SocketOwnerInfo socket_owners[MAX_SOCKET_OWNERS];
 } TrfxNetworkSnapshot;
 
+typedef struct {
+    time_t captured_at;
+    TrfxNetworkSnapshot snapshot;
+} TrfxNetworkSample;
+
+typedef struct {
+    size_t count;
+    size_t head;
+    TrfxNetworkSample samples[TRFX_NETWORK_SAMPLE_HISTORY];
+} TrfxNetworkSampleBuffer;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 int trfx_is_valid_interface_name(const char *ifname);
@@ -103,6 +116,13 @@ void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot);
 TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
                                                   char *error,
                                                   size_t error_size);
+void trfx_init_network_sample_buffer(TrfxNetworkSampleBuffer *buffer);
+void trfx_network_sample_buffer_push(TrfxNetworkSampleBuffer *buffer,
+                                     const TrfxNetworkSnapshot *snapshot,
+                                     time_t captured_at);
+size_t trfx_network_sample_buffer_count(const TrfxNetworkSampleBuffer *buffer);
+const TrfxNetworkSample *trfx_network_sample_buffer_at(
+    const TrfxNetworkSampleBuffer *buffer, size_t index);
 void get_default_gateway_and_metric(char *gateway, char *metric);
 void get_routing_table_summary(char *routing_table);
 const char *generate_random_interface_name();
