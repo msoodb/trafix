@@ -27,7 +27,8 @@ read-only commands:
 - Unknown arguments fail clearly and do not launch the TUI.
 
 Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
-`H`. The popup is dismissed with `Esc`, `Enter`, or `q`.
+`H`. The popup lists the keys with short descriptions and is dismissed with
+`Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
 The `g` key opens the troubleshooting diagnostics popup.

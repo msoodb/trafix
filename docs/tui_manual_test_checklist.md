@@ -45,7 +45,8 @@ threading, rendering, keyboard handling, or collectors.
 - Start the TUI.
 - Press `F1`, `h`, and `H`.
 - Confirm the hotkey popup opens from each key.
-- Confirm the popup lists `g`, `n`, and `v` alongside the existing controls.
+- Confirm the popup lists the keys with short descriptions, including `g`,
+  `n`, and `v`.
 - Press `Esc`.
 - Confirm the popup closes immediately and returns to the dashboard.
 - Resize the terminal while the popup is open.

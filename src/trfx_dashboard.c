@@ -410,22 +410,26 @@ void refresh_static_windows(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 void show_hotkeys_popup(void) {
   trfx_runtime_set_paused(1);
 
-  static const char *hotkeys[] = {
-      "[1-3] Switch Panel",
-      "[s] Sort Processes",
-      "[r] Refresh",
-      "[c] Columns",
-      "[x] Kill Process",
-      "[z] Drop Connection",
-      "[a] Action Audit",
-      "[g] Diagnostics",
-      "[n] Route/DNS Checks",
-      "[v] Network Health",
-      "[t] Toggle Top Panels",
-      "[p] Pause",
-      "[h] Help",
-      "[q] Quit",
-      "Press ESC or Enter to close.",
+  typedef struct {
+    const char *key;
+    const char *description;
+  } HotkeyHelpRow;
+
+  static const HotkeyHelpRow hotkeys[] = {
+      {"[1-3]", "Switch the second-row panel set"},
+      {"[s]", "Change the process sort order"},
+      {"[r]", "Refresh all panels immediately"},
+      {"[c]", "Cycle the available column layouts"},
+      {"[x]", "Open the controlled process kill flow"},
+      {"[z]", "Open the controlled connection drop flow"},
+      {"[a]", "Show the recent action audit trail"},
+      {"[g]", "Open the troubleshooting snapshot"},
+      {"[n]", "Inspect route and DNS health"},
+      {"[v]", "Review network and system pressure"},
+      {"[t]", "Show or hide the top system panels"},
+      {"[p]", "Pause or resume live updates"},
+      {"[h]", "Open this help popup"},
+      {"[q]", "Quit Trafix"},
   };
   const int hotkey_count = (int)(sizeof(hotkeys) / sizeof(hotkeys[0]));
 
@@ -433,17 +437,18 @@ void show_hotkeys_popup(void) {
   getmaxyx(stdscr, screen_height, screen_width);
 
   const char *title = "Hotkeys";
-  int popup_height = hotkey_count + 4;
-  int popup_width = (int)strlen(title) + 6;
+  const int key_col_width = 8;
+  int popup_height = hotkey_count + 5;
+  int popup_width = (int)strlen(title) + 8;
   for (int i = 0; i < hotkey_count; ++i) {
-    int line_width = (int)strlen(hotkeys[i]) + 4;
+    int line_width = key_col_width + (int)strlen(hotkeys[i].description) + 6;
     if (line_width > popup_width)
       popup_width = line_width;
   }
   if (popup_width > screen_width - 4)
     popup_width = screen_width - 4;
-  if (popup_width < 28)
-    popup_width = 28;
+  if (popup_width < 54)
+    popup_width = 54;
 
   int popup_y = (screen_height - popup_height) / 2;
   int popup_x = (screen_width - popup_width) / 2;
@@ -463,9 +468,16 @@ void show_hotkeys_popup(void) {
   wattron(popup, trfx_color_attr(COLOR_BORDER));
   box(popup, 0, 0);
   wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
   mvwprintw(popup, 1, 2, "%s", title);
+  wattroff(popup, A_BOLD);
+  mvwprintw(popup, 2, 2, "%-7s %s", "Key", "Description");
   for (int i = 0; i < hotkey_count; ++i)
-    mvwprintw(popup, i + 2, 2, "%s", hotkeys[i]);
+    mvwprintw(popup, i + 3, 2, "%-7s", hotkeys[i].key);
+  for (int i = 0; i < hotkey_count; ++i)
+    trfx_print_clipped(popup, i + 3, 11, hotkeys[i].description);
+  trfx_print_clipped(popup, popup_height - 2, 2,
+                     "Press Esc, Enter, or q to close.");
   wrefresh(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
