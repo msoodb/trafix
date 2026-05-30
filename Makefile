@@ -145,7 +145,7 @@ rpm: copy-spec
 	rpmbuild -ba $(SPECDIR)/trafix.spec
 
 # Installation
-install: install-bin install-man install-config install-doc
+install: install-bin install-man install-config
 
 install-bin:
 	install -D -m 0755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/trafix
@@ -171,7 +171,6 @@ uninstall:
 	rm -f $(DESTDIR)$(MANDIR)/man1/trafix.1
 	rm -f $(DESTDIR)$(SYSCONFDIR)/trafix/config.cfg
 	rmdir -p --ignore-fail-on-non-empty $(DESTDIR)$(SYSCONFDIR)/trafix 2>/dev/null || true
-	rm -rf $(DESTDIR)$(DOCDIR)
 
 # Clean build files
 clean:

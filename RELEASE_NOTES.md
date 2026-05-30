@@ -7,7 +7,10 @@ short, accurate, and tied to the tagged version.
 
 - Maintenance release with CI, packaging, install/uninstall, and documentation
   cleanup.
-- Aligns the shipped docs and release workflow with the current codebase.
+- The default source install now matches the RPM payload: binary, man page, and
+  config only.
+- Long-form Markdown docs remain in the repository instead of the installed
+  payload.
 
 ## 0.1.0
 
