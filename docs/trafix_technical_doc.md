@@ -30,11 +30,23 @@ The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
 In the Network panel, `j` and `k` move the selected top talker, and `d` or
 `Enter` opens a detail popup for the selected flow.
+The `x` key opens a process chooser and requests a kill after confirmation.
+The `z` key opens a connection chooser and requests a drop where supported.
+The `a` key opens the recent action audit popup.
 
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
 top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
+
+Action handling is intentionally conservative:
+
+- the TUI asks for confirmation before kill or drop actions run
+- the CLI requires explicit `--yes` for non-interactive action requests
+- permission failures are reported clearly before or during execution
+- unsupported connection or socket drops fail cleanly instead of pretending
+  to succeed
+- recent action outcomes are recorded in a small audit trail for debugging
 
 ## Build Dependencies
 

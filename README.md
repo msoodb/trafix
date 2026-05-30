@@ -123,6 +123,14 @@ trafix connections --proto tcp
 trafix connections --state ESTABLISHED
 ```
 
+Request a process kill or socket drop from the CLI:
+
+```sh
+trafix kill 1234 --yes
+trafix drop connection tcp 127.0.0.1:8080 10.0.0.2:443 --yes
+trafix drop socket udp 0.0.0.0:53 0.0.0.0:0 --yes
+```
+
 Print local listeners:
 
 ```sh
@@ -138,6 +146,9 @@ trafix system --json
 ```
 
 CLI commands use text output by default. Use `--json` when integrating Trafix with scripts or other tools.
+Destructive actions require confirmation. The TUI always asks before a kill or
+drop action runs. The CLI requires `--yes` for non-interactive execution and
+reports permission or unsupported-target failures explicitly.
 
 ### Install from Fedora Repository
 > This installation method is under development and not yet ready for use.
@@ -172,6 +183,9 @@ For release and regression checks, use the manual TUI checklist in
 - `[d]`, `[Enter]` — **Bandwidth Detail:** Open the selected top-talker detail popup.
 - `[j]`, `[k]` — **Move Selection:** Move the selected top talker up or down.
 - `[Esc]`, `[Enter]`, `[q]` — **Close Popup:** Dismiss the hotkey popup.
+- `[x]` — **Kill Process:** Open a process chooser and confirm a kill action.
+- `[z]` — **Drop Connection:** Open a connection chooser and confirm a drop action where supported.
+- `[a]` — **Action Audit:** Show the recent action trail popup.
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.

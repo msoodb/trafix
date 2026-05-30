@@ -40,6 +40,15 @@ The popup closes with
 or
 .BR q .
 The
+.B x
+key opens a process chooser and requests a kill after confirmation.
+The
+.B z
+key opens a connection chooser and requests a drop where supported.
+The
+.B a
+key opens the recent action audit popup.
+The
 .BR t
 key toggles the top system, CPU, memory, and disk panels.
 In the Network panel, the selected top talker can be moved with
@@ -95,6 +104,20 @@ output by connection state, such as
 .B ESTABLISHED
 or
 .BR LISTEN .
+.TP
+.B kill
+Request a process kill from the CLI. The command requires a PID and accepts
+.B --yes
+to skip interactive confirmation.
+.TP
+.B drop
+Request a connection or socket drop from the CLI. Supported forms are
+.B drop connection
+and
+.B drop socket
+with protocol and endpoints, plus
+.B --yes
+for non-interactive execution.
 .SH EXIT STATUS
 .TP
 .B 0

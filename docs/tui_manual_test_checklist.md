@@ -62,6 +62,25 @@ threading, rendering, keyboard handling, or collectors.
 - Run in an environment with no meaningful ownership data.
 - Confirm the top talker area shows an explicit fallback instead of crashing.
 
+## Action Workflow
+
+- Start the TUI and open the hotkey popup.
+- Confirm the popup lists `x`, `z`, and `a` alongside the existing controls.
+- Press `x`.
+- Confirm the process chooser opens, the selected process is visible, and the
+  confirmation step appears before any action runs.
+- Cancel the action.
+- Confirm the dashboard remains intact and the audit popup records the
+  cancellation.
+- Press `z`.
+- Confirm the connection chooser opens with a readable target list.
+- Confirm the confirmation step appears and unsupported targets fail cleanly
+  instead of crashing or claiming success.
+- Press `a`.
+- Confirm the audit popup shows the recent action trail with readable status
+  and message fields.
+- Confirm the audit popup closes cleanly and returns to the dashboard.
+
 ## Top Panels Toggle
 
 - Start the TUI with `SHOW_TOP_PANELS = TRUE`.
