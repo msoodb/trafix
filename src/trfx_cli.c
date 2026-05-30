@@ -35,6 +35,11 @@ static int is_command(const char *arg, TrfxCliMode *mode) {
     return 1;
   }
 
+  if (strcmp(arg, "drop") == 0) {
+    *mode = TRFX_CLI_MODE_DROP;
+    return 1;
+  }
+
   if (strcmp(arg, "kill") == 0) {
     *mode = TRFX_CLI_MODE_KILL;
     return 1;
@@ -64,8 +69,15 @@ static void set_unknown_argument(TrfxCliOptions *options, const char *arg) {
 }
 
 TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
-  TrfxCliOptions options = {TRFX_CLI_MODE_TUI, TRFX_CLI_OUTPUT_TEXT,
-                            0, {0}, 0, {0}, 0, {0}, 0, {0}};
+  TrfxCliOptions options = {
+      .mode = TRFX_CLI_MODE_TUI,
+      .output_format = TRFX_CLI_OUTPUT_TEXT,
+      .has_proto_filter = 0,
+      .has_state_filter = 0,
+      .has_target_pid = 0,
+      .has_drop_target = 0,
+      .confirmed = 0,
+  };
 
   if (argc <= 1) {
     return options;
@@ -90,6 +102,13 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
       return options;
     }
 
+    if (strcmp(arg, "drop") == 0) {
+      options.mode = TRFX_CLI_MODE_INVALID;
+      snprintf(options.error, sizeof(options.error),
+               "drop requires a target type and endpoints");
+      return options;
+    }
+
     if (is_command(arg, &options.mode)) {
       return options;
     }
@@ -101,6 +120,39 @@ TrfxCliOptions trfx_parse_cli(int argc, char **argv) {
     options.has_target_pid = 1;
 
     for (int i = 3; i < argc; i++) {
+      if (strcmp(argv[i], "--yes") == 0 || strcmp(argv[i], "-y") == 0) {
+        options.confirmed = 1;
+      } else {
+        set_unknown_argument(&options, argv[i]);
+        return options;
+      }
+    }
+
+    return options;
+  }
+
+  if (argc >= 6 && strcmp(argv[1], "drop") == 0) {
+    options.mode = TRFX_CLI_MODE_DROP;
+    snprintf(options.drop_kind, sizeof(options.drop_kind), "%s", argv[2]);
+    if (strcmp(argv[3], "tcp") == 0 || strcmp(argv[3], "TCP") == 0) {
+      snprintf(options.drop_proto, sizeof(options.drop_proto), "TCP");
+    } else if (strcmp(argv[3], "udp") == 0 || strcmp(argv[3], "UDP") == 0) {
+      snprintf(options.drop_proto, sizeof(options.drop_proto), "UDP");
+    } else {
+      set_unknown_argument(&options, argv[3]);
+      return options;
+    }
+    snprintf(options.drop_local, sizeof(options.drop_local), "%s", argv[4]);
+    snprintf(options.drop_remote, sizeof(options.drop_remote), "%s", argv[5]);
+    options.has_drop_target = 1;
+
+    if (strcmp(options.drop_kind, "connection") != 0 &&
+        strcmp(options.drop_kind, "socket") != 0) {
+      set_unknown_argument(&options, options.drop_kind);
+      return options;
+    }
+
+    for (int i = 6; i < argc; i++) {
       if (strcmp(argv[i], "--yes") == 0 || strcmp(argv[i], "-y") == 0) {
         options.confirmed = 1;
       } else {
@@ -201,6 +253,7 @@ void trfx_print_cli_help(void) {
   printf("  listeners        Print listening sockets\n");
   printf("  system           Print system overview\n");
   printf("  kill PID         Request a controlled process kill\n");
+  printf("  drop TYPE ...    Request a controlled socket drop\n");
 }
 
 void trfx_print_cli_version(void) {

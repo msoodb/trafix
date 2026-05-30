@@ -19,6 +19,7 @@
 #include "trfx_config.h"
 #include "trfx_actions.h"
 #include "trfx_globals.h"
+#include "trfx_connections.h"
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
@@ -413,6 +414,7 @@ void show_hotkeys_popup(void) {
       "[r] Refresh",
       "[c] Columns",
       "[x] Kill Process",
+      "[z] Drop Connection",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -717,6 +719,110 @@ static void handle_process_kill_action(void) {
   result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
                                        error, sizeof(error));
   show_action_feedback_popup("Kill Process", result.message);
+}
+
+static int select_connection_for_drop(ConnectionInfo *selected) {
+  ConnectionInfo connections[MAX_CONNECTIONS];
+  int count = get_connection_info(connections, MAX_CONNECTIONS);
+  int visible_count = count < 8 ? count : 8;
+  int selected_index = 0;
+  int screen_height, screen_width;
+
+  if (!selected)
+    return 0;
+
+  if (count <= 0) {
+    show_action_feedback_popup("Drop Connection", "No connections available");
+    return 0;
+  }
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  int popup_height = visible_count + 5;
+  int popup_width = 108;
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 72)
+    popup_width = 72;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup)
+    return 0;
+
+  keypad(popup, TRUE);
+  while (1) {
+    pthread_mutex_lock(&ncurses_mutex);
+    werase(popup);
+    wattron(popup, trfx_color_attr(COLOR_BORDER));
+    box(popup, 0, 0);
+    wattroff(popup, trfx_color_attr(COLOR_BORDER));
+    wattron(popup, A_BOLD);
+    mvwprintw(popup, 0, 2, " Select Connection To Drop ");
+    wattroff(popup, A_BOLD);
+    mvwprintw(popup, 1, 2, "%-6s %-22s %-22s %-12s %-7s %-16s", "PROTO",
+              "LOCAL", "REMOTE", "STATE", "PID", "PROCESS");
+    for (int i = 0; i < visible_count; i++) {
+      int row = i + 2;
+      if (i == selected_index)
+        wattron(popup, A_REVERSE);
+      mvwprintw(popup, row, 2, "%-6.6s %-22.22s %-22.22s %-12.12s %-7.7s %-16.16s",
+                connections[i].protocol, connections[i].local_addr,
+                connections[i].remote_addr, connections[i].state,
+                connections[i].pid, connections[i].process);
+      if (i == selected_index)
+        wattroff(popup, A_REVERSE);
+    }
+    trfx_print_clipped(popup, popup_height - 2, 2,
+                       "Enter to confirm, Esc to cancel.");
+    wrefresh(popup);
+    pthread_mutex_unlock(&ncurses_mutex);
+
+    int ch = wgetch(popup);
+    if (ch == KEY_UP) {
+      selected_index = (selected_index - 1 + visible_count) % visible_count;
+    } else if (ch == KEY_DOWN) {
+      selected_index = (selected_index + 1) % visible_count;
+    } else if (ch == KEY_ENTER || ch == '\n' || ch == 10) {
+      *selected = connections[selected_index];
+      break;
+    } else if (ch == KEY_ESC || ch == 'q' || ch == 'Q') {
+      memset(selected, 0, sizeof(*selected));
+      return 0;
+    }
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  return 1;
+}
+
+static void handle_connection_drop_action(void) {
+  ConnectionInfo target;
+  TrfxActionRequest request;
+  TrfxActionReview review;
+  TrfxActionResult result;
+  char error[256];
+
+  memset(&target, 0, sizeof(target));
+  if (!select_connection_for_drop(&target))
+    return;
+
+  trfx_action_request_set_connection_drop(&request, &target);
+  trfx_prepare_action_review(&review, &request, (unsigned int)geteuid(), 0, 1);
+  if (!show_action_review_popup(&review))
+    return;
+
+  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+                                       error, sizeof(error));
+  show_action_feedback_popup("Drop Connection", result.message);
 }
 
 int select_module() {
@@ -1079,6 +1185,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'x':
   case 'X':
     handle_process_kill_action();
+    break;
+
+  case 'z':
+  case 'Z':
+    handle_connection_drop_action();
     break;
 
   case 'p':

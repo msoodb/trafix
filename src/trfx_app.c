@@ -22,6 +22,7 @@
 #include "trfx_connections.h"
 #include "trfx_dashboard.h"
 #include "trfx_procinfo.h"
+#include "trfx_socket_owners.h"
 #include "trfx_netinfo.h"
 #include "trfx_sysinfo.h"
 
@@ -110,6 +111,26 @@ static int prompt_confirm_action(const TrfxActionReview *review) {
   return ch == 'y' || ch == 'Y';
 }
 
+static int connection_matches_drop_target(const ConnectionInfo *connection,
+                                         const TrfxCliOptions *options) {
+  if (!connection || !options)
+    return 0;
+
+  return strcmp(connection->protocol, options->drop_proto) == 0 &&
+         strcmp(connection->local_addr, options->drop_local) == 0 &&
+         strcmp(connection->remote_addr, options->drop_remote) == 0;
+}
+
+static int socket_matches_drop_target(const SocketOwnerInfo *socket_owner,
+                                      const TrfxCliOptions *options) {
+  if (!socket_owner || !options)
+    return 0;
+
+  return strcmp(socket_owner->proto, options->drop_proto) == 0 &&
+         strcmp(socket_owner->laddr, options->drop_local) == 0 &&
+         strcmp(socket_owner->raddr, options->drop_remote) == 0;
+}
+
 int trfx_run_kill_command(const TrfxCliOptions *options) {
   TrfxActionRequest request;
   TrfxActionReview review;
@@ -150,6 +171,74 @@ int trfx_run_kill_command(const TrfxCliOptions *options) {
   if (!confirmed) {
     if (!isatty(STDIN_FILENO)) {
       fprintf(stderr, "trafix: confirmation required for kill command\n");
+      return TRFX_EXIT_ERROR;
+    }
+    confirmed = prompt_confirm_action(&review);
+  }
+
+  result = trfx_execute_action_request(&request, confirmed,
+                                       (unsigned int)geteuid(), error,
+                                       sizeof(error));
+
+  fprintf(stderr, "trafix: %s\n",
+          result.message[0] ? result.message : "action completed");
+
+  if (result.status == TRFX_ACTION_RESULT_OK)
+    return TRFX_EXIT_OK;
+  if (result.status == TRFX_ACTION_RESULT_NOT_FOUND)
+    return TRFX_EXIT_DATA_UNAVAILABLE;
+  return TRFX_EXIT_ERROR;
+}
+
+int trfx_run_drop_command(const TrfxCliOptions *options) {
+  TrfxActionRequest request;
+  TrfxActionReview review;
+  TrfxActionResult result;
+  char error[256];
+  int confirmed;
+  int found = 0;
+
+  if (!options || !options->has_drop_target) {
+    fprintf(stderr, "trafix: drop requires a target type and endpoints\n");
+    return TRFX_EXIT_ERROR;
+  }
+
+  trfx_init_action_request(&request);
+  if (strcmp(options->drop_kind, "connection") == 0) {
+    ConnectionInfo connections[MAX_CONNECTIONS];
+    int count = get_connection_info(connections, MAX_CONNECTIONS);
+
+    for (int i = 0; i < count; i++) {
+      if (connection_matches_drop_target(&connections[i], options)) {
+        trfx_action_request_set_connection_drop(&request, &connections[i]);
+        found = 1;
+        break;
+      }
+    }
+  } else if (strcmp(options->drop_kind, "socket") == 0) {
+    SocketOwnerInfo sockets[MAX_SOCKET_OWNERS];
+    int count = get_socket_owner_info(sockets, MAX_SOCKET_OWNERS);
+
+    for (int i = 0; i < count; i++) {
+      if (socket_matches_drop_target(&sockets[i], options)) {
+        trfx_action_request_set_socket_drop(&request, &sockets[i]);
+        found = 1;
+        break;
+      }
+    }
+  }
+
+  if (!found) {
+    fprintf(stderr, "trafix: target not found\n");
+    return TRFX_EXIT_DATA_UNAVAILABLE;
+  }
+
+  trfx_prepare_action_review(&review, &request, (unsigned int)geteuid(), 0, 1);
+
+  confirmed = options->confirmed;
+  if (!confirmed) {
+    if (!isatty(STDIN_FILENO)) {
+      fprintf(stderr, "trafix: confirmation required for drop command\n");
       return TRFX_EXIT_ERROR;
     }
     confirmed = prompt_confirm_action(&review);

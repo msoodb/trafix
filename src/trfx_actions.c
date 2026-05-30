@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static void set_string(char *dest, size_t dest_size, const char *value) {
@@ -57,6 +58,123 @@ static int lookup_process_uid_file(FILE *fp, unsigned int *uid) {
       *uid = real_uid;
       return 1;
     }
+  }
+
+  return 0;
+}
+
+static int split_endpoint(const char *endpoint, char *host, size_t host_size,
+                          char *port, size_t port_size) {
+  const char *colon;
+  const char *end;
+  size_t host_len;
+
+  if (!endpoint || !host || !port || host_size == 0 || port_size == 0)
+    return 0;
+
+  if (endpoint[0] == '[') {
+    end = strchr(endpoint, ']');
+    if (!end || end[1] != ':')
+      return 0;
+    host_len = (size_t)(end - endpoint - 1);
+    if (host_len == 0 || host_len >= host_size)
+      return 0;
+    memcpy(host, endpoint + 1, host_len);
+    host[host_len] = '\0';
+    snprintf(port, port_size, "%s", end + 2);
+    return port[0] != '\0';
+  }
+
+  colon = strrchr(endpoint, ':');
+  if (!colon)
+    return 0;
+
+  host_len = (size_t)(colon - endpoint);
+  if (host_len == 0 || host_len >= host_size)
+    return 0;
+  memcpy(host, endpoint, host_len);
+  host[host_len] = '\0';
+  snprintf(port, port_size, "%s", colon + 1);
+  return port[0] != '\0';
+}
+
+static int run_ss_drop_action(const TrfxActionRequest *request, char *error,
+                              size_t error_size) {
+  char local_host[64];
+  char local_port[8];
+  char remote_host[64];
+  char remote_port[8];
+  const char *argv[16];
+  pid_t child;
+  int status;
+  int argc = 0;
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  if (!request) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "invalid argument");
+    return 0;
+  }
+
+  if (!split_endpoint(request->target.local, local_host, sizeof(local_host),
+                      local_port, sizeof(local_port)) ||
+      !split_endpoint(request->target.remote, remote_host,
+                      sizeof(remote_host), remote_port, sizeof(remote_port))) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "connection endpoints unavailable");
+    return 0;
+  }
+
+  argv[argc++] = "ss";
+  argv[argc++] = "-K";
+  if (strcmp(request->target.protocol, "UDP") == 0) {
+    argv[argc++] = "udp";
+  } else {
+    argv[argc++] = "tcp";
+  }
+  if (local_host[0] != '\0' && local_port[0] != '\0') {
+    argv[argc++] = "src";
+    argv[argc++] = local_host;
+    argv[argc++] = "sport";
+    argv[argc++] = local_port;
+  }
+  if (remote_host[0] != '\0' && remote_port[0] != '\0') {
+    argv[argc++] = "dst";
+    argv[argc++] = remote_host;
+    argv[argc++] = "dport";
+    argv[argc++] = remote_port;
+  }
+  argv[argc] = NULL;
+
+  child = fork();
+  if (child == 0) {
+    execvp("ss", (char *const *)argv);
+    _exit(errno == ENOENT ? 127 : 126);
+  }
+
+  if (child < 0) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "failed to launch ss: %s", strerror(errno));
+    return 0;
+  }
+
+  if (waitpid(child, &status, 0) < 0) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "failed to wait for ss: %s",
+               strerror(errno));
+    return 0;
+  }
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+    return 1;
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "ss is not installed");
+  } else if (error && error_size > 0) {
+    snprintf(error, error_size, "ss could not drop the selected target");
   }
 
   return 0;
@@ -386,68 +504,104 @@ TrfxActionResult trfx_execute_action_request(const TrfxActionRequest *request,
     return result;
   }
 
-  if (request->kind != TRFX_ACTION_KIND_KILL_PROCESS) {
-    result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
-    snprintf(result.message, sizeof(result.message),
-             "%s is not supported yet", trfx_action_kind_name(request->kind));
-    if (error && error_size > 0)
-      snprintf(error, error_size, "%s", result.message);
-    return result;
-  }
+  if (request->kind == TRFX_ACTION_KIND_KILL_PROCESS) {
+    if (!parse_pid_value(request->target.pid, &pid_value)) {
+      result.status = TRFX_ACTION_RESULT_INVALID;
+      snprintf(result.message, sizeof(result.message),
+               "invalid process id: %s",
+               request->target.pid[0] ? request->target.pid : "-");
+      if (error && error_size > 0)
+        snprintf(error, error_size, "%s", result.message);
+      return result;
+    }
 
-  if (!parse_pid_value(request->target.pid, &pid_value)) {
-    result.status = TRFX_ACTION_RESULT_INVALID;
-    snprintf(result.message, sizeof(result.message),
-             "invalid process id: %s",
-             request->target.pid[0] ? request->target.pid : "-");
-    if (error && error_size > 0)
-      snprintf(error, error_size, "%s", result.message);
-    return result;
-  }
-
-  if (!trfx_lookup_process_uid(request->target.pid, &target_uid, error,
-                               error_size)) {
-    result.status = TRFX_ACTION_RESULT_NOT_FOUND;
-    snprintf(result.message, sizeof(result.message), "process %s not found",
-             request->target.pid);
-    if (error && error_size > 0 && error[0] == '\0')
-      snprintf(error, error_size, "%s", result.message);
-    return result;
-  }
-
-  if (effective_uid != 0 && effective_uid != target_uid) {
-    result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
-    snprintf(result.message, sizeof(result.message),
-             "permission denied: requires root or uid %u", target_uid);
-    if (error && error_size > 0)
-      snprintf(error, error_size, "%s", result.message);
-    return result;
-  }
-
-  if (kill(pid_value, SIGTERM) != 0) {
-    result.system_errno = errno;
-    if (errno == ESRCH) {
+    if (!trfx_lookup_process_uid(request->target.pid, &target_uid, error,
+                                 error_size)) {
       result.status = TRFX_ACTION_RESULT_NOT_FOUND;
       snprintf(result.message, sizeof(result.message), "process %s not found",
                request->target.pid);
-    } else if (errno == EPERM) {
+      if (error && error_size > 0 && error[0] == '\0')
+        snprintf(error, error_size, "%s", result.message);
+      return result;
+    }
+
+    if (effective_uid != 0 && effective_uid != target_uid) {
       result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
       snprintf(result.message, sizeof(result.message),
-               "permission denied while killing %s", request->target.pid);
-    } else {
-      result.status = TRFX_ACTION_RESULT_FAILED;
-      snprintf(result.message, sizeof(result.message),
-               "failed to kill %s: %s", request->target.pid,
-               strerror(errno));
+               "permission denied: requires root or uid %u", target_uid);
+      if (error && error_size > 0)
+        snprintf(error, error_size, "%s", result.message);
+      return result;
     }
+
+    if (kill(pid_value, SIGTERM) != 0) {
+      result.system_errno = errno;
+      if (errno == ESRCH) {
+        result.status = TRFX_ACTION_RESULT_NOT_FOUND;
+        snprintf(result.message, sizeof(result.message),
+                 "process %s not found", request->target.pid);
+      } else if (errno == EPERM) {
+        result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
+        snprintf(result.message, sizeof(result.message),
+                 "permission denied while killing %s", request->target.pid);
+      } else {
+        result.status = TRFX_ACTION_RESULT_FAILED;
+        snprintf(result.message, sizeof(result.message),
+                 "failed to kill %s: %s", request->target.pid,
+                 strerror(errno));
+      }
+      if (error && error_size > 0)
+        snprintf(error, error_size, "%s", result.message);
+      return result;
+    }
+
+    result.status = TRFX_ACTION_RESULT_OK;
+    snprintf(result.message, sizeof(result.message), "sent SIGTERM to %s",
+             request->target.pid);
     if (error && error_size > 0)
       snprintf(error, error_size, "%s", result.message);
     return result;
   }
 
-  result.status = TRFX_ACTION_RESULT_OK;
-  snprintf(result.message, sizeof(result.message), "sent SIGTERM to %s",
-           request->target.pid);
+  if (request->kind == TRFX_ACTION_KIND_DROP_CONNECTION ||
+      request->kind == TRFX_ACTION_KIND_DROP_SOCKET) {
+    if (effective_uid != 0) {
+      result.status = TRFX_ACTION_RESULT_PERMISSION_DENIED;
+      snprintf(result.message, sizeof(result.message),
+               "permission denied: root required to drop sockets");
+      if (error && error_size > 0)
+        snprintf(error, error_size, "%s", result.message);
+      return result;
+    }
+
+    if (!run_ss_drop_action(request, error, error_size)) {
+      if (error && error_size > 0 && error[0] != '\0') {
+        if (strstr(error, "not installed") != NULL) {
+          result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
+        } else {
+          result.status = TRFX_ACTION_RESULT_FAILED;
+        }
+        snprintf(result.message, sizeof(result.message), "%s", error);
+      } else {
+        result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
+        snprintf(result.message, sizeof(result.message),
+                 "%s is not supported yet",
+                 trfx_action_kind_name(request->kind));
+      }
+      return result;
+    }
+
+    result.status = TRFX_ACTION_RESULT_OK;
+    snprintf(result.message, sizeof(result.message), "%s completed",
+             trfx_action_kind_name(request->kind));
+    if (error && error_size > 0)
+      snprintf(error, error_size, "%s", result.message);
+    return result;
+  }
+
+  result.status = TRFX_ACTION_RESULT_UNSUPPORTED;
+  snprintf(result.message, sizeof(result.message), "%s is not supported yet",
+           trfx_action_kind_name(request->kind));
   if (error && error_size > 0)
     snprintf(error, error_size, "%s", result.message);
   return result;

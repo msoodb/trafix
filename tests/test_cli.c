@@ -83,6 +83,30 @@ static int test_parse_cli(void) {
   ASSERT_INT_EQ(options.confirmed, 1);
   ASSERT_STR_EQ(options.error, "");
 
+  char *drop_connection_argv[] = {"trafix", "drop", "connection", "tcp",
+                                   "127.0.0.1:8080", "10.0.0.2:443", "--yes"};
+  options = trfx_parse_cli(7, drop_connection_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_DROP);
+  ASSERT_INT_EQ(options.has_drop_target, 1);
+  ASSERT_STR_EQ(options.drop_kind, "connection");
+  ASSERT_STR_EQ(options.drop_proto, "TCP");
+  ASSERT_STR_EQ(options.drop_local, "127.0.0.1:8080");
+  ASSERT_STR_EQ(options.drop_remote, "10.0.0.2:443");
+  ASSERT_INT_EQ(options.confirmed, 1);
+  ASSERT_STR_EQ(options.error, "");
+
+  char *drop_socket_argv[] = {"trafix", "drop", "socket", "udp",
+                              "0.0.0.0:53", "0.0.0.0:0"};
+  options = trfx_parse_cli(6, drop_socket_argv);
+  ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_DROP);
+  ASSERT_INT_EQ(options.has_drop_target, 1);
+  ASSERT_STR_EQ(options.drop_kind, "socket");
+  ASSERT_STR_EQ(options.drop_proto, "UDP");
+  ASSERT_STR_EQ(options.drop_local, "0.0.0.0:53");
+  ASSERT_STR_EQ(options.drop_remote, "0.0.0.0:0");
+  ASSERT_INT_EQ(options.confirmed, 0);
+  ASSERT_STR_EQ(options.error, "");
+
   char *listeners_argv[] = {"trafix", "listeners"};
   options = trfx_parse_cli(2, listeners_argv);
   ASSERT_MODE_EQ(options.mode, TRFX_CLI_MODE_LISTENERS);

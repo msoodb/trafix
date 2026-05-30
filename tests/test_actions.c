@@ -113,6 +113,12 @@ static int test_action_review_permissions(void) {
   ASSERT_INT_EQ(review.can_execute, 0);
   ASSERT_STR_EQ(review.prompt, "kill process is not supported on this system");
 
+  trfx_action_request_set_connection_drop(&request, NULL);
+  trfx_prepare_action_review(&review, &request, 1000, 1000, 0);
+  ASSERT_INT_EQ(review.permission, TRFX_ACTION_PERMISSION_UNSUPPORTED);
+  ASSERT_INT_EQ(review.can_execute, 0);
+  ASSERT_STR_EQ(review.prompt, "drop connection is not supported on this system");
+
   return 0;
 }
 
@@ -140,10 +146,11 @@ static int test_process_lookup_and_execution_fallbacks(void) {
   ASSERT_STR_EQ(result.message, "action cancelled");
 
   trfx_action_request_set_connection_drop(&request, NULL);
-  result = trfx_execute_action_request(&request, 1, (unsigned int)geteuid(),
+  result = trfx_execute_action_request(&request, 1, 1000,
                                        error, sizeof(error));
-  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_UNSUPPORTED);
-  ASSERT_STR_EQ(result.message, "drop connection is not supported yet");
+  ASSERT_INT_EQ(result.status, TRFX_ACTION_RESULT_PERMISSION_DENIED);
+  ASSERT_STR_EQ(result.message,
+                "permission denied: root required to drop sockets");
 
   return 0;
 }
