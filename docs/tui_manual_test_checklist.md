@@ -48,6 +48,20 @@ threading, rendering, keyboard handling, or collectors.
 - Resize the terminal while the popup is open.
 - Confirm the screen redraws cleanly after the popup closes.
 
+## Bandwidth Detail
+
+- Start the TUI on the Network panel.
+- Confirm the top talker summary is visible when bandwidth data is available.
+- Press `j` and `k`.
+- Confirm the selected top talker moves without breaking the layout.
+- Press `d` or `Enter`.
+- Confirm the bandwidth detail popup opens for the selected top talker.
+- Confirm the popup shows current metadata and recent sample history.
+- Close the popup with `Esc`.
+- Confirm the dashboard returns cleanly.
+- Run in an environment with no meaningful ownership data.
+- Confirm the top talker area shows an explicit fallback instead of crashing.
+
 ## Top Panels Toggle
 
 - Start the TUI with `SHOW_TOP_PANELS = TRUE`.
@@ -78,6 +92,8 @@ threading, rendering, keyboard handling, or collectors.
 - Start the TUI.
 - Confirm the Network panel shows a compact route, DNS, active interface, and
   VPN summary before the interface-rate list.
+- Confirm the Network panel also shows top talker summaries and recent trend
+  lines without breaking the border.
 - Confirm the Connections panel shows a grouped summary line for protocol,
   state, and ownership before the table.
 - Confirm the Socket Inventory panel shows owned sockets with UID, PID,

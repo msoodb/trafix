@@ -28,6 +28,8 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
 - **Monitor Active Connections:** View detailed information about all active TCP/UDP connections, including local and remote addresses, ports, and connection states.
 - **Network Overview:** See route, DNS, VPN, and active interface clues in one compact panel.
 - **Socket Inventory Drill-Down:** Inspect owned sockets with PID, process, and endpoint context.
+- **Bandwidth Top Talkers:** See the most active sockets or processes and open a detail view for the selected entry.
+- **Recent Trend History:** Review short sample-based history lines in the Network panel to spot sudden change.
 - **Track Interface Activity:** Monitor interface-level sent/received byte rates from Linux interface counters.
 - **Socket Owners:** Map visible sockets to owning PID/process where available.
 - **Scriptable CLI:** Print interface counters, active connections, and system overview data in text or JSON format.
@@ -36,7 +38,7 @@ Trafix is designed to be lightweight, efficient, and to use minimal system resou
 
 ## Bandwidth Scope
 
-In this release line, Trafix treats bandwidth as interface-level byte rates. Connection and socket-owner views show protocol, address, state, UID/user, PID, and process ownership where visible, but they do not claim per-connection, per-socket, or per-process byte accounting.
+Trafix now estimates bandwidth from interface counters and visible ownership metadata. The Network panel shows top talkers and a short recent trend, and the detail popup lets you inspect the selected flow with its current metadata and history. Where ownership data is missing, the UI keeps the fallback explicit instead of pretending exact per-socket accounting.
 
 ## Build Requirements
 
@@ -167,6 +169,8 @@ For release and regression checks, use the manual TUI checklist in
 ### Hotkeys
 
 - `[F1]`, `[h]`, `[H]` — **Help Popup:** Show the hotkey help popup.
+- `[d]`, `[Enter]` — **Bandwidth Detail:** Open the selected top-talker detail popup.
+- `[j]`, `[k]` — **Move Selection:** Move the selected top talker up or down.
 - `[Esc]`, `[Enter]`, `[q]` — **Close Popup:** Dismiss the hotkey popup.
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.

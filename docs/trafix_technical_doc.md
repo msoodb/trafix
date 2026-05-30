@@ -28,10 +28,13 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `H`. The popup is dismissed with `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
+In the Network panel, `j` and `k` move the selected top talker, and `d` or
+`Enter` opens a detail popup for the selected flow.
 
 The shipped filter surface is limited to `connections --proto` and
-`connections --state`. Alerts, top-talkers, and per-process bandwidth are
-roadmap items, not current behavior.
+`connections --state`. Alerts and remote agents remain roadmap items, but
+top-talkers, trend history, and estimated socket/process bandwidth are now
+part of the shipped UI.
 
 ## Build Dependencies
 
@@ -130,7 +133,9 @@ grouped by protocol, state, and ownership.
 
 Shows a compact top-level network overview with default route information, DNS
 servers, active interface details, optional Wi-Fi details, VPN interface
-detection, and interface-level byte rates.
+detection, interface-level byte rates, a top-talker summary, and a short
+sample-based trend history. The selected top talker can be opened in a detail
+popup.
 
 ### Processes
 
@@ -144,10 +149,10 @@ This panel does **not** measure per-socket bandwidth.
 
 ## Bandwidth Scope
 
-Trafix currently reports bandwidth only as interface-level byte rates calculated
-from network interface counters. Connection, listener, and socket-owner views
-show ownership metadata where permissions allow; they do not report
-per-connection, per-socket, or per-process byte counts.
+Trafix estimates bandwidth from interface counters and ownership metadata.
+When connections or socket owners are visible, the UI can present top talkers
+and a detail popup for the selected flow. When ownership data is missing, the
+UI keeps the fallback explicit rather than claiming exact per-socket counts.
 
 ## Configuration
 
