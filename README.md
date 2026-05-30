@@ -32,6 +32,8 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
 - **Recent Trend History:** Review short sample-based history lines in the Network panel to spot sudden change.
 - **Track Interface Activity:** Monitor interface-level sent/received byte rates from Linux interface counters.
 - **Socket Owners:** Map visible sockets to owning PID/process where available.
+- **Diagnostics Snapshot:** Export a compact troubleshooting snapshot with system,
+  network, log, and pressure context.
 - **Scriptable CLI:** Print interface counters, active connections, and system overview data in text or JSON format.
 
 Trafix is designed to be lightweight, efficient, and to use minimal system resources, making it an ideal tool for monitoring network activity on Linux-based systems.
@@ -145,6 +147,12 @@ trafix system
 trafix system --json
 ```
 
+Print a troubleshooting snapshot:
+
+```sh
+trafix diagnostics
+```
+
 CLI commands use text output by default. Use `--json` when integrating Trafix with scripts or other tools.
 Destructive actions require confirmation. The TUI always asks before a kill or
 drop action runs. The CLI requires `--yes` for non-interactive execution and
@@ -186,6 +194,9 @@ For release and regression checks, use the manual TUI checklist in
 - `[x]` — **Kill Process:** Open a process chooser and confirm a kill action.
 - `[z]` — **Drop Connection:** Open a connection chooser and confirm a drop action where supported.
 - `[a]` — **Action Audit:** Show the recent action trail popup.
+- `[g]` — **Diagnostics:** Show the troubleshooting snapshot popup.
+- `[n]` — **Route/DNS Checks:** Show the route and DNS correlation popup.
+- `[v]` — **Network Health:** Show the network and system pressure correlation popup.
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.

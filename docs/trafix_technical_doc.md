@@ -19,6 +19,8 @@ read-only commands:
 - `trafix connections` prints current TCP/UDP connection rows.
 - `trafix listeners` prints local TCP listeners and UDP unconnected sockets.
 - `trafix system` prints a compact system overview.
+- `trafix diagnostics` prints a troubleshooting snapshot with system, network,
+  log, and pressure context.
 - `--json` selects JSON output for scriptable commands.
 - `trafix connections --proto tcp|udp` filters by protocol.
 - `trafix connections --state STATE` filters by connection state.
@@ -28,6 +30,9 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `H`. The popup is dismissed with `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
+The `g` key opens the troubleshooting diagnostics popup.
+The `n` key opens a route and DNS checks popup.
+The `v` key opens a network health correlation popup.
 In the Network panel, `j` and `k` move the selected top talker, and `d` or
 `Enter` opens a detail popup for the selected flow.
 The `x` key opens a process chooser and requests a kill after confirmation.
@@ -38,6 +43,9 @@ The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
 top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
+The diagnostics snapshot intentionally pulls together system overview, route,
+DNS, recent log lines, CPU, memory, disk, and process pressure so the
+operator can explain a problem without jumping across panels.
 
 Action handling is intentionally conservative:
 

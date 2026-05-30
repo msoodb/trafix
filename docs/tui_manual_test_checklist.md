@@ -28,6 +28,8 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm version text prints and the TUI does not start.
 - Run `trafix --invalid-option`.
 - Confirm an error prints and the TUI does not start.
+- Run `trafix diagnostics`.
+- Confirm a troubleshooting snapshot prints and the TUI does not start.
 
 ## Panel Switching
 
@@ -43,10 +45,27 @@ threading, rendering, keyboard handling, or collectors.
 - Start the TUI.
 - Press `F1`, `h`, and `H`.
 - Confirm the hotkey popup opens from each key.
+- Confirm the popup lists `g`, `n`, and `v` alongside the existing controls.
 - Press `Esc`.
 - Confirm the popup closes immediately and returns to the dashboard.
 - Resize the terminal while the popup is open.
 - Confirm the screen redraws cleanly after the popup closes.
+
+## Diagnostics Views
+
+- Start the TUI.
+- Press `g`.
+- Confirm the troubleshooting popup shows system, network, log, and pressure
+  context.
+- Press `n`.
+- Confirm the route and DNS popup shows the default route, resolver data, and
+  active interface summary.
+- Press `v`.
+- Confirm the network health popup shows CPU, memory, disk, process, and
+  network correlation in one compact view.
+- Run with missing log access or broken route/DNS data.
+- Confirm the popups show explicit fallback text instead of blank panes or
+  crashes.
 
 ## Bandwidth Detail
 
