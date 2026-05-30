@@ -172,6 +172,7 @@ For release and regression checks, use the manual TUI checklist in
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Columns:** Toggle or cycle through different column views in specific panels.
+- `[t]` — **Top Panels:** Show or hide the top system, CPU, memory, and disk panels.
 - `[p]` — **Pause:** Pause/resume real-time updates.
 - `[q]` — **Quit:** Exit the Trafix application.
 

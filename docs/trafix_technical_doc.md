@@ -26,6 +26,8 @@ read-only commands:
 
 Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `H`. The popup is dismissed with `Esc`, `Enter`, or `q`.
+The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
+the initial state still comes from `SHOW_TOP_PANELS` in the config file.
 
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts, top-talkers, and per-process bandwidth are

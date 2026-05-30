@@ -110,6 +110,20 @@ static void draw_small_terminal_message(int screen_height, int screen_width) {
   pthread_mutex_unlock(&ncurses_mutex);
 }
 
+static void clear_top_panels(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
+                             WINDOW *disk_win) {
+  WINDOW *wins[] = {sys_win, cpu_win, mem_win, disk_win};
+
+  pthread_mutex_lock(&ncurses_mutex);
+  for (int i = 0; i < 4; ++i) {
+    if (!wins[i])
+      continue;
+    werase(wins[i]);
+    wrefresh(wins[i]);
+  }
+  pthread_mutex_unlock(&ncurses_mutex);
+}
+
 static int init_color_pair_checked(short pair, short foreground,
                                    short background) {
   return init_pair(pair, foreground, background) == OK;
@@ -213,6 +227,7 @@ void show_hotkeys_popup(void) {
       "[s] Sort Processes",
       "[r] Refresh",
       "[c] Columns",
+      "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
       "[q] Quit",
@@ -530,6 +545,8 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
     wresize(disk_win, row1_height, row1_widths[3]);
     mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  } else {
+    clear_top_panels(sys_win, cpu_win, mem_win, disk_win);
   }
 
   int x_offset = 0;
@@ -607,6 +624,15 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     pause_screen();
     break;
 
+  case 't':
+  case 'T':
+    SHOW_TOP_PANELS = !SHOW_TOP_PANELS;
+    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win);
+    if (!SHOW_TOP_PANELS)
+      clear_top_panels(sys_win, cpu_win, mem_win, disk_win);
+    trfx_runtime_request_static_refresh_all();
+    break;
+
   case KEY_F(1):
   case 'h':
   case 'H':
@@ -642,12 +668,11 @@ void start_dashboard() {
     exit(EXIT_FAILURE);
   }
 
-  const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
+  const int row1_height = FIXED_ROW1_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
 
   int row1_widths[ROW1_MODULES] = {0};
-  if (SHOW_TOP_PANELS)
-    calculate_row1_widths(screen_width, row1_widths);
+  calculate_row1_widths(screen_width, row1_widths);
   int row1_y = 0, row2_y = calculate_row2_y();
 
   WINDOW *sys_win = NULL;
@@ -655,22 +680,18 @@ void start_dashboard() {
   WINDOW *mem_win = NULL;
   WINDOW *disk_win = NULL;
 
-  if (SHOW_TOP_PANELS) {
-    sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
-    cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
-    mem_win = newwin(row1_height, row1_widths[2], row1_y,
-                     row1_widths[0] + row1_widths[1]);
-    disk_win = newwin(row1_height, row1_widths[3], row1_y,
-                      row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  }
+  sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
+  cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
+  mem_win = newwin(row1_height, row1_widths[2], row1_y,
+                   row1_widths[0] + row1_widths[1]);
+  disk_win = newwin(row1_height, row1_widths[3], row1_y,
+                    row1_widths[0] + row1_widths[1] + row1_widths[2]);
 
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
-  if (SHOW_TOP_PANELS) {
-    pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
-    pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
-    pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
-    pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
-  }
+  pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
+  pthread_create(&cpu_tid, NULL, cpu_info_thread, cpu_win);
+  pthread_create(&mem_tid, NULL, memory_info_thread, mem_win);
+  pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
   /*create_row2_windows(row2_height, row2_widths, row2_y);
   for (int i = 0; i < ROW2_MODULES; i++) {
@@ -700,12 +721,10 @@ void start_dashboard() {
 
   trfx_runtime_request_stop();
 
-  if (SHOW_TOP_PANELS) {
-    pthread_join(sys_tid, NULL);
-    pthread_join(cpu_tid, NULL);
-    pthread_join(mem_tid, NULL);
-    pthread_join(disk_tid, NULL);
-  }
+  pthread_join(sys_tid, NULL);
+  pthread_join(cpu_tid, NULL);
+  pthread_join(mem_tid, NULL);
+  pthread_join(disk_tid, NULL);
   cleanup_row2_modules();
 
   destroy_window(&sys_win);

@@ -48,6 +48,19 @@ threading, rendering, keyboard handling, or collectors.
 - Resize the terminal while the popup is open.
 - Confirm the screen redraws cleanly after the popup closes.
 
+## Top Panels Toggle
+
+- Start the TUI with `SHOW_TOP_PANELS = TRUE`.
+- Press `t`.
+- Confirm the top system, CPU, memory, and disk panels hide and the second row
+  expands to the top.
+- Press `t` again.
+- Confirm the top panels return and the second row moves back down.
+- Start the TUI with `SHOW_TOP_PANELS = FALSE`.
+- Confirm the top panels start hidden.
+- Press `t`.
+- Confirm the top panels appear and the layout stays aligned.
+
 ## Columns
 
 - Start the TUI.
