@@ -424,6 +424,120 @@ static void render_bandwidth_history_summary(WINDOW *win,
   }
 }
 
+static const TrfxInterfaceRate *find_interface_rate(
+    const TrfxBandwidthReport *report, const char *name) {
+  if (!report || !name || name[0] == '\0')
+    return NULL;
+
+  for (int i = 0; i < report->interface_count; i++) {
+    if (strcmp(report->interface_rates[i].name, name) == 0)
+      return &report->interface_rates[i];
+  }
+
+  return NULL;
+}
+
+static void format_interface_address(const TrfxInterfaceStatus *status,
+                                     char *line, size_t line_size) {
+  if (!status || !line || line_size == 0)
+    return;
+
+  if (status->has_ipv4 && status->has_ipv6 &&
+      strcmp(status->ipv4, status->ipv6) != 0) {
+    snprintf(line, line_size, "%s / %s", status->ipv4, status->ipv6);
+    return;
+  }
+
+  if (status->has_ipv4) {
+    snprintf(line, line_size, "%s", status->ipv4);
+    return;
+  }
+
+  if (status->has_ipv6) {
+    snprintf(line, line_size, "%s", status->ipv6);
+    return;
+  }
+
+  snprintf(line, line_size, "N/A");
+}
+
+static void format_rate_or_na(const TrfxInterfaceRate *rate, int is_rx,
+                              char *line, size_t line_size) {
+  if (!line || line_size == 0)
+    return;
+
+  if (!rate || rate->name[0] == '\0') {
+    snprintf(line, line_size, "N/A");
+    return;
+  }
+
+  trfx_format_net_bytes(is_rx ? rate->rx_bytes_per_sec
+                              : rate->tx_bytes_per_sec,
+                        line, line_size);
+}
+
+static void format_interface_status_row(const TrfxInterfaceStatus *status,
+                                        const TrfxInterfaceRate *rate,
+                                        char *line, size_t line_size) {
+  char address[160];
+  char rx[32];
+  char tx[32];
+
+  if (!status || !line || line_size == 0)
+    return;
+
+  format_interface_address(status, address, sizeof(address));
+  format_rate_or_na(rate, 1, rx, sizeof(rx));
+  format_rate_or_na(rate, 0, tx, sizeof(tx));
+
+  snprintf(line, line_size, "%-12.12s %-8.8s %-8.8s %-36.36s %10.10s %10.10s",
+           status->name[0] ? status->name : "N/A",
+           status->operstate[0] ? status->operstate : "unknown",
+           status->carrier[0] ? status->carrier : "unknown", address, rx, tx);
+}
+
+static void render_interface_status_table(
+    WINDOW *win, const TrfxNetworkSnapshot *snapshot,
+    const TrfxBandwidthReport *report, int *row, int line, int max_lines) {
+  char header[256];
+  char separator[256];
+
+  if (!win || !snapshot || !row)
+    return;
+
+  if (!panel_has_room(*row, max_lines))
+    return;
+
+  snprintf(header, sizeof(header),
+           "%-12s %-8s %-8s %-36s %10s %10s", "Interface", "State",
+           "Carrier", "Address", "Rx/s", "Tx/s");
+  trfx_print_clipped(win, (*row)++, line, header);
+
+  if (!panel_has_room(*row, max_lines))
+    return;
+
+  snprintf(separator, sizeof(separator),
+           "--------------------------------------------------------------------");
+  trfx_print_clipped(win, (*row)++, line, separator);
+
+  if (snapshot->interface_statuses.count <= 0) {
+    trfx_print_empty_state(win, "No interface status data available");
+    return;
+  }
+
+  for (int i = 0; i < snapshot->interface_statuses.count &&
+                  panel_has_room(*row, max_lines);
+       i++) {
+    char linebuf[256];
+    const TrfxInterfaceRate *rate =
+        find_interface_rate(report, snapshot->interface_statuses.items[i].name);
+
+    format_interface_status_row(&snapshot->interface_statuses.items[i], rate,
+                                linebuf, sizeof(linebuf));
+    trfx_print_clipped(win, (*row)++, line, linebuf);
+  }
+}
+
 void trfx_bandwidth_state_init(void) {
   pthread_mutex_lock(&bandwidth_state_mutex);
   if (!bandwidth_state_initialized) {
@@ -1169,7 +1283,6 @@ void *network_info_thread(void *arg) {
       continue;
     }
 
-    int num_interfaces = 0;
     int max_rows, max_cols;
     TrfxNetworkSnapshot snapshot;
     char snapshot_error[128];
@@ -1188,9 +1301,6 @@ void *network_info_thread(void *arg) {
     trfx_init_bandwidth_trend(&bandwidth_trend);
     trfx_collect_bandwidth_trend(&bandwidth_samples, &bandwidth_trend,
                                  trend_error, sizeof(trend_error));
-
-    char **interfaces_usage = get_interfaces_usage(&num_interfaces);
-    bool interface_collect_failed = interfaces_usage == NULL;
 
     // Lock only for ncurses rendering
     pthread_mutex_lock(&ncurses_mutex);
@@ -1238,29 +1348,11 @@ void *network_info_thread(void *arg) {
 
     if (panel_has_room(row, max_lines))
       row++;
-    wattron(win, A_BOLD);
-    if (panel_has_room(row, max_lines))
-      mvwprintw(win, row++, line, "%-15s | %10s | %10s", "Interface", "Sent/s",
-                "Recv/s");
-    wattroff(win, A_BOLD);
-    if (panel_has_room(row, max_lines))
-      mvwprintw(win, row++, line,
-                "---------------------------------------------");
-
-    if (interface_collect_failed) {
-      trfx_print_empty_state(win, "Interface counters unavailable");
-    } else if (num_interfaces == 0) {
-      trfx_print_empty_state(win, "No interface counters available");
-    }
-
-    for (int i = 0; i < num_interfaces && row < max_lines; i++) {
-      mvwprintw(win, row++, line, "%s", interfaces_usage[i]);
-    }
+    render_interface_status_table(win, &snapshot, &bandwidth_report, &row,
+                                  line, max_lines);
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-
-    free_interfaces_usage(interfaces_usage, num_interfaces);
     bandwidth_state_update(&bandwidth_samples, &bandwidth_report);
 
     trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
