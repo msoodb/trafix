@@ -10,6 +10,7 @@
 #include "trfx_bandwidth.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -40,6 +41,34 @@ static void copy_rate_interfaces(TrfxBandwidthReport *report,
   report->interface_count = count;
   for (int i = 0; i < count && i < TRFX_MAX_INTERFACES; i++)
     report->interface_rates[i] = rates[i];
+}
+
+static double flow_total_bytes_per_sec(const TrfxBandwidthFlow *flow) {
+  if (!flow)
+    return 0.0;
+
+  return flow->rx_bytes_per_sec + flow->tx_bytes_per_sec;
+}
+
+static int compare_bandwidth_flows(const void *left, const void *right) {
+  const TrfxBandwidthFlow *a = (const TrfxBandwidthFlow *)left;
+  const TrfxBandwidthFlow *b = (const TrfxBandwidthFlow *)right;
+  double total_a = flow_total_bytes_per_sec(a);
+  double total_b = flow_total_bytes_per_sec(b);
+
+  if (total_a < total_b)
+    return 1;
+  if (total_a > total_b)
+    return -1;
+  return strcmp(a->label, b->label);
+}
+
+static void sort_bandwidth_flows(TrfxBandwidthReport *report) {
+  if (!report || report->flow_count <= 1)
+    return;
+
+  qsort(report->flows, (size_t)report->flow_count,
+        sizeof(report->flows[0]), compare_bandwidth_flows);
 }
 
 static void format_connection_label(const ConnectionInfo *connection, char *buf,
@@ -189,6 +218,7 @@ TrfxCollectorStatus trfx_collect_bandwidth_report(
         flow->tx_bytes_per_sec = tx_share;
         report->flow_count = out;
       }
+      sort_bandwidth_flows(report);
       return TRFX_COLLECTOR_OK;
     }
   }
@@ -236,6 +266,7 @@ TrfxCollectorStatus trfx_collect_bandwidth_report(
         flow->tx_bytes_per_sec = total_tx * share;
         report->flow_count = i + 1;
       }
+      sort_bandwidth_flows(report);
       return TRFX_COLLECTOR_OK;
     }
   }

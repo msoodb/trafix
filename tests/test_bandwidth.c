@@ -105,15 +105,19 @@ static int test_bandwidth_report_process_estimate(void) {
 
   set_interface_stat(&snapshot, "eth0", 260, 340);
   snapshot.connection_count = 0;
-  snapshot.socket_owner_count = 2;
+  snapshot.socket_owner_count = 3;
   snprintf(snapshot.socket_owners[0].pid,
            sizeof(snapshot.socket_owners[0].pid), "101");
   snprintf(snapshot.socket_owners[0].process,
            sizeof(snapshot.socket_owners[0].process), "alpha");
   snprintf(snapshot.socket_owners[1].pid,
-           sizeof(snapshot.socket_owners[1].pid), "202");
+           sizeof(snapshot.socket_owners[1].pid), "101");
   snprintf(snapshot.socket_owners[1].process,
-           sizeof(snapshot.socket_owners[1].process), "beta");
+           sizeof(snapshot.socket_owners[1].process), "alpha");
+  snprintf(snapshot.socket_owners[2].pid,
+           sizeof(snapshot.socket_owners[2].pid), "202");
+  snprintf(snapshot.socket_owners[2].process,
+           sizeof(snapshot.socket_owners[2].process), "beta");
   trfx_network_sample_buffer_push(&buffer, &snapshot, 2);
 
   trfx_init_bandwidth_report(&report);
@@ -121,8 +125,11 @@ static int test_bandwidth_report_process_estimate(void) {
                 TRFX_COLLECTOR_OK);
   ASSERT_INT_EQ(report.mode, TRFX_BW_MODE_PROCESS_ESTIMATED);
   ASSERT_INT_EQ(report.flow_count, 2);
-  ASSERT_INT_EQ((int)report.flows[0].rx_bytes_per_sec, 40);
-  ASSERT_INT_EQ((int)report.flows[0].tx_bytes_per_sec, 60);
+  ASSERT_STR_EQ(report.flows[0].pid, "101");
+  ASSERT_STR_EQ(report.flows[0].detail, "2 sockets");
+  ASSERT_STR_EQ(report.flows[1].pid, "202");
+  ASSERT_INT_EQ((int)report.flows[0].rx_bytes_per_sec, 53);
+  ASSERT_INT_EQ((int)report.flows[0].tx_bytes_per_sec, 80);
 
   return 0;
 }

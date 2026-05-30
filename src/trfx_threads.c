@@ -9,6 +9,7 @@
  */
 
 #include <unistd.h>
+#include <time.h>
 #include <ncurses.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 
 #include "trfx_threads.h"
 #include "trfx_config.h"
+#include "trfx_bandwidth.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_utils.h"
@@ -313,6 +315,50 @@ static void render_network_summary(WINDOW *win,
   format_network_vpn_line(snapshot, summary, sizeof(summary));
   if (panel_has_room(*row, max_lines))
     trfx_print_clipped(win, (*row)++, line, summary);
+}
+
+static void render_bandwidth_talkers_summary(
+    WINDOW *win, const TrfxBandwidthReport *report, int *row, int line,
+    int max_lines) {
+  char summary[256];
+
+  if (!win || !report || !row)
+    return;
+
+  if (!panel_has_room(*row, max_lines))
+    return;
+
+  mvwprintw(win, (*row)++, line, "Top talkers (%s):",
+            trfx_bandwidth_mode_name(report->mode));
+
+  if (report->mode == TRFX_BW_MODE_UNSUPPORTED ||
+      report->flow_count == 0) {
+    snprintf(summary, sizeof(summary), "Bandwidth: %s", report->source);
+    if (panel_has_room(*row, max_lines))
+      trfx_print_clipped(win, (*row)++, line, summary);
+    return;
+  }
+
+  for (int i = 0; i < report->flow_count && i < 3 && panel_has_room(*row, max_lines);
+       i++) {
+    const TrfxBandwidthFlow *flow = &report->flows[i];
+    char rx[32];
+    char tx[32];
+    char linebuf[256];
+
+    trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
+    trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
+
+    snprintf(linebuf, sizeof(linebuf),
+             "%s %s [%s] %s -> %s | rx %s/s tx %s/s",
+             flow->pid[0] ? flow->pid : "-", flow->process[0] ? flow->process
+                                                             : "-",
+             flow->detail[0] ? flow->detail : flow->label,
+             flow->local[0] ? flow->local : "-", flow->remote[0] ? flow->remote
+                                                                   : "-",
+             rx, tx);
+    trfx_print_clipped(win, (*row)++, line, linebuf);
+  }
 }
 
 void wait_until_ready() {
@@ -980,9 +1026,16 @@ void *network_info_thread(void *arg) {
   int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
+  static TrfxNetworkSampleBuffer bandwidth_samples;
+  static int bandwidth_samples_initialized = 0;
 
   free(arg);
   wait_until_ready();
+
+  if (!bandwidth_samples_initialized) {
+    trfx_init_network_sample_buffer(&bandwidth_samples);
+    bandwidth_samples_initialized = 1;
+  }
 
   while (!trfx_thread_should_stop(local_stop)) {
 
@@ -995,10 +1048,16 @@ void *network_info_thread(void *arg) {
     int max_rows, max_cols;
     TrfxNetworkSnapshot snapshot;
     char snapshot_error[128];
+    char bandwidth_error[128];
+    TrfxBandwidthReport bandwidth_report;
 
     trfx_init_network_snapshot(&snapshot);
     TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
         &snapshot, snapshot_error, sizeof(snapshot_error));
+    trfx_network_sample_buffer_push(&bandwidth_samples, &snapshot, time(NULL));
+    trfx_init_bandwidth_report(&bandwidth_report);
+    trfx_collect_bandwidth_report(&bandwidth_samples, &bandwidth_report,
+                                  bandwidth_error, sizeof(bandwidth_error));
 
     char **interfaces_usage = get_interfaces_usage(&num_interfaces);
     bool interface_collect_failed = interfaces_usage == NULL;
@@ -1023,9 +1082,18 @@ void *network_info_thread(void *arg) {
 
     render_network_summary(win, &snapshot, &row, line, max_lines);
 
+    if (panel_has_room(row, max_lines))
+      row++;
+    render_bandwidth_talkers_summary(win, &bandwidth_report, &row, line,
+                                     max_lines);
+
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(row, max_lines)) {
       mvwprintw(win, row++, line, "Network snapshot: %s", snapshot_error);
+    }
+
+    if (bandwidth_error[0] != '\0' && panel_has_room(row, max_lines)) {
+      mvwprintw(win, row++, line, "Bandwidth: %s", bandwidth_error);
     }
 
     if (panel_has_room(row, max_lines))
