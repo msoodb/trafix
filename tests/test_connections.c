@@ -44,6 +44,63 @@ static int test_parse_connection_fixtures(void) {
   return 0;
 }
 
+static int test_connection_summary_model(void) {
+  TrfxConnectionSummaryResult result;
+  ConnectionInfo connections[2];
+
+  trfx_init_connection_summary_result(&result);
+  ASSERT_INT_EQ(result.status, 0);
+  ASSERT_INT_EQ(result.count, 0);
+
+  ASSERT_INT_EQ(trfx_collect_connection_summary(NULL, 0, &result, NULL, 0), 0);
+  ASSERT_INT_EQ(result.count, 0);
+
+  memset(connections, 0, sizeof(connections));
+  snprintf(connections[0].protocol, sizeof(connections[0].protocol), "TCP");
+  snprintf(connections[0].local_addr, sizeof(connections[0].local_addr),
+           "127.0.0.1:8080");
+  snprintf(connections[0].remote_addr, sizeof(connections[0].remote_addr),
+           "127.0.0.2:443");
+  snprintf(connections[0].state, sizeof(connections[0].state), "ESTABLISHED");
+  snprintf(connections[0].pid, sizeof(connections[0].pid), "42");
+  snprintf(connections[0].process, sizeof(connections[0].process), "curl");
+  snprintf(connections[0].user, sizeof(connections[0].user), "root");
+  connections[0].uid = 0;
+
+  snprintf(connections[1].protocol, sizeof(connections[1].protocol), "UDP");
+  snprintf(connections[1].local_addr, sizeof(connections[1].local_addr),
+           "[::1]:53");
+  snprintf(connections[1].remote_addr, sizeof(connections[1].remote_addr),
+           "[::]:0");
+  snprintf(connections[1].state, sizeof(connections[1].state), "UNCONN");
+  snprintf(connections[1].pid, sizeof(connections[1].pid), "-");
+  snprintf(connections[1].process, sizeof(connections[1].process), "-");
+  snprintf(connections[1].user, sizeof(connections[1].user), "-");
+  connections[1].uid = 1000;
+
+  ASSERT_INT_EQ(trfx_collect_connection_summary(connections, 2, &result, NULL,
+                                                0),
+                2);
+  ASSERT_INT_EQ(result.count, 2);
+  ASSERT_STR_EQ(result.rows[0].protocol, "TCP");
+  ASSERT_STR_EQ(result.rows[0].state, "ESTABLISHED");
+  ASSERT_STR_EQ(result.rows[0].local_endpoint, "127.0.0.1:8080");
+  ASSERT_STR_EQ(result.rows[0].remote_endpoint, "127.0.0.2:443");
+  ASSERT_STR_EQ(result.rows[0].pid, "42");
+  ASSERT_STR_EQ(result.rows[0].process, "curl");
+  ASSERT_INT_EQ(result.rows[0].has_owner, 1);
+  ASSERT_INT_EQ(result.rows[0].is_established, 1);
+  ASSERT_INT_EQ(result.rows[0].is_listener, 0);
+  ASSERT_INT_EQ(result.rows[0].is_ipv6, 0);
+  ASSERT_STR_EQ(result.rows[1].protocol, "UDP");
+  ASSERT_STR_EQ(result.rows[1].state, "UNCONN");
+  ASSERT_INT_EQ(result.rows[1].has_owner, 0);
+  ASSERT_INT_EQ(result.rows[1].is_listener, 1);
+  ASSERT_INT_EQ(result.rows[1].is_ipv6, 1);
+
+  return 0;
+}
+
 static int test_socket_owner_inode_lookup(void) {
   TrfxSocketOwnerMapEntry owners[] = {
       {12345, "42", "curl"},
@@ -151,6 +208,9 @@ static int test_udp_state_names(void) {
 
 int main(void) {
   if (test_parse_connection_fixtures() != 0)
+    return 1;
+
+  if (test_connection_summary_model() != 0)
     return 1;
 
   if (test_tcp_state_names() != 0)

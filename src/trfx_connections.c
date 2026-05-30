@@ -243,6 +243,80 @@ static void apply_socket_owner_map(ConnectionInfo *connections, int count) {
     }
 }
 
+void trfx_init_connection_summary_result(TrfxConnectionSummaryResult *result) {
+    if (!result)
+        return;
+
+    memset(result, 0, sizeof(*result));
+    result->status = 0;
+    result->error[0] = '\0';
+}
+
+static int connection_is_ipv6(const ConnectionInfo *connection) {
+    if (!connection)
+        return 0;
+
+    return strchr(connection->local_addr, '[') != NULL ||
+           strchr(connection->remote_addr, '[') != NULL;
+}
+
+static int connection_is_owned(const ConnectionInfo *connection) {
+    if (!connection)
+        return 0;
+
+    return connection->pid[0] != '\0' && strcmp(connection->pid, "-") != 0 &&
+           connection->process[0] != '\0' &&
+           strcmp(connection->process, "-") != 0;
+}
+
+int trfx_collect_connection_summary(const ConnectionInfo *connections, int count,
+                                    TrfxConnectionSummaryResult *result,
+                                    char *error, size_t error_size) {
+    int i;
+
+    if (!result)
+        return 0;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    trfx_init_connection_summary_result(result);
+
+    if (!connections || count < 0) {
+        snprintf(result->error, sizeof(result->error),
+                 "invalid connection snapshot");
+        result->status = -1;
+        if (error && error_size > 0)
+            snprintf(error, error_size, "%s", result->error);
+        return 0;
+    }
+
+    for (i = 0; i < count && i < MAX_CONNECTIONS; i++) {
+        const ConnectionInfo *src = &connections[i];
+        TrfxConnectionSummary *dst = &result->rows[result->count];
+
+        snprintf(dst->protocol, sizeof(dst->protocol), "%s", src->protocol);
+        snprintf(dst->state, sizeof(dst->state), "%s", src->state);
+        snprintf(dst->local_endpoint, sizeof(dst->local_endpoint), "%s",
+                 src->local_addr);
+        snprintf(dst->remote_endpoint, sizeof(dst->remote_endpoint), "%s",
+                 src->remote_addr);
+        snprintf(dst->uid, sizeof(dst->uid), "%u", src->uid);
+        snprintf(dst->user, sizeof(dst->user), "%s", src->user);
+        snprintf(dst->pid, sizeof(dst->pid), "%s", src->pid);
+        snprintf(dst->process, sizeof(dst->process), "%s", src->process);
+        dst->has_owner = connection_is_owned(src);
+        dst->is_listener = strcmp(src->state, "LISTEN") == 0 ||
+                           strcmp(src->state, "UNCONN") == 0;
+        dst->is_established = strcmp(src->state, "ESTABLISHED") == 0;
+        dst->is_ipv6 = connection_is_ipv6(src);
+        result->count++;
+    }
+
+    result->status = 0;
+    return result->count;
+}
+
 int get_connection_info(ConnectionInfo *connections, int max_conns) {
     int count = 0;
     count = trfx_parse_connection_path("/proc/net/tcp", "TCP", connections,

@@ -26,12 +26,38 @@ typedef struct {
     char process[64];
 } ConnectionInfo;
 
+typedef struct {
+    char protocol[8];
+    char state[32];
+    char local_endpoint[64];
+    char remote_endpoint[64];
+    char uid[16];
+    char user[64];
+    char pid[16];
+    char process[64];
+    int has_owner;
+    int is_listener;
+    int is_established;
+    int is_ipv6;
+} TrfxConnectionSummary;
+
+typedef struct {
+    int status;
+    int count;
+    char error[128];
+    TrfxConnectionSummary rows[MAX_CONNECTIONS];
+} TrfxConnectionSummaryResult;
+
 int trfx_parse_connection_file(FILE *fp, const char *proto,
                                ConnectionInfo *connections, int count,
                                int max_conns);
 int trfx_parse_connection_path(const char *path, const char *proto,
                                ConnectionInfo *connections, int count,
                                int max_conns);
+void trfx_init_connection_summary_result(TrfxConnectionSummaryResult *result);
+int trfx_collect_connection_summary(const ConnectionInfo *connections, int count,
+                                    TrfxConnectionSummaryResult *result,
+                                    char *error, size_t error_size);
 const char *trfx_tcp_state_name(int state_num);
 const char *trfx_udp_state_name(int state_num);
 int get_connection_info(ConnectionInfo *connections, int max_conns);
