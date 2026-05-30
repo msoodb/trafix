@@ -95,6 +95,23 @@ static int trfx_dynamic_thread_sleep_ms(const volatile int *local_stop,
   return trfx_thread_should_stop(local_stop);
 }
 
+static int trfx_wait_for_static_refresh(int module_index, int milliseconds) {
+  const int step_ms = 25;
+  int elapsed = 0;
+
+  while (!trfx_runtime_should_stop() && elapsed < milliseconds) {
+    if (trfx_runtime_consume_static_refresh(module_index))
+      return 1;
+
+    int remaining = milliseconds - elapsed;
+    int sleep_ms = remaining < step_ms ? remaining : step_ms;
+    usleep((useconds_t)sleep_ms * 1000);
+    elapsed += sleep_ms;
+  }
+
+  return trfx_runtime_consume_static_refresh(module_index);
+}
+
 static void format_connection_row(const ConnectionInfo *connection,
                                   int panel_width, char *line,
                                   size_t line_size) {
@@ -348,12 +365,8 @@ void *system_info_thread(void *arg) {
 
     pthread_mutex_unlock(&ncurses_mutex);
 
-    for (int i = 0; i < 50; i++) {
-      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_SYSINFO)) {
-        break;
-      }
-      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
-    }
+    trfx_wait_for_static_refresh(STATIC_MODULE_SYSINFO,
+                                 TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }
@@ -468,12 +481,8 @@ void *cpu_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    for (int i = 0; i < 2; i++) {
-      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_CPUINFO)) {
-        break;
-      }
-      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
-    }
+    trfx_wait_for_static_refresh(STATIC_MODULE_CPUINFO,
+                                 TUI_REFRESH_INTERVAL_MS);
   }  
   return NULL;
 }
@@ -546,12 +555,8 @@ void *memory_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    for (int i = 0; i < 2; i++) {
-      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_MEMINFO)) {
-        break;
-      }
-      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
-    }
+    trfx_wait_for_static_refresh(STATIC_MODULE_MEMINFO,
+                                 TUI_REFRESH_INTERVAL_MS);
 
   }
 
@@ -637,12 +642,8 @@ void *disk_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    for (int i = 0; i < 10; i++) {
-      if (trfx_runtime_consume_static_refresh(STATIC_MODULE_DISKINFO)) {
-        break;
-      }
-      trfx_thread_sleep_ms(TUI_REFRESH_INTERVAL_MS);
-    }
+    trfx_wait_for_static_refresh(STATIC_MODULE_DISKINFO,
+                                 TUI_REFRESH_INTERVAL_MS);
   }
   return NULL;
 }
