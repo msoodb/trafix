@@ -420,6 +420,7 @@ void show_hotkeys_popup(void) {
       "[a] Action Audit",
       "[g] Diagnostics",
       "[n] Route/DNS Checks",
+      "[v] Network Health",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -657,6 +658,107 @@ static void show_route_dns_popup(void) {
   trfx_print_clipped(popup, 5, 2, footer);
   if (error[0] != '\0')
     trfx_print_clipped(popup, 6, 2, error);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
+}
+
+static void show_network_health_popup(void) {
+  TrfxDiagnosticsSnapshot snapshot;
+  char error[256];
+  char cpu_line[256];
+  char memory_line[256];
+  char disk_line[256];
+  char process_line[256];
+  char network_line[256];
+  char footer[] = "Press Enter, Esc, or q to close.";
+  int screen_height, screen_width;
+  int popup_width = 96;
+  int popup_height = 10;
+  WINDOW *popup;
+
+  trfx_runtime_set_paused(1);
+  trfx_init_diagnostics_snapshot(&snapshot);
+  trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 72)
+    popup_width = 72;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  snprintf(cpu_line, sizeof(cpu_line), "CPU: avg %.1f%% | temp %.1fC | cores %d",
+           snapshot.cpu.avg_usage, snapshot.cpu.temperature,
+           snapshot.cpu.num_cores);
+  snprintf(memory_line, sizeof(memory_line),
+           "Memory: %.1f%% | RAM %ld/%ld | SWAP %ld/%ld",
+           snapshot.memory.mem_percent, snapshot.memory.used_ram,
+           snapshot.memory.total_ram, snapshot.memory.used_swap,
+           snapshot.memory.total_swap);
+  snprintf(disk_line, sizeof(disk_line),
+           "Disk: %d mounts | %.1f/%.1f MB used", snapshot.disk_count,
+           snapshot.disk_total_used_mb, snapshot.disk_total_mb);
+  snprintf(process_line, sizeof(process_line),
+           "Process pressure: %d collected | top %s", snapshot.processes.count,
+           snapshot.processes.count > 0 ? snapshot.processes.processes[0].command
+                                        : "unavailable");
+
+  if (snapshot.network.route.has_default && snapshot.network.dns.count > 0 &&
+      snapshot.network.has_active_interface) {
+    snprintf(network_line, sizeof(network_line),
+             "Network: route, DNS, and active interface present");
+  } else if (!snapshot.network.route.has_default &&
+             snapshot.network.dns.count == 0) {
+    snprintf(network_line, sizeof(network_line),
+             "Network: route and DNS data unavailable");
+  } else {
+    snprintf(network_line, sizeof(network_line),
+             "Network: partial snapshot | route %s | DNS %s | active %s",
+             snapshot.network.route.has_default ? "ok" : "missing",
+             snapshot.network.dns.count > 0 ? "ok" : "missing",
+             snapshot.network.has_active_interface ? "ok" : "missing");
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " Network Health Correlation ");
+  wattroff(popup, A_BOLD);
+  trfx_print_clipped(popup, 1, 2, network_line);
+  trfx_print_clipped(popup, 2, 2, cpu_line);
+  trfx_print_clipped(popup, 3, 2, memory_line);
+  trfx_print_clipped(popup, 4, 2, disk_line);
+  trfx_print_clipped(popup, 5, 2, process_line);
+  trfx_print_clipped(popup, 7, 2, footer);
+  if (error[0] != '\0')
+    trfx_print_clipped(popup, 8, 2, error);
   wrefresh(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
@@ -1581,6 +1683,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'n':
   case 'N':
     show_route_dns_popup();
+    break;
+
+  case 'v':
+  case 'V':
+    show_network_health_popup();
     break;
 
   case 'p':
