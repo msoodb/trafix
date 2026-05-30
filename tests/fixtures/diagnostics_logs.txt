@@ -1,0 +1,2 @@
+kernel: link up
+network: dns fallback
