@@ -1,0 +1,114 @@
+Phase 14 Task List: Connections Refinement
+------------------------------------------
+
+Goal
+----
+Make the Connections panel feel like a real operator drill-down: readable,
+actionable, and honest about what the kernel can and cannot tell us.
+
+Constraints
+-----------
+- Do not invent per-connection data that is not available.
+- Keep fallback states explicit and visually obvious.
+- Keep the panel readable in narrow terminals.
+- Keep each task small enough to implement, verify, and commit on its own.
+
+Task 1: Add A Normalized Connection Summary Model
+-------------------------------------------------
+Expose connection rows in one normalized structure so the UI can render
+protocol, state, endpoints, ownership, and activity consistently.
+
+Acceptance checks:
+- Connections without owners still render cleanly.
+- IPv4 and IPv6 endpoints use the same model.
+- The structure has tests for empty and populated cases.
+
+Task 2: Render A Clear Connection Table
+---------------------------------------
+Show each connection with compact columns for protocol, state, local endpoint,
+remote endpoint, PID, and process name.
+
+Acceptance checks:
+- Rows clip cleanly in narrow terminals.
+- Listeners, established flows, and unowned sockets remain visible.
+- The panel still fits alongside the rest of the dashboard.
+
+Task 3: Improve State And Protocol Grouping
+-------------------------------------------
+Make the panel easier to scan by grouping or visually separating the dominant
+connection states and protocols.
+
+Acceptance checks:
+- Established and listening traffic are obvious at a glance.
+- UDP and TCP remain clearly distinguishable.
+- Grouping does not hide low-volume or unusual connections.
+
+Task 4: Surface Local/Remote Endpoint Clarity
+--------------------------------------------
+Make endpoint formatting readable for both IPv4 and IPv6 without using fake
+abbreviations or misleading truncation.
+
+Acceptance checks:
+- Long endpoints clip safely.
+- IPv6 rows remain readable in narrow terminals.
+- Endpoint formatting is consistent across the panel and popups.
+
+Task 5: Highlight Suspicious Or Busy Connections
+-----------------------------------------------
+Show which connections are likely worth investigating using measured activity,
+state, or ownership context rather than guessed risk scores.
+
+Acceptance checks:
+- Busy or established flows are easy to spot.
+- The UI does not claim security issues it cannot prove.
+- Fallback behavior is explicit when activity data is missing.
+
+Task 6: Add A Connection Detail Drill-Down
+-----------------------------------------
+Open a focused detail popup for the selected connection with endpoint, state,
+owner, and activity context.
+
+Acceptance checks:
+- The selected row maps correctly into the detail popup.
+- Missing fields stay visible as unavailable.
+- The popup remains readable in narrow terminals.
+
+Task 7: Add Ownership Cross-Reference Cues
+------------------------------------------
+Make it obvious when a connection has a known PID/process owner and when it
+does not.
+
+Acceptance checks:
+- Owned and unowned rows are visually distinct.
+- Missing ownership does not crash or hide the row.
+- The panel does not imply ownership where none exists.
+
+Task 8: Tighten Empty States And Error Messaging
+-------------------------------------------------
+Replace vague connection placeholders with explicit collector and availability
+messages.
+
+Acceptance checks:
+- No blank framed blocks appear for missing connection data.
+- Error messages distinguish collector failure from normal absence.
+- The panel still looks deliberate when only partial data is available.
+
+Task 9: Extend Tests For Connection Overview Composition
+--------------------------------------------------------
+Add tests for the connection-to-summary path so the panel stays stable as the
+layout grows.
+
+Acceptance checks:
+- Tests cover populated and empty connection snapshots.
+- Tests cover IPv4 and IPv6 formatting paths.
+- The new tests run in the normal and sanitizer builds.
+
+Task 10: Update Docs And Manual Checks
+--------------------------------------
+Document the refined connections workflow and extend the manual checklist with
+the new drill-down and ownership checks.
+
+Acceptance checks:
+- The docs describe what is measured and what is still fallback.
+- The manual checklist covers the new connection summary behavior.
+- The shipped UI matches the documented behavior.

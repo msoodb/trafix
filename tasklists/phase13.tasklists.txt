@@ -1,0 +1,113 @@
+Phase 13 Task List: Network Overview Refinement
+----------------------------------------------
+
+Goal
+----
+Make the Network panel feel like a serious operator overview: readable,
+truthful, and useful at a glance without inventing data the system does not
+have.
+
+Constraints
+-----------
+- Do not present guessed values as measured values.
+- Keep all fallback states explicit and visually obvious.
+- Keep the panel readable in narrow terminals.
+- Keep each task small enough to implement, verify, and commit on its own.
+
+Task 1: Add A Structured Interface Status Model
+----------------------------------------------
+Expose per-interface status data in one normalized shape so the UI can render
+state, carrier, address, and rate data consistently.
+
+Acceptance checks:
+- Interfaces without addresses or carrier data still render cleanly.
+- The structure has tests that cover empty and populated cases.
+- Existing network panels still build with the new model.
+
+Task 2: Render A Real Interface Status Table
+-------------------------------------------
+Show each interface with a compact row containing name, up/down state, carrier
+state, IP assignment, and current rx/tx rates.
+
+Acceptance checks:
+- Rows clip cleanly in narrow terminals.
+- Down or unknown interfaces remain visible instead of disappearing.
+- The panel still fits alongside the rest of the dashboard.
+
+Task 3: Show Total Traffic And Directional Balance
+--------------------------------------------------
+Add a compact summary that answers how much traffic is moving overall and
+whether receive or transmit dominates.
+
+Acceptance checks:
+- The summary uses measured interface rates only.
+- Missing rates fall back to a clear unavailable state.
+- The summary does not push other network lines out of view.
+
+Task 4: Surface Route And Active-Interface Consistency
+------------------------------------------------------
+Show whether the default route, active interface, and primary IP assignment
+agree with one another.
+
+Acceptance checks:
+- A mismatch is made obvious in the UI.
+- No fake warnings appear when the data is actually consistent.
+- The behavior is testable with synthetic snapshot data.
+
+Task 5: Improve DNS And VPN Visibility
+--------------------------------------
+Make DNS and VPN details more useful by showing presence, absence, and obvious
+fallback states without overclaiming health.
+
+Acceptance checks:
+- Missing DNS remains explicit.
+- VPN/tunnel detection does not imply traffic or health by itself.
+- The panel stays readable when multiple details are present.
+
+Task 6: Add A Compact Network Health Line
+----------------------------------------
+Add one short health line that summarizes whether the machine has route,
+DNS, active interface, and ownership visibility.
+
+Acceptance checks:
+- The line is short enough for narrow terminals.
+- The status is based on current snapshot data only.
+- The line degrades gracefully when collectors fail.
+
+Task 7: Rework Top Talker Placement In The Network Panel
+--------------------------------------------------------
+Make top talkers look like a first-class overview item, not an appended block.
+
+Acceptance checks:
+- The summary reads cleanly before the interface table.
+- Narrow terminals still clip safely.
+- The selected flow marker remains understandable.
+
+Task 8: Tighten Empty States And Error Messaging
+-------------------------------------------------
+Replace vague placeholders with explicit network-specific fallbacks.
+
+Acceptance checks:
+- No blank framed blocks appear for missing network data.
+- Error messages distinguish collector failure from normal absence.
+- The UI still looks deliberate when only partial data is available.
+
+Task 9: Extend Tests For Network Overview Composition
+-----------------------------------------------------
+Add tests for the data-to-summary path so the overview stays stable as the
+layout grows.
+
+Acceptance checks:
+- Tests cover populated and empty interface snapshots.
+- Tests cover route/DNS mismatch and fallback cases.
+- The new tests run in the normal and sanitizer builds.
+
+Task 10: Update Docs And Manual Checks
+--------------------------------------
+Document the refined network overview and extend the manual checklist with the
+new status and traffic checks.
+
+Acceptance checks:
+- The docs describe what is measured and what is still fallback.
+- The manual checklist covers the new network summary behavior.
+- The shipped UI matches the documented behavior.

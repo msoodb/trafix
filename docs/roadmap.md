@@ -36,6 +36,16 @@ Turn the Network panel into a real operator overview instead of a summary line:
 - keep VPN and tunnel visibility explicit instead of implied
 - preserve clean clipping and fallback states in narrow terminals
 
+## Phase 14: Connections Refinement
+
+Turn the Connections panel into a serious drill-down instead of a raw list:
+
+- show protocol, state, endpoints, ownership, and activity in one readable table
+- make IPv4 and IPv6 endpoints easy to scan without inventing hidden detail
+- highlight established, listener, and unusual flows without fake risk scoring
+- add a focused detail view for the selected connection
+- keep empty states and narrow-terminal clipping explicit and stable
+
 ## Future Phases
 
 Any later phase numbers will follow the same pattern: ship the code, verify it

@@ -105,9 +105,13 @@ static void format_connection_summary_row(const TrfxConnectionSummary *connectio
   char local[64];
   char remote[64];
   int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
-  int endpoint_width = inner_width >= 100 ? 22 : inner_width >= 80 ? 18 : 14;
-  int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
-  int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
+  int endpoint_width = inner_width >= 160 ? 36 : inner_width >= 140 ? 32
+                       : inner_width >= 120 ? 28
+                       : inner_width >= 100 ? 24
+                       : inner_width >= 80  ? 18
+                                            : 14;
+  int user_width = inner_width >= 120 ? 8 : inner_width >= 100 ? 7 : 6;
+  int process_width = inner_width >= 120 ? 14 : inner_width >= 100 ? 12 : 10;
 
   trfx_format_endpoint_for_tui(connection->local_endpoint, local,
                                sizeof(local));
@@ -120,19 +124,6 @@ static void format_connection_summary_row(const TrfxConnectionSummary *connectio
            connection->state, connection->uid, user_width, user_width,
            connection->user, connection->pid,
            process_width, process_width, connection->process);
-}
-
-static int connection_summary_state_rank(const TrfxConnectionSummary *row) {
-  if (!row)
-    return 100;
-
-  if (strcmp(row->state, "ESTABLISHED") == 0)
-    return 0;
-  if (strcmp(row->state, "LISTEN") == 0 || strcmp(row->state, "UNCONN") == 0)
-    return 1;
-  if (strcmp(row->state, "SYN_SENT") == 0 || strcmp(row->state, "SYN_RECV") == 0)
-    return 2;
-  return 3;
 }
 
 static void render_connection_group_summary(
@@ -1286,29 +1277,35 @@ void *connection_info_thread(void *arg) {
     mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
     wattroff(win, A_BOLD);
 
-    int y = 3;
+    int y = 1;
     char header[256];
     int panel_width = getmaxx(win);
     int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
-    int endpoint_width = inner_width >= 100 ? 22 : inner_width >= 80 ? 18 : 14;
-    int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
-    int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
+    int endpoint_width = inner_width >= 160 ? 36 : inner_width >= 140 ? 32
+                         : inner_width >= 120 ? 28
+                         : inner_width >= 100 ? 24
+                         : inner_width >= 80  ? 18
+                                              : 14;
+    int user_width = inner_width >= 120 ? 8 : inner_width >= 100 ? 7 : 6;
+    int process_width = inner_width >= 120 ? 14 : inner_width >= 100 ? 12 : 10;
     char summary[256];
     format_connection_summary(&snapshot, summary, sizeof(summary));
-    trfx_print_clipped(win, 1, 2, summary);
+    trfx_print_clipped(win, y++, 2, summary);
     render_connection_group_summary(win, &connections, &y, 2,
                                     getmaxy(win) - 1);
-    if (panel_has_room(y, getmaxy(win) - 1)) {
+    if (panel_has_room(y, getmaxy(win) - 1))
       trfx_print_clipped(win, y++, 2,
-                         "Marked rows: > selected | * measured top flow | ! unowned");
-    }
+                         "Order: ESTABLISHED first, LISTEN/UNCONN next, other states last");
+    if (panel_has_room(y, getmaxy(win) - 1))
+      trfx_print_clipped(win, y++, 2,
+                         "Marked rows: * measured top flow | ! unowned");
     snprintf(header, sizeof(header), "%-6s %-*s %-*s %-13s %-7s %-*s %-7s %-*s",
              "Proto", endpoint_width, "Local", endpoint_width, "Remote",
              "State", "UID", user_width, "User", "PID", process_width,
              "Process");
-    wattron(win, trfx_color_attr(COLOR_HEADER));
-    trfx_print_clipped(win, 2, 2, header);
-    wattroff(win, trfx_color_attr(COLOR_HEADER));
+    wattron(win, trfx_color_attr(COLOR_HEADER) | A_BOLD);
+    trfx_print_clipped(win, y++, 2, header);
+    wattroff(win, trfx_color_attr(COLOR_HEADER) | A_BOLD);
 
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(y, getmaxy(win) - 1)) {
@@ -1321,31 +1318,21 @@ void *connection_info_thread(void *arg) {
                                                  : "No connection rows available");
     }
 
-    int previous_rank = -1;
     int selected_index = 0;
     if (!trfx_connection_state_copy(NULL, &selected_index))
       selected_index = 0;
     for (int i = 0; i < connections.count && y < getmaxy(win) - 1; ++i) {
       char line[256];
-      int current_rank = connection_summary_state_rank(&connections.rows[i]);
       char marker = connections.rows[i].has_owner ? ' ' : '!';
-
-      if (previous_rank != -1 && current_rank != previous_rank &&
-          panel_has_room(y, getmaxy(win) - 1)) {
-        mvwprintw(win, y++, 2, "----------------------------------------");
-      }
       if (connection_matches_hot_flow(&connections.rows[i], &bandwidth_report))
         marker = '*';
       format_connection_summary_row(&connections.rows[i], panel_width, line,
                                     sizeof(line));
       {
         char marked_line[320];
-        char selection = i == selected_index ? '>' : ' ';
-        snprintf(marked_line, sizeof(marked_line), "%c%c %s", selection, marker,
-                 line);
+        snprintf(marked_line, sizeof(marked_line), "%c %s", marker, line);
         trfx_print_clipped(win, y++, 2, marked_line);
       }
-      previous_rank = current_rank;
     }
 
     wrefresh(win);
