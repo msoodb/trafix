@@ -119,6 +119,55 @@ static void format_connection_row(const ConnectionInfo *connection,
            connection->process);
 }
 
+static int connection_state_matches(const ConnectionInfo *connection,
+                                    const char *state) {
+  if (!connection || !state)
+    return 0;
+
+  return strcmp(connection->state, state) == 0;
+}
+
+static void format_connection_summary(const TrfxNetworkSnapshot *snapshot,
+                                      char *line, size_t line_size) {
+  int tcp_count = 0;
+  int udp_count = 0;
+  int established_count = 0;
+  int listen_count = 0;
+  int owned_count = 0;
+
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  for (int i = 0; i < snapshot->connection_count; i++) {
+    const ConnectionInfo *connection = &snapshot->connections[i];
+
+    if (strcmp(connection->protocol, "TCP") == 0)
+      tcp_count++;
+    else if (strcmp(connection->protocol, "UDP") == 0)
+      udp_count++;
+
+    if (connection_state_matches(connection, "ESTABLISHED"))
+      established_count++;
+    else if (connection_state_matches(connection, "LISTEN") ||
+             connection_state_matches(connection, "UNCONN"))
+      listen_count++;
+
+    if (strcmp(connection->pid, "-") != 0 ||
+        strcmp(connection->process, "-") != 0)
+      owned_count++;
+  }
+
+  if (snapshot->connection_count == 0) {
+    snprintf(line, line_size, "Summary: no visible connections");
+    return;
+  }
+
+  snprintf(line, line_size,
+           "Summary: TCP %d | UDP %d | Established %d | Listen/Unconn %d | Owned %d",
+           tcp_count, udp_count, established_count, listen_count,
+           owned_count);
+}
+
 static int connection_has_owner(const ConnectionInfo *connection) {
   if (!connection)
     return 0;
@@ -757,8 +806,11 @@ void *connection_info_thread(void *arg) {
       continue;
     }
 
-    ConnectionInfo connections[MAX_CONNECTIONS];
-    int nconn = get_connection_info(connections, MAX_CONNECTIONS);
+    TrfxNetworkSnapshot snapshot;
+    char snapshot_error[128];
+    trfx_init_network_snapshot(&snapshot);
+    TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
+        &snapshot, snapshot_error, sizeof(snapshot_error));
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -778,21 +830,30 @@ void *connection_info_thread(void *arg) {
     int endpoint_width = inner_width >= 100 ? 22 : inner_width >= 80 ? 18 : 14;
     int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
     int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
+    char summary[256];
+    format_connection_summary(&snapshot, summary, sizeof(summary));
+    trfx_print_clipped(win, 1, 2, summary);
     snprintf(header, sizeof(header), "%-6s %-*s %-*s %-13s %-7s %-*s %-7s %-*s",
              "Proto", endpoint_width, "Local", endpoint_width, "Remote",
              "State", "UID", user_width, "User", "PID", process_width,
              "Process");
     wattron(win, trfx_color_attr(COLOR_HEADER));
-    trfx_print_clipped(win, 1, 2, header);
+    trfx_print_clipped(win, 2, 2, header);
     wattroff(win, trfx_color_attr(COLOR_HEADER));
 
-    int y = 2;
-    if (nconn == 0)
+    int y = 3;
+    if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
+        panel_has_room(y, getmaxy(win) - 1)) {
+      mvwprintw(win, y++, 2, "Snapshot: %s", snapshot_error);
+    }
+
+    if (snapshot.connection_count == 0)
       trfx_print_empty_state(win, "No TCP/UDP connections visible");
 
-    for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
+    for (int i = 0; i < snapshot.connection_count && y < getmaxy(win) - 1; ++i) {
       char line[256];
-      format_connection_row(&connections[i], panel_width, line, sizeof(line));
+      format_connection_row(&snapshot.connections[i], panel_width, line,
+                            sizeof(line));
       trfx_print_clipped(win, y++, 2, line);
     }
 
