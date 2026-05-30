@@ -119,38 +119,33 @@ static void format_connection_row(const ConnectionInfo *connection,
            connection->process);
 }
 
-static void format_socket_owner_line(const SocketOwnerInfo *owner,
-                                     int panel_width, char *line,
-                                     size_t line_size) {
-  if (!owner || !line || line_size == 0)
+static int connection_has_owner(const ConnectionInfo *connection) {
+  if (!connection)
+    return 0;
+
+  return strcmp(connection->pid, "-") != 0 ||
+         strcmp(connection->process, "-") != 0;
+}
+
+static void format_socket_inventory_line(const ConnectionInfo *connection,
+                                         int panel_width, char *line,
+                                         size_t line_size) {
+  if (!connection || !line || line_size == 0)
     return;
 
-  char local_info[128];
-  char remote_info[128];
-  char proto[8];
-  char pid[16];
-  char process[64];
   char local[64];
   char remote[64];
-
   int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
-  int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
   int endpoint_width = inner_width >= 90 ? 22 : inner_width >= 70 ? 18 : 12;
+  int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
 
-  snprintf(local_info, sizeof(local_info), "%s:%s", owner->laddr,
-           owner->lport);
-  snprintf(remote_info, sizeof(remote_info), "%s:%s", owner->raddr,
-           owner->rport);
+  trfx_format_endpoint_for_tui(connection->local_addr, local, sizeof(local));
+  trfx_format_endpoint_for_tui(connection->remote_addr, remote, sizeof(remote));
 
-  trfx_clip_text(owner->proto, proto, sizeof(proto), 6);
-  trfx_clip_text(owner->pid, pid, sizeof(pid), 7);
-  trfx_clip_text(owner->process, process, sizeof(process), process_width);
-  trfx_clip_text(local_info, local, sizeof(local), endpoint_width);
-  trfx_clip_text(remote_info, remote, sizeof(remote), endpoint_width);
-
-  snprintf(line, line_size, "%-6s %-7s %-*s %-*s %-*s", proto, pid,
-           process_width, process, endpoint_width, local, endpoint_width,
-           remote);
+  snprintf(line, line_size, "%-6.6s %-7u %-7.7s %-*.*s %-*.*s %-*.*s",
+           connection->protocol, connection->uid, connection->pid,
+           process_width, process_width, connection->process, endpoint_width,
+           endpoint_width, local, endpoint_width, endpoint_width, remote);
 }
 
 static void format_network_route_line(const TrfxNetworkSnapshot *snapshot,
@@ -824,45 +819,72 @@ void *socket_owner_info_thread(void *arg) {
       continue;
     }
 
-    SocketOwnerInfo owners[MAX_SOCKET_OWNERS];
-    int nconn = get_socket_owner_info(owners, MAX_SOCKET_OWNERS);
+    TrfxNetworkSnapshot snapshot;
+    char snapshot_error[128];
+    trfx_init_network_snapshot(&snapshot);
+    TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
+        &snapshot, snapshot_error, sizeof(snapshot_error));
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win); // Clear the window
+    werase(win);
 
-    // Draw the border
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
 
-    // Print the title
     wattron(win, A_BOLD);
-    mvwprintw(win, 0, 2, " [%d] Socket Owners ", my_index + 1);
+    mvwprintw(win, 0, 2, " [%d] Socket Inventory ", my_index + 1);
     wattroff(win, A_BOLD);
+
+    int panel_width = getmaxx(win);
+    int inner_width = panel_width > 4 ? panel_width - 4 : panel_width;
+    int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
+    int endpoint_width = inner_width >= 90 ? 22 : inner_width >= 70 ? 18 : 12;
+
+    char summary[256];
+    snprintf(summary, sizeof(summary),
+             "Owned sockets: %d | Connections: %d", snapshot.socket_owner_count,
+             snapshot.connection_count);
+    trfx_print_clipped(win, 1, 2, summary);
 
     wattron(win, trfx_color_attr(COLOR_HEADER));
     {
       char header[128];
-      int max_cols = getmaxx(win);
-      int inner_width = max_cols > 4 ? max_cols - 4 : max_cols;
-      int process_width = inner_width >= 90 ? 16 : inner_width >= 70 ? 14 : 12;
-      int endpoint_width = inner_width >= 90 ? 22 : inner_width >= 70 ? 18 : 12;
-      snprintf(header, sizeof(header), "%-6s %-7s %-*s %-*s %-*s", "Proto",
-               "PID", process_width, "Process", endpoint_width, "Local",
-               endpoint_width, "Remote");
-      trfx_print_clipped(win, 1, 2, header);
+      snprintf(header, sizeof(header), "%-6s %-7s %-7s %-*s %-*s %-*s",
+               "Proto", "UID", "PID", process_width, "Process",
+               endpoint_width, "Local", endpoint_width, "Remote");
+      trfx_print_clipped(win, 2, 2, header);
     }
     wattroff(win, trfx_color_attr(COLOR_HEADER));
 
-    int y = 2;
-    for (int i = 0; i < nconn && y < getmaxy(win) - 1; ++i) {
+    int y = 3;
+    int owned_count = 0;
+    for (int i = 0; i < snapshot.connection_count; ++i) {
+      if (connection_has_owner(&snapshot.connections[i]))
+        owned_count++;
+    }
+
+    if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
+        panel_has_room(y, getmaxy(win) - 1)) {
+      mvwprintw(win, y++, 2, "Snapshot: %s", snapshot_error);
+    }
+
+    if (owned_count == 0) {
+      trfx_print_empty_state(win, "No owned sockets visible");
+    }
+
+    for (int i = 0; i < snapshot.connection_count && y < getmaxy(win) - 1; ++i) {
+      if (!connection_has_owner(&snapshot.connections[i]))
+        continue;
+
       char line[256];
-      format_socket_owner_line(&owners[i], getmaxx(win), line, sizeof(line));
+      format_socket_inventory_line(&snapshot.connections[i], panel_width, line,
+                                   sizeof(line));
       trfx_print_clipped(win, y++, 2, line);
     }
 
-    wrefresh(win); // Refresh the window to show new data
+    wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
 
     trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
