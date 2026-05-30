@@ -40,11 +40,33 @@ static int test_clip_text(void) {
   return 0;
 }
 
+static int test_format_endpoint(void) {
+  char buf[32];
+
+  trfx_format_endpoint_for_tui("127.0.0.1:8080", buf, sizeof(buf));
+  ASSERT_STR_EQ(buf, "127.0.0.1:8080");
+
+  trfx_format_endpoint_for_tui("[2001:db8::1]:443", buf, sizeof(buf));
+  ASSERT_STR_EQ(buf, "[2001:db8::1]:443");
+
+  trfx_format_endpoint_for_tui("[2001:db8:abcd:ef01:2345:6789:abcd:ef01]:443",
+                               buf, sizeof(buf));
+  ASSERT_STR_EQ(buf, "[2001:db8:abcd:ef01:2345...:443");
+
+  trfx_format_endpoint_for_tui(NULL, buf, sizeof(buf));
+  ASSERT_STR_EQ(buf, "-");
+
+  return 0;
+}
+
 int main(void) {
   if (test_format_bytes() != 0)
     return 1;
 
   if (test_clip_text() != 0)
+    return 1;
+
+  if (test_format_endpoint() != 0)
     return 1;
 
   return 0;

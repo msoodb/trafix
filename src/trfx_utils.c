@@ -58,6 +58,43 @@ void trfx_clip_text(const char *src, char *dest, size_t dest_size,
   snprintf(dest, dest_size, "%.*s", (int)limit, src);
 }
 
+void trfx_format_endpoint_for_tui(const char *value, char *buf,
+                                  size_t bufsize) {
+  const char *suffix;
+  size_t suffix_len;
+  size_t prefix_len;
+
+  if (!buf || bufsize == 0)
+    return;
+
+  if (!value) {
+    snprintf(buf, bufsize, "-");
+    return;
+  }
+
+  if (strlen(value) < bufsize) {
+    snprintf(buf, bufsize, "%s", value);
+    return;
+  }
+
+  if (bufsize <= 4) {
+    snprintf(buf, bufsize, "%.*s", (int)(bufsize - 1), value);
+    return;
+  }
+
+  suffix = strrchr(value, ':');
+  if (suffix && suffix > value) {
+    suffix_len = strlen(suffix);
+    if (suffix_len + 4 < bufsize) {
+      prefix_len = bufsize - suffix_len - 4;
+      snprintf(buf, bufsize, "%.*s...%s", (int)prefix_len, value, suffix);
+      return;
+    }
+  }
+
+  snprintf(buf, bufsize, "%.*s...", (int)(bufsize - 4), value);
+}
+
 void trfx_print_clipped(WINDOW *win, int y, int x, const char *line) {
   int h, w;
   getmaxyx(win, h, w);

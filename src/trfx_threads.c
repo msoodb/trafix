@@ -46,30 +46,6 @@ static int panel_has_room(int row, int max_lines) {
   return row < max_lines;
 }
 
-static void trfx_format_endpoint_for_tui(const char *value, char *buf,
-                                         size_t bufsize) {
-  if (!buf || bufsize == 0)
-    return;
-
-  if (!value) {
-    snprintf(buf, bufsize, "-");
-    return;
-  }
-
-  size_t len = strlen(value);
-  if (len < bufsize) {
-    snprintf(buf, bufsize, "%s", value);
-    return;
-  }
-
-  if (bufsize <= 4) {
-    snprintf(buf, bufsize, "%.*s", (int)(bufsize - 1), value);
-    return;
-  }
-
-  snprintf(buf, bufsize, "%.*s...", (int)(bufsize - 4), value);
-}
-
 static int trfx_thread_sleep_ms(int milliseconds) {
   const int step_ms = 100;
   int elapsed = 0;
