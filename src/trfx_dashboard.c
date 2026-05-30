@@ -100,6 +100,20 @@ static void calculate_row2_widths(int screen_width, int row2_widths[]) {
   }
 }
 
+static int get_module_array_index_by_dynamic_index(int module_index) {
+  for (int i = 0; modules[i].name != NULL; i++) {
+    if (dynamic_module_indexes[i] == module_index)
+      return i;
+  }
+
+  return 0;
+}
+
+static void load_row2_modules_with_selection(int row2_height, int screen_width,
+                                             int row2_y,
+                                             const int *selected_modules);
+void cleanup_row2_modules(void);
+
 static void draw_small_terminal_message(int screen_height, int screen_width) {
   pthread_mutex_lock(&ncurses_mutex);
   erase();
@@ -121,18 +135,22 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   }
 
   int row1_widths[ROW1_MODULES];
-  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
-  if (!row2_widths)
-    return;
-
   calculate_row1_widths(screen_width, row1_widths);
-  calculate_row2_widths(screen_width, row2_widths);
 
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
   const int row2_y = calculate_row2_y();
 
+  int preserved_modules[MAX_ROW2_MODULES] = {0};
+  if (row2_slots) {
+    for (int i = 0; i < ROW2_MODULES && i < MAX_ROW2_MODULES; i++)
+      preserved_modules[i] = row2_slots[i].module_index;
+  }
+
   pthread_mutex_lock(&ncurses_mutex);
+  endwin();
+  refresh();
+  clear();
   if (SHOW_TOP_PANELS) {
     wresize(sys_win, row1_height, row1_widths[0]);
     mvwin(sys_win, 0, 0);
@@ -144,21 +162,21 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
   }
 
-  int x_offset = 0;
-  for (int i = 0; i < ROW2_MODULES; i++) {
-    if (row2_slots[i].window) {
-      wresize(row2_slots[i].window, row2_height, row2_widths[i]);
-      mvwin(row2_slots[i].window, row2_y, x_offset);
-      touchwin(row2_slots[i].window);
-      wrefresh(row2_slots[i].window);
-    }
-    x_offset += row2_widths[i];
-  }
   pthread_mutex_unlock(&ncurses_mutex);
+
+  cleanup_row2_modules();
+  row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
+  if (!row2_slots) {
+    endwin();
+    fprintf(stderr, "Failed to allocate memory for row2_slots\n");
+    exit(EXIT_FAILURE);
+  }
+
+  load_row2_modules_with_selection(row2_height, screen_width, row2_y,
+                                   preserved_modules);
 
   if (SHOW_TOP_PANELS)
     trfx_runtime_request_static_refresh_all();
-  free(row2_widths);
 }
 
 static int init_color_pair_checked(short pair, short foreground,
@@ -518,7 +536,9 @@ static void destroy_window(WINDOW **win) {
   *win = NULL;
 }
 
-void load_row2_modules(int row2_height, int screen_width, int row2_y) {
+static void load_row2_modules_with_selection(int row2_height, int screen_width,
+                                             int row2_y,
+                                             const int *selected_modules) {
   int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
   if (!row2_widths) {
     endwin();
@@ -531,6 +551,13 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
   create_row2_windows(row2_height, row2_widths, row2_y);
 
   for (int i = 0; i < ROW2_MODULES; i++) {
+    int module_index =
+        selected_modules ? selected_modules[i]
+                         : get_module_index_by_name(modules[i].name);
+    int module_slot = get_module_array_index_by_dynamic_index(module_index);
+
+    row2_slots[i].module_index = module_index;
+
     ThreadArg *arg = malloc(sizeof(ThreadArg));
     if (!arg) {
       endwin();
@@ -541,13 +568,17 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
     arg->window = row2_slots[i].window;
     row2_slots[i].stop_requested = 0;
     arg->stop_requested = &row2_slots[i].stop_requested;
-    if (pthread_create(&row2_slots[i].thread_id, NULL, modules[i].thread_func,
-                       arg) != 0) {
+    if (pthread_create(&row2_slots[i].thread_id, NULL,
+                       modules[module_slot].thread_func, arg) != 0) {
       free(arg);
     }
   }
 
   free(row2_widths);
+}
+
+void load_row2_modules(int row2_height, int screen_width, int row2_y) {
+  load_row2_modules_with_selection(row2_height, screen_width, row2_y, NULL);
 }
 
 static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
