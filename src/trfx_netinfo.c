@@ -937,6 +937,38 @@ void trfx_format_route_consistency_summary(const TrfxNetworkSnapshot *snapshot,
     }
 }
 
+void trfx_format_network_health_line(const TrfxNetworkSnapshot *snapshot,
+                                     char *summary,
+                                     size_t summary_size) {
+    const char *route_status;
+    const char *dns_status;
+    const char *active_status;
+    const char *owner_status;
+
+    if (!snapshot || !summary || summary_size == 0)
+        return;
+
+    route_status =
+        (snapshot->route_status == TRFX_COLLECTOR_OK &&
+         snapshot->route.has_default &&
+         snapshot->route.interface[0] != '\0' &&
+         strcmp(snapshot->route.interface, "N/A") != 0)
+            ? "ok"
+            : "missing";
+
+    dns_status = (snapshot->dns_status == TRFX_COLLECTOR_OK &&
+                  snapshot->dns.count > 0)
+                     ? "ok"
+                     : "missing";
+
+    active_status = snapshot->has_active_interface ? "ok" : "missing";
+    owner_status = snapshot->socket_owner_count > 0 ? "visible" : "missing";
+
+    snprintf(summary, summary_size,
+             "Health: route %s | dns %s | active %s | owners %s",
+             route_status, dns_status, active_status, owner_status);
+}
+
 void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
     if (!snapshot)
         return;

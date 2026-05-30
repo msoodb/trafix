@@ -148,6 +148,8 @@ TrfxCollectorStatus trfx_collect_interface_statuses(
     TrfxInterfaceStatusResult *status, char *error, size_t error_size);
 void trfx_format_route_consistency_summary(const TrfxNetworkSnapshot *snapshot,
                                            char *line, size_t line_size);
+void trfx_format_network_health_line(const TrfxNetworkSnapshot *snapshot,
+                                     char *line, size_t line_size);
 void trfx_init_network_sample_buffer(TrfxNetworkSampleBuffer *buffer);
 void trfx_network_sample_buffer_push(TrfxNetworkSampleBuffer *buffer,
                                      const TrfxNetworkSnapshot *snapshot,

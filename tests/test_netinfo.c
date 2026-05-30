@@ -338,6 +338,30 @@ static int test_route_consistency_formatter(void) {
   return 0;
 }
 
+static int test_network_health_formatter(void) {
+  TrfxNetworkSnapshot snapshot;
+  char line[256];
+
+  trfx_init_network_snapshot(&snapshot);
+  snapshot.route_status = TRFX_COLLECTOR_OK;
+  snapshot.route.has_default = 1;
+  snprintf(snapshot.route.interface, sizeof(snapshot.route.interface), "eth0");
+  snapshot.dns_status = TRFX_COLLECTOR_OK;
+  snapshot.dns.count = 2;
+  snapshot.has_active_interface = 1;
+  snapshot.socket_owner_count = 3;
+
+  trfx_format_network_health_line(&snapshot, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Health: route ok | dns ok | active ok | owners visible");
+
+  trfx_init_network_snapshot(&snapshot);
+  trfx_format_network_health_line(&snapshot, line, sizeof(line));
+  ASSERT_STR_EQ(line,
+                "Health: route missing | dns missing | active missing | owners missing");
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -389,6 +413,9 @@ int main(void) {
     return 1;
 
   if (test_route_consistency_formatter() != 0)
+    return 1;
+
+  if (test_network_health_formatter() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)
