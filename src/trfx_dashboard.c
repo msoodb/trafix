@@ -110,18 +110,66 @@ static void draw_small_terminal_message(int screen_height, int screen_width) {
   pthread_mutex_unlock(&ncurses_mutex);
 }
 
-static void clear_top_panels(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
-                             WINDOW *disk_win) {
+static void clear_top_panels_locked(WINDOW *sys_win, WINDOW *cpu_win,
+                                    WINDOW *mem_win, WINDOW *disk_win) {
   WINDOW *wins[] = {sys_win, cpu_win, mem_win, disk_win};
 
-  pthread_mutex_lock(&ncurses_mutex);
   for (int i = 0; i < 4; ++i) {
     if (!wins[i])
       continue;
     werase(wins[i]);
     wrefresh(wins[i]);
   }
+}
+
+static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
+                                 WINDOW *mem_win, WINDOW *disk_win) {
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  if (tui_size_is_too_small(screen_height, screen_width)) {
+    draw_small_terminal_message(screen_height, screen_width);
+    return;
+  }
+
+  int row1_widths[ROW1_MODULES];
+  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  if (!row2_widths)
+    return;
+
+  calculate_row1_widths(screen_width, row1_widths);
+  calculate_row2_widths(screen_width, row2_widths);
+
+  const int row1_height = FIXED_ROW1_HEIGHT;
+  const int row2_height = calculate_row2_height(screen_height);
+  const int row2_y = calculate_row2_y();
+
+  pthread_mutex_lock(&ncurses_mutex);
+  if (SHOW_TOP_PANELS) {
+    wresize(sys_win, row1_height, row1_widths[0]);
+    mvwin(sys_win, 0, 0);
+    wresize(cpu_win, row1_height, row1_widths[1]);
+    mvwin(cpu_win, 0, row1_widths[0]);
+    wresize(mem_win, row1_height, row1_widths[2]);
+    mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
+    wresize(disk_win, row1_height, row1_widths[3]);
+    mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  } else {
+    clear_top_panels_locked(sys_win, cpu_win, mem_win, disk_win);
+  }
+
+  int x_offset = 0;
+  for (int i = 0; i < ROW2_MODULES; i++) {
+    if (row2_slots[i].window) {
+      wresize(row2_slots[i].window, row2_height, row2_widths[i]);
+      mvwin(row2_slots[i].window, row2_y, x_offset);
+    }
+    x_offset += row2_widths[i];
+  }
   pthread_mutex_unlock(&ncurses_mutex);
+
+  trfx_runtime_request_static_refresh_all();
+  free(row2_widths);
 }
 
 static int init_color_pair_checked(short pair, short foreground,
@@ -168,6 +216,13 @@ WINDOW *create_bordered_window(int height, int width, int y, int x,
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
   }
+  return win;
+}
+
+static WINDOW *create_plain_window(int height, int width, int y, int x) {
+  WINDOW *win = newwin(height, width, y, x);
+  if (win)
+    wrefresh(win);
   return win;
 }
 
@@ -546,7 +601,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     wresize(disk_win, row1_height, row1_widths[3]);
     mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
   } else {
-    clear_top_panels(sys_win, cpu_win, mem_win, disk_win);
+    clear_top_panels_locked(sys_win, cpu_win, mem_win, disk_win);
   }
 
   int x_offset = 0;
@@ -627,10 +682,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 't':
   case 'T':
     SHOW_TOP_PANELS = !SHOW_TOP_PANELS;
-    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win);
-    if (!SHOW_TOP_PANELS)
-      clear_top_panels(sys_win, cpu_win, mem_win, disk_win);
-    trfx_runtime_request_static_refresh_all();
+    update_toggle_layout(sys_win, cpu_win, mem_win, disk_win);
     break;
 
   case KEY_F(1):
@@ -680,12 +732,14 @@ void start_dashboard() {
   WINDOW *mem_win = NULL;
   WINDOW *disk_win = NULL;
 
-  sys_win = newwin(row1_height, row1_widths[0], row1_y, 0);
-  cpu_win = newwin(row1_height, row1_widths[1], row1_y, row1_widths[0]);
-  mem_win = newwin(row1_height, row1_widths[2], row1_y,
-                   row1_widths[0] + row1_widths[1]);
-  disk_win = newwin(row1_height, row1_widths[3], row1_y,
-                    row1_widths[0] + row1_widths[1] + row1_widths[2]);
+  sys_win = create_plain_window(row1_height, row1_widths[0], row1_y, 0);
+  cpu_win = create_plain_window(row1_height, row1_widths[1], row1_y,
+                                row1_widths[0]);
+  mem_win = create_plain_window(row1_height, row1_widths[2], row1_y,
+                                row1_widths[0] + row1_widths[1]);
+  disk_win = create_plain_window(row1_height, row1_widths[3], row1_y,
+                                 row1_widths[0] + row1_widths[1] +
+                                     row1_widths[2]);
 
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
   pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
