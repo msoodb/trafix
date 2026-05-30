@@ -245,18 +245,28 @@ static void format_network_dns_line(const TrfxNetworkSnapshot *snapshot,
 
   if (snapshot->dns_status == TRFX_COLLECTOR_OK && snapshot->dns.count > 0) {
     char dns[256];
+    int shown = snapshot->dns.count < 3 ? snapshot->dns.count : 3;
+
     dns[0] = '\0';
-    for (int i = 0; i < snapshot->dns.count; i++) {
+    for (int i = 0; i < shown; i++) {
       if (i > 0)
         strncat(dns, ", ", sizeof(dns) - strlen(dns) - 1);
       strncat(dns, snapshot->dns.servers[i],
               sizeof(dns) - strlen(dns) - 1);
     }
-    snprintf(line, line_size, "DNS: %s", dns);
+    if (snapshot->dns.count > shown)
+      strncat(dns, ", ...", sizeof(dns) - strlen(dns) - 1);
+    snprintf(line, line_size, "DNS: %d server%s detected | %s",
+             snapshot->dns.count,
+             snapshot->dns.count == 1 ? "" : "s", dns);
     return;
   }
 
-  snprintf(line, line_size, "DNS: unavailable");
+  if (snapshot->dns_status == TRFX_COLLECTOR_OK) {
+    snprintf(line, line_size, "DNS: 0 servers configured");
+  } else {
+    snprintf(line, line_size, "DNS: unavailable");
+  }
 }
 
 static void format_network_active_line(const TrfxNetworkSnapshot *snapshot,
@@ -294,7 +304,13 @@ static void format_network_vpn_line(const TrfxNetworkSnapshot *snapshot,
     return;
   }
 
-  snprintf(line, line_size, "VPN: %s | IP: %s", snapshot->vpn_interface,
+  if (snapshot->vpn_ip[0] == '\0') {
+    snprintf(line, line_size, "VPN: %s detected | IP unavailable",
+             snapshot->vpn_interface);
+    return;
+  }
+
+  snprintf(line, line_size, "VPN: %s detected | IP %s", snapshot->vpn_interface,
            snapshot->vpn_ip);
 }
 
