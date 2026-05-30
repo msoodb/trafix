@@ -120,9 +120,9 @@ static int trfx_wait_for_static_refresh(int module_index, int milliseconds) {
   return trfx_runtime_consume_static_refresh(module_index);
 }
 
-static void format_connection_row(const ConnectionInfo *connection,
-                                  int panel_width, char *line,
-                                  size_t line_size) {
+static void format_connection_summary_row(const TrfxConnectionSummary *connection,
+                                          int panel_width, char *line,
+                                          size_t line_size) {
   if (!connection || !line || line_size == 0)
     return;
 
@@ -133,15 +133,17 @@ static void format_connection_row(const ConnectionInfo *connection,
   int user_width = inner_width >= 100 ? 10 : inner_width >= 80 ? 9 : 8;
   int process_width = inner_width >= 100 ? 16 : inner_width >= 80 ? 14 : 12;
 
-  trfx_format_endpoint_for_tui(connection->local_addr, local, sizeof(local));
-  trfx_format_endpoint_for_tui(connection->remote_addr, remote, sizeof(remote));
+  trfx_format_endpoint_for_tui(connection->local_endpoint, local,
+                               sizeof(local));
+  trfx_format_endpoint_for_tui(connection->remote_endpoint, remote,
+                               sizeof(remote));
 
   snprintf(line, line_size,
-           "%-6.6s %-*s %-*s %-13.13s %-7u %-*.*s %-7.7s %-*.*s",
+           "%-6.6s %-*s %-*s %-13.13s %-7.7s %-*.*s %-7.7s %-*.*s",
            connection->protocol, endpoint_width, local, endpoint_width, remote,
            connection->state, connection->uid, user_width, user_width,
-           connection->user, connection->pid, process_width, process_width,
-           connection->process);
+           connection->user, connection->pid,
+           process_width, process_width, connection->process);
 }
 
 static int connection_state_matches(const ConnectionInfo *connection,
@@ -1201,10 +1203,16 @@ void *connection_info_thread(void *arg) {
     }
 
     TrfxNetworkSnapshot snapshot;
+    TrfxConnectionSummaryResult connections;
     char snapshot_error[128];
+    char connection_error[128];
     trfx_init_network_snapshot(&snapshot);
     TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
         &snapshot, snapshot_error, sizeof(snapshot_error));
+    trfx_init_connection_summary_result(&connections);
+    trfx_collect_connection_summary(snapshot.connections, snapshot.connection_count,
+                                    &connections, connection_error,
+                                    sizeof(connection_error));
 
     pthread_mutex_lock(&ncurses_mutex);
 
@@ -1241,13 +1249,16 @@ void *connection_info_thread(void *arg) {
       mvwprintw(win, y++, 2, "Connection snapshot: %s", snapshot_error);
     }
 
-    if (snapshot.connection_count == 0)
-      trfx_print_empty_state(win, "No connection rows available");
+    if (connections.count == 0) {
+      trfx_print_empty_state(win,
+                             connection_error[0] ? connection_error
+                                                 : "No connection rows available");
+    }
 
-    for (int i = 0; i < snapshot.connection_count && y < getmaxy(win) - 1; ++i) {
+    for (int i = 0; i < connections.count && y < getmaxy(win) - 1; ++i) {
       char line[256];
-      format_connection_row(&snapshot.connections[i], panel_width, line,
-                            sizeof(line));
+      format_connection_summary_row(&connections.rows[i], panel_width, line,
+                                    sizeof(line));
       trfx_print_clipped(win, y++, 2, line);
     }
 
