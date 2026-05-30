@@ -21,6 +21,7 @@ Trafix is a lightweight terminal monitoring tool for Linux systems. It provides 
   - [Configuration](#configuration)
     - [Example Configuration File](#example-configuration-file)
     - [Configuration Options](#configuration-options)
+- [Operator Guide](#operator-guide)
 - [Roadmap](#roadmap)
 
 ## Key Features:
@@ -259,6 +260,11 @@ TUI_SMALL_PANEL_REFRESH_MS = 2000
   Refresh cadence for small-window fallback messages, in milliseconds.
 
 After modifying the configuration, simply exit and run Trafix again to apply the changes:
+
+## Operator Guide
+
+For a short workflow-oriented guide to observe, drill down, act, and diagnose,
+see [`docs/operator_guide.md`](docs/operator_guide.md).
 
 ## Roadmap
 
