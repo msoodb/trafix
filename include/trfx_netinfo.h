@@ -12,6 +12,9 @@
 
 #include <stdio.h>
 
+#include "trfx_connections.h"
+#include "trfx_socket_owners.h"
+
 #define TRFX_MAX_INTERFACES 20
 #define TRFX_MAX_DNS_SERVERS 10
 
@@ -54,6 +57,29 @@ typedef struct {
     char servers[TRFX_MAX_DNS_SERVERS][64];
 } TrfxDnsSummary;
 
+typedef struct {
+    TrfxInterfaceStatsResult interfaces;
+    TrfxRouteSummary route;
+    TrfxDnsSummary dns;
+    TrfxCollectorStatus route_status;
+    TrfxCollectorStatus dns_status;
+    int has_active_interface;
+    char active_interface[32];
+    char active_ip[64];
+    char active_type[16];
+    char active_ssid[64];
+    char active_mac[32];
+    int has_vpn_interface;
+    char vpn_interface[32];
+    char vpn_ip[64];
+    int connection_count;
+    ConnectionInfo connections[MAX_CONNECTIONS];
+    int listener_count;
+    ConnectionInfo listeners[MAX_CONNECTIONS];
+    int socket_owner_count;
+    SocketOwnerInfo socket_owners[MAX_SOCKET_OWNERS];
+} TrfxNetworkSnapshot;
+
 char *get_gateway_ip();
 char *get_dns_servers();
 int trfx_is_valid_interface_name(const char *ifname);
@@ -71,6 +97,10 @@ TrfxCollectorStatus trfx_collect_dns_summary_file(FILE *fp,
                                                   TrfxDnsSummary *summary);
 TrfxCollectorStatus trfx_collect_dns_summary_path(const char *path,
                                                   TrfxDnsSummary *summary,
+                                                  char *error,
+                                                  size_t error_size);
+void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot);
+TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
                                                   char *error,
                                                   size_t error_size);
 void get_default_gateway_and_metric(char *gateway, char *metric);

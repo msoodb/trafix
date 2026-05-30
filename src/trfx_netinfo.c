@@ -16,6 +16,14 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include "trfx_netinfo.h"
+#include "trfx_wifi.h"
+
+extern WifiInfo get_wifi_info(const char *iface) __attribute__((weak));
+extern char *get_mac_address(const char *iface) __attribute__((weak));
+extern int get_connection_info(ConnectionInfo *connections, int max_conns)
+    __attribute__((weak));
+extern int get_socket_owner_info(SocketOwnerInfo *owners, int max_owners)
+    __attribute__((weak));
 
 #define LINE_BUFFER 256
 
@@ -630,4 +638,192 @@ void free_interfaces_usage(char **data, int num_interfaces) {
         free(data[i]);
     }
     free(data);
+}
+
+static void copy_text(char *dest, size_t dest_size, const char *src,
+                      const char *fallback) {
+    if (!dest || dest_size == 0)
+        return;
+
+    if (src && src[0] != '\0') {
+        snprintf(dest, dest_size, "%s", src);
+    } else {
+        snprintf(dest, dest_size, "%s", fallback ? fallback : "N/A");
+    }
+}
+
+static int should_skip_snapshot_interface(const char *name) {
+    if (!name || name[0] == '\0')
+        return 1;
+
+    return strcmp(name, "lo") == 0 || strncmp(name, "br-", 3) == 0 ||
+           strncmp(name, "docker", 6) == 0 || strncmp(name, "veth", 4) == 0 ||
+           strncmp(name, "virbr", 5) == 0 || strncmp(name, "vmnet", 5) == 0;
+}
+
+static int connection_is_listener(const ConnectionInfo *connection) {
+    if (!connection)
+        return 0;
+
+    return strcmp(connection->state, "LISTEN") == 0 ||
+           strcmp(connection->state, "UNCONN") == 0;
+}
+
+void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
+    if (!snapshot)
+        return;
+
+    memset(snapshot, 0, sizeof(*snapshot));
+
+    snapshot->interfaces.status = TRFX_COLLECTOR_PARSE_FAILED;
+    snapshot->route_status = TRFX_COLLECTOR_PARSE_FAILED;
+    snapshot->dns_status = TRFX_COLLECTOR_PARSE_FAILED;
+
+    snapshot->route.has_default = 0;
+    snprintf(snapshot->route.destination, sizeof(snapshot->route.destination),
+             "N/A");
+    snprintf(snapshot->route.gateway, sizeof(snapshot->route.gateway), "N/A");
+    snprintf(snapshot->route.interface, sizeof(snapshot->route.interface),
+             "N/A");
+    snprintf(snapshot->route.metric, sizeof(snapshot->route.metric), "N/A");
+
+    snapshot->active_interface[0] = '\0';
+    snapshot->active_ip[0] = '\0';
+    copy_text(snapshot->active_type, sizeof(snapshot->active_type), NULL,
+              "N/A");
+    snapshot->active_ssid[0] = '\0';
+    snapshot->active_mac[0] = '\0';
+
+    snapshot->vpn_interface[0] = '\0';
+    snapshot->vpn_ip[0] = '\0';
+}
+
+TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
+                                                  char *error,
+                                                  size_t error_size) {
+    TrfxCollectorStatus final_status = TRFX_COLLECTOR_OK;
+    TrfxNetworkSnapshot local_snapshot;
+
+    if (!snapshot)
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+
+    if (error && error_size > 0)
+        error[0] = '\0';
+
+    trfx_init_network_snapshot(&local_snapshot);
+
+    local_snapshot.interfaces = trfx_collect_interface_stats_path(
+        "/proc/net/dev");
+    if (local_snapshot.interfaces.status != TRFX_COLLECTOR_OK &&
+        final_status == TRFX_COLLECTOR_OK) {
+        final_status = local_snapshot.interfaces.status;
+    }
+
+    FILE *route_fp = popen("ip route 2>/dev/null", "r");
+    if (route_fp) {
+        local_snapshot.route_status =
+            trfx_collect_route_summary_file(route_fp, &local_snapshot.route);
+        pclose(route_fp);
+    } else {
+        local_snapshot.route_status = TRFX_COLLECTOR_OPEN_FAILED;
+    }
+    if (local_snapshot.route_status != TRFX_COLLECTOR_OK &&
+        final_status == TRFX_COLLECTOR_OK) {
+        final_status = local_snapshot.route_status;
+    }
+
+    local_snapshot.dns_status = trfx_collect_dns_summary_path(
+        "/etc/resolv.conf", &local_snapshot.dns, error, error_size);
+    if (local_snapshot.dns_status != TRFX_COLLECTOR_OK &&
+        final_status == TRFX_COLLECTOR_OK) {
+        final_status = local_snapshot.dns_status;
+    }
+
+    for (int i = 0; i < local_snapshot.interfaces.count; i++) {
+        const char *name = local_snapshot.interfaces.stats[i].name;
+        char *ip = NULL;
+
+        if (should_skip_snapshot_interface(name))
+            continue;
+
+        ip = get_ip_address(name);
+        if (ip) {
+            local_snapshot.has_active_interface = 1;
+            snprintf(local_snapshot.active_interface,
+                     sizeof(local_snapshot.active_interface), "%.31s", name);
+            snprintf(local_snapshot.active_ip, sizeof(local_snapshot.active_ip),
+                     "%.63s", ip);
+            snprintf(local_snapshot.active_type, sizeof(local_snapshot.active_type),
+                     "%s", is_wifi_interface(name) ? "Wi-Fi" : "Ethernet");
+
+            if (is_wifi_interface(name) && get_wifi_info) {
+                WifiInfo wifi = get_wifi_info(name);
+                copy_text(local_snapshot.active_ssid,
+                          sizeof(local_snapshot.active_ssid), wifi.ssid, "N/A");
+            } else {
+                copy_text(local_snapshot.active_ssid,
+                          sizeof(local_snapshot.active_ssid), NULL, "N/A");
+            }
+
+            if (get_mac_address) {
+                copy_text(local_snapshot.active_mac,
+                          sizeof(local_snapshot.active_mac),
+                          get_mac_address(name), "N/A");
+            } else {
+                copy_text(local_snapshot.active_mac,
+                          sizeof(local_snapshot.active_mac), NULL, "N/A");
+            }
+            break;
+        }
+    }
+
+    for (int i = 0; i < local_snapshot.interfaces.count; i++) {
+        const char *name = local_snapshot.interfaces.stats[i].name;
+        char *vpn_ip = NULL;
+
+        if (!is_vpn_interface(name))
+            continue;
+
+        vpn_ip = get_ip_address(name);
+        if (vpn_ip) {
+            local_snapshot.has_vpn_interface = 1;
+            snprintf(local_snapshot.vpn_interface,
+                     sizeof(local_snapshot.vpn_interface), "%.31s", name);
+            snprintf(local_snapshot.vpn_ip, sizeof(local_snapshot.vpn_ip), "%.63s",
+                     vpn_ip);
+            break;
+        }
+    }
+
+    if (get_connection_info) {
+        local_snapshot.connection_count =
+            get_connection_info(local_snapshot.connections, MAX_CONNECTIONS);
+        if (local_snapshot.connection_count < 0)
+            local_snapshot.connection_count = 0;
+    } else {
+        local_snapshot.connection_count = 0;
+    }
+
+    local_snapshot.listener_count = 0;
+    for (int i = 0; i < local_snapshot.connection_count &&
+                    local_snapshot.listener_count < MAX_CONNECTIONS;
+         i++) {
+        if (!connection_is_listener(&local_snapshot.connections[i]))
+            continue;
+
+        local_snapshot.listeners[local_snapshot.listener_count++] =
+            local_snapshot.connections[i];
+    }
+
+    if (get_socket_owner_info) {
+        local_snapshot.socket_owner_count = get_socket_owner_info(
+            local_snapshot.socket_owners, MAX_SOCKET_OWNERS);
+        if (local_snapshot.socket_owner_count < 0)
+            local_snapshot.socket_owner_count = 0;
+    } else {
+        local_snapshot.socket_owner_count = 0;
+    }
+
+    *snapshot = local_snapshot;
+    return final_status;
 }

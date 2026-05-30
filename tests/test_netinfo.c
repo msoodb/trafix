@@ -212,6 +212,25 @@ static int test_dns_summary_empty_file(void) {
   return 0;
 }
 
+static int test_network_snapshot_init(void) {
+  TrfxNetworkSnapshot snapshot;
+
+  trfx_init_network_snapshot(&snapshot);
+
+  ASSERT_INT_EQ(snapshot.interfaces.status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(snapshot.route_status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(snapshot.dns_status, TRFX_COLLECTOR_PARSE_FAILED);
+  ASSERT_INT_EQ(snapshot.has_active_interface, 0);
+  ASSERT_STR_EQ(snapshot.route.destination, "N/A");
+  ASSERT_STR_EQ(snapshot.route.gateway, "N/A");
+  ASSERT_STR_EQ(snapshot.route.interface, "N/A");
+  ASSERT_STR_EQ(snapshot.route.metric, "N/A");
+  ASSERT_STR_EQ(snapshot.active_type, "N/A");
+  ASSERT_STR_EQ(snapshot.vpn_interface, "");
+
+  return 0;
+}
+
 static int test_interface_name_validation(void) {
   ASSERT_INT_EQ(trfx_is_valid_interface_name("eth0"), 1);
   ASSERT_INT_EQ(trfx_is_valid_interface_name("wlp2s0"), 1);
@@ -251,6 +270,9 @@ int main(void) {
     return 1;
 
   if (test_dns_summary_empty_file() != 0)
+    return 1;
+
+  if (test_network_snapshot_init() != 0)
     return 1;
 
   if (test_interface_name_validation() != 0)
