@@ -87,6 +87,33 @@ static int test_action_request_socket(void) {
   return 0;
 }
 
+static int test_action_review_permissions(void) {
+  TrfxActionRequest request;
+  TrfxActionReview review;
+
+  trfx_action_request_set_process_kill(&request, "1234", "sshd");
+
+  trfx_init_action_review(&review);
+  trfx_prepare_action_review(&review, &request, 1000, 1000, 1);
+  ASSERT_INT_EQ(review.permission, TRFX_ACTION_PERMISSION_ALLOWED);
+  ASSERT_INT_EQ(review.can_execute, 1);
+  ASSERT_INT_EQ(review.requires_confirmation, 1);
+  ASSERT_STR_EQ(review.prompt, "confirm kill process 1234 (sshd)?");
+  ASSERT_STR_EQ(review.details, "kill process 1234 (sshd)");
+
+  trfx_prepare_action_review(&review, &request, 1000, 1001, 1);
+  ASSERT_INT_EQ(review.permission, TRFX_ACTION_PERMISSION_DENIED);
+  ASSERT_INT_EQ(review.can_execute, 0);
+  ASSERT_STR_EQ(review.prompt, "permission denied: requires root or uid 1001");
+
+  trfx_prepare_action_review(&review, &request, 1000, 1000, 0);
+  ASSERT_INT_EQ(review.permission, TRFX_ACTION_PERMISSION_UNSUPPORTED);
+  ASSERT_INT_EQ(review.can_execute, 0);
+  ASSERT_STR_EQ(review.prompt, "kill process is not supported on this system");
+
+  return 0;
+}
+
 int main(void) {
   if (test_action_request_init() != 0)
     return 1;
@@ -98,6 +125,9 @@ int main(void) {
     return 1;
 
   if (test_action_request_socket() != 0)
+    return 1;
+
+  if (test_action_review_permissions() != 0)
     return 1;
 
   return 0;

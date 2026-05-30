@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include "trfx_config.h"
+#include "trfx_actions.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
@@ -476,6 +477,83 @@ void show_hotkeys_popup(void) {
   pthread_mutex_unlock(&ncurses_mutex);
 
   trfx_runtime_set_paused(0);
+}
+
+int show_action_review_popup(const TrfxActionReview *review) {
+  const char *title = "Confirm Action";
+  char line1[256];
+  char line2[256];
+  char line3[256];
+  char detail_body[240];
+  int screen_height, screen_width;
+  int popup_height = 8;
+  int popup_width = 72;
+  int confirmed = 0;
+
+  if (!review)
+    return 0;
+
+  trfx_runtime_set_paused(1);
+
+  snprintf(line1, sizeof(line1), "Action: %.248s",
+           review->request.label[0] ? review->request.label : "unknown");
+  trfx_clip_text(review->details[0] ? review->details : "unknown",
+                 detail_body, sizeof(detail_body), 239);
+  snprintf(line2, sizeof(line2), "Details: %s", detail_body);
+  snprintf(line3, sizeof(line3), "State: %s",
+           trfx_action_permission_status_name(review->permission));
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 50)
+    popup_width = 50;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return 0;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " %s ", title);
+  wattroff(popup, A_BOLD);
+  trfx_print_clipped(popup, 1, 2, line1);
+  trfx_print_clipped(popup, 2, 2, line2);
+  trfx_print_clipped(popup, 3, 2, line3);
+  trfx_print_clipped(popup, 5, 2, "Enter to confirm, Esc to cancel.");
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ENTER || ch == '\n' || ch == 10) {
+      confirmed = 1;
+      break;
+    }
+    if (ch == KEY_ESC || ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  trfx_runtime_set_paused(0);
+
+  return confirmed;
 }
 
 int select_module() {

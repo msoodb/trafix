@@ -14,6 +14,13 @@
 #include "trfx_socket_owners.h"
 
 typedef enum {
+  TRFX_ACTION_PERMISSION_UNKNOWN = 0,
+  TRFX_ACTION_PERMISSION_ALLOWED,
+  TRFX_ACTION_PERMISSION_DENIED,
+  TRFX_ACTION_PERMISSION_UNSUPPORTED
+} TrfxActionPermissionStatus;
+
+typedef enum {
   TRFX_ACTION_KIND_NONE = 0,
   TRFX_ACTION_KIND_KILL_PROCESS,
   TRFX_ACTION_KIND_DROP_CONNECTION,
@@ -46,6 +53,15 @@ typedef struct {
   char description[256];
 } TrfxActionRequest;
 
+typedef struct {
+  TrfxActionRequest request;
+  TrfxActionPermissionStatus permission;
+  int can_execute;
+  int requires_confirmation;
+  char prompt[256];
+  char details[256];
+} TrfxActionReview;
+
 void trfx_init_action_request(TrfxActionRequest *request);
 void trfx_action_request_set_process_kill(TrfxActionRequest *request,
                                           const char *pid,
@@ -54,7 +70,14 @@ void trfx_action_request_set_connection_drop(TrfxActionRequest *request,
                                              const ConnectionInfo *connection);
 void trfx_action_request_set_socket_drop(TrfxActionRequest *request,
                                          const SocketOwnerInfo *socket_owner);
+void trfx_init_action_review(TrfxActionReview *review);
+void trfx_prepare_action_review(TrfxActionReview *review,
+                                const TrfxActionRequest *request,
+                                unsigned int effective_uid,
+                                unsigned int target_uid, int supported);
 const char *trfx_action_kind_name(TrfxActionKind kind);
 const char *trfx_action_target_kind_name(TrfxActionTargetKind kind);
+const char *trfx_action_permission_status_name(
+    TrfxActionPermissionStatus status);
 
 #endif // TRFX_ACTIONS_H

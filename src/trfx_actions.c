@@ -38,6 +38,16 @@ void trfx_init_action_request(TrfxActionRequest *request) {
            "no action selected");
 }
 
+void trfx_init_action_review(TrfxActionReview *review) {
+  if (!review)
+    return;
+
+  memset(review, 0, sizeof(*review));
+  review->permission = TRFX_ACTION_PERMISSION_UNKNOWN;
+  snprintf(review->prompt, sizeof(review->prompt), "no action selected");
+  snprintf(review->details, sizeof(review->details), "no action selected");
+}
+
 const char *trfx_action_kind_name(TrfxActionKind kind) {
   switch (kind) {
   case TRFX_ACTION_KIND_KILL_PROCESS:
@@ -63,6 +73,21 @@ const char *trfx_action_target_kind_name(TrfxActionTargetKind kind) {
   case TRFX_ACTION_TARGET_NONE:
   default:
     return "none";
+  }
+}
+
+const char *trfx_action_permission_status_name(
+    TrfxActionPermissionStatus status) {
+  switch (status) {
+  case TRFX_ACTION_PERMISSION_ALLOWED:
+    return "allowed";
+  case TRFX_ACTION_PERMISSION_DENIED:
+    return "permission denied";
+  case TRFX_ACTION_PERMISSION_UNSUPPORTED:
+    return "unsupported";
+  case TRFX_ACTION_PERMISSION_UNKNOWN:
+  default:
+    return "unknown";
   }
 }
 
@@ -150,4 +175,45 @@ void trfx_action_request_set_socket_drop(TrfxActionRequest *request,
     snprintf(request->description, sizeof(request->description),
              "drop selected socket");
   }
+}
+
+void trfx_prepare_action_review(TrfxActionReview *review,
+                                const TrfxActionRequest *request,
+                                unsigned int effective_uid,
+                                unsigned int target_uid, int supported) {
+  if (!review)
+    return;
+
+  trfx_init_action_review(review);
+
+  if (!request)
+    return;
+
+  review->request = *request;
+  review->requires_confirmation = request->requires_confirmation;
+  snprintf(review->details, sizeof(review->details), "%s",
+           request->description);
+
+  if (!supported) {
+    review->permission = TRFX_ACTION_PERMISSION_UNSUPPORTED;
+    review->can_execute = 0;
+    snprintf(review->prompt, sizeof(review->prompt),
+             "%s is not supported on this system",
+             trfx_action_kind_name(request->kind));
+    return;
+  }
+
+  if (request->requires_permission_check && effective_uid != 0 &&
+      effective_uid != target_uid) {
+    review->permission = TRFX_ACTION_PERMISSION_DENIED;
+    review->can_execute = 0;
+    snprintf(review->prompt, sizeof(review->prompt),
+             "permission denied: requires root or uid %u", target_uid);
+    return;
+  }
+
+  review->permission = TRFX_ACTION_PERMISSION_ALLOWED;
+  review->can_execute = 1;
+  snprintf(review->prompt, sizeof(review->prompt), "confirm %.240s?",
+           request->description);
 }

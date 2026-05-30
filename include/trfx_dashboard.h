@@ -10,6 +10,8 @@
 #ifndef TRFX_DASHBOARD_H
 #define TRFX_DASHBOARD_H
 
+#include "trfx_actions.h"
+
 typedef struct {
     int key;
     const char *description;
@@ -24,6 +26,7 @@ void *process_info_thread(void *arg);
 void *socket_owner_info_thread(void *arg);
 void *help_info_thread(void *arg);
 void show_hotkeys_popup(void);
+int show_action_review_popup(const TrfxActionReview *review);
 
 void start_dashboard();
 
