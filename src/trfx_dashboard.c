@@ -19,6 +19,7 @@
 
 #include "trfx_config.h"
 #include "trfx_actions.h"
+#include "trfx_diagnostics.h"
 #include "trfx_globals.h"
 #include "trfx_connections.h"
 #include "trfx_runtime.h"
@@ -417,6 +418,7 @@ void show_hotkeys_popup(void) {
       "[x] Kill Process",
       "[z] Drop Connection",
       "[a] Action Audit",
+      "[g] Diagnostics",
       "[t] Toggle Top Panels",
       "[p] Pause",
       "[h] Help",
@@ -481,6 +483,97 @@ void show_hotkeys_popup(void) {
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
 
+  trfx_runtime_set_paused(0);
+}
+
+void show_diagnostics_popup(void) {
+  TrfxDiagnosticsSnapshot snapshot;
+  TrfxCollectorStatus status;
+  char error[256];
+  int screen_height, screen_width;
+  int popup_width = 104;
+  int visible_lines;
+  int line_count = 0;
+  char title[] = "Diagnostics Logs";
+  char footer[] = "Press Enter, Esc, or q to close.";
+  char line[384];
+  char time_text[32];
+  WINDOW *popup;
+  time_t now;
+
+  trfx_runtime_set_paused(1);
+  trfx_init_diagnostics_snapshot(&snapshot);
+  status = trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+
+  getmaxyx(stdscr, screen_height, screen_width);
+  visible_lines = screen_height - 6;
+  if (visible_lines < 1)
+    visible_lines = 1;
+
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 72)
+    popup_width = 72;
+
+  int popup_height = visible_lines + 4;
+  if (popup_height > screen_height - 2)
+    popup_height = screen_height - 2;
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+  popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
+                                 COLOR_BORDER);
+  if (!popup) {
+    trfx_runtime_set_paused(0);
+    return;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wattron(popup, trfx_color_attr(COLOR_BORDER));
+  box(popup, 0, 0);
+  wattroff(popup, trfx_color_attr(COLOR_BORDER));
+  wattron(popup, A_BOLD);
+  mvwprintw(popup, 0, 2, " %s ", title);
+  wattroff(popup, A_BOLD);
+
+  if (status != TRFX_COLLECTOR_OK && error[0] != '\0') {
+    trfx_print_clipped(popup, 1, 2, error);
+  } else if (trfx_diagnostics_log_count(&snapshot.logs) == 0) {
+    trfx_print_clipped(popup, 1, 2, "No readable log lines available.");
+  } else {
+    now = time(NULL);
+    format_popup_time(now, time_text, sizeof(time_text));
+    line_count = (int)trfx_diagnostics_log_count(&snapshot.logs);
+    if (line_count > visible_lines)
+      line_count = visible_lines;
+    for (int i = 0; i < line_count; i++) {
+      const TrfxDiagnosticsLogLine *entry =
+          trfx_diagnostics_log_at(&snapshot.logs, (size_t)i);
+      if (!entry)
+        continue;
+
+      snprintf(line, sizeof(line), "[%s] %s | %s", entry->source,
+               time_text, entry->text);
+      trfx_print_clipped(popup, i + 1, 2, line);
+    }
+  }
+
+  trfx_print_clipped(popup, popup_height - 2, 2, footer);
+  wrefresh(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+
+  while (1) {
+    int ch = wgetch(popup);
+    if (ch == KEY_ESC || ch == '\n' || ch == KEY_ENTER || ch == 10 ||
+        ch == 'q' || ch == 'Q')
+      break;
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
   trfx_runtime_set_paused(0);
 }
 
@@ -1380,6 +1473,11 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'a':
   case 'A':
     show_action_audit_popup();
+    break;
+
+  case 'g':
+  case 'G':
+    show_diagnostics_popup();
     break;
 
   case 'p':
