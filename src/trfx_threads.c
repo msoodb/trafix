@@ -538,6 +538,45 @@ static void render_interface_status_table(
   }
 }
 
+static void render_bandwidth_totals_summary(WINDOW *win,
+                                            const TrfxBandwidthReport *report,
+                                            int *row, int line,
+                                            int max_lines) {
+  double total_rx = 0.0;
+  double total_tx = 0.0;
+  char rx[32];
+  char tx[32];
+  char summary[256];
+  const char *balance = "balanced";
+
+  if (!win || !report || !row)
+    return;
+
+  if (report->interface_count <= 0) {
+    if (panel_has_room(*row, max_lines))
+      trfx_print_clipped(win, (*row)++, line, "Traffic: unavailable");
+    return;
+  }
+
+  for (int i = 0; i < report->interface_count; i++) {
+    total_rx += report->interface_rates[i].rx_bytes_per_sec;
+    total_tx += report->interface_rates[i].tx_bytes_per_sec;
+  }
+
+  if (total_rx > total_tx * 1.10)
+    balance = "receive dominant";
+  else if (total_tx > total_rx * 1.10)
+    balance = "transmit dominant";
+
+  trfx_format_net_bytes(total_rx, rx, sizeof(rx));
+  trfx_format_net_bytes(total_tx, tx, sizeof(tx));
+  snprintf(summary, sizeof(summary),
+           "Traffic: rx %s/s | tx %s/s | %s", rx, tx, balance);
+
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+}
+
 void trfx_bandwidth_state_init(void) {
   pthread_mutex_lock(&bandwidth_state_mutex);
   if (!bandwidth_state_initialized) {
@@ -1321,6 +1360,11 @@ void *network_info_thread(void *arg) {
     wattroff(win, A_BOLD);
 
     render_network_summary(win, &snapshot, &row, line, max_lines);
+
+    if (panel_has_room(row, max_lines))
+      row++;
+    render_bandwidth_totals_summary(win, &bandwidth_report, &row, line,
+                                    max_lines);
 
     if (panel_has_room(row, max_lines))
       row++;
