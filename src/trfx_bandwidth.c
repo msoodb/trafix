@@ -50,6 +50,17 @@ static double flow_total_bytes_per_sec(const TrfxBandwidthFlow *flow) {
   return flow->rx_bytes_per_sec + flow->tx_bytes_per_sec;
 }
 
+static double sum_rate_bytes(const TrfxInterfaceRate *rates, int count,
+                             int use_rx) {
+  double total = 0.0;
+
+  for (int i = 0; i < count; i++) {
+    total += use_rx ? rates[i].rx_bytes_per_sec : rates[i].tx_bytes_per_sec;
+  }
+
+  return total;
+}
+
 static int compare_bandwidth_flows(const void *left, const void *right) {
   const TrfxBandwidthFlow *a = (const TrfxBandwidthFlow *)left;
   const TrfxBandwidthFlow *b = (const TrfxBandwidthFlow *)right;
@@ -113,6 +124,14 @@ void trfx_init_bandwidth_report(TrfxBandwidthReport *report) {
   memset(report, 0, sizeof(*report));
   report->mode = TRFX_BW_MODE_UNSUPPORTED;
   snprintf(report->source, sizeof(report->source), "insufficient samples");
+}
+
+void trfx_init_bandwidth_trend(TrfxBandwidthTrend *trend) {
+  if (!trend)
+    return;
+
+  memset(trend, 0, sizeof(*trend));
+  snprintf(trend->source, sizeof(trend->source), "sample history unavailable");
 }
 
 const char *trfx_bandwidth_mode_name(TrfxBandwidthMode mode) {
@@ -274,5 +293,68 @@ TrfxCollectorStatus trfx_collect_bandwidth_report(
   report->mode = TRFX_BW_MODE_INTERFACE_FALLBACK;
   snprintf(report->source, sizeof(report->source),
            "interface-level fallback only");
+  return TRFX_COLLECTOR_OK;
+}
+
+TrfxCollectorStatus trfx_collect_bandwidth_trend(
+    const TrfxNetworkSampleBuffer *buffer, TrfxBandwidthTrend *trend,
+    char *error, size_t error_size) {
+  size_t sample_count;
+  int point_count;
+  size_t start_index;
+
+  if (error && error_size > 0)
+    error[0] = '\0';
+
+  if (!buffer || !trend) {
+    if (error && error_size > 0)
+      snprintf(error, error_size, "invalid argument");
+    return TRFX_COLLECTOR_INVALID_ARGUMENT;
+  }
+
+  trfx_init_bandwidth_trend(trend);
+  sample_count = trfx_network_sample_buffer_count(buffer);
+  if (sample_count < 2) {
+    snprintf(trend->source, sizeof(trend->source),
+             "need at least two samples for trend rendering");
+    return TRFX_COLLECTOR_OK;
+  }
+
+  point_count = (int)(sample_count - 1);
+  if (point_count > TRFX_MAX_BANDWIDTH_TREND_POINTS)
+    point_count = TRFX_MAX_BANDWIDTH_TREND_POINTS;
+
+  start_index = sample_count - (size_t)point_count - 1;
+  for (int i = 0; i < point_count; i++) {
+    const TrfxNetworkSample *previous =
+        trfx_network_sample_buffer_at(buffer, start_index + (size_t)i);
+    const TrfxNetworkSample *current =
+        trfx_network_sample_buffer_at(buffer, start_index + (size_t)i + 1);
+    TrfxInterfaceRate rates[TRFX_MAX_INTERFACES];
+    int rate_count;
+    double elapsed_seconds;
+
+    if (!previous || !current)
+      continue;
+
+    elapsed_seconds = difftime(current->captured_at, previous->captured_at);
+    if (elapsed_seconds <= 0.0)
+      elapsed_seconds = 1.0;
+
+    rate_count = trfx_calculate_interface_rates(
+        previous->snapshot.interfaces.stats, previous->snapshot.interfaces.count,
+        current->snapshot.interfaces.stats, current->snapshot.interfaces.count,
+        elapsed_seconds, rates, TRFX_MAX_INTERFACES);
+    if (rate_count < 0)
+      rate_count = 0;
+
+    trend->captured_at[i] = current->captured_at;
+    trend->rx_bytes_per_sec[i] = sum_rate_bytes(rates, rate_count, 1);
+    trend->tx_bytes_per_sec[i] = sum_rate_bytes(rates, rate_count, 0);
+    trend->point_count = i + 1;
+  }
+
+  snprintf(trend->source, sizeof(trend->source), "recent %d sample%s",
+           trend->point_count, trend->point_count == 1 ? "" : "s");
   return TRFX_COLLECTOR_OK;
 }

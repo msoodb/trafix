@@ -134,6 +134,38 @@ static int test_bandwidth_report_process_estimate(void) {
   return 0;
 }
 
+static int test_bandwidth_trend_rendering(void) {
+  TrfxNetworkSampleBuffer buffer;
+  TrfxBandwidthTrend trend;
+  TrfxNetworkSnapshot snapshot;
+
+  trfx_init_network_sample_buffer(&buffer);
+  trfx_init_network_snapshot(&snapshot);
+
+  set_interface_stat(&snapshot, "eth0", 100, 200);
+  trfx_network_sample_buffer_push(&buffer, &snapshot, 10);
+
+  set_interface_stat(&snapshot, "eth0", 220, 500);
+  trfx_network_sample_buffer_push(&buffer, &snapshot, 12);
+
+  set_interface_stat(&snapshot, "eth0", 280, 620);
+  trfx_network_sample_buffer_push(&buffer, &snapshot, 15);
+
+  trfx_init_bandwidth_trend(&trend);
+  ASSERT_INT_EQ(trfx_collect_bandwidth_trend(&buffer, &trend, NULL, 0),
+                TRFX_COLLECTOR_OK);
+  ASSERT_INT_EQ(trend.point_count, 2);
+  ASSERT_STR_EQ(trend.source, "recent 2 samples");
+  ASSERT_INT_EQ((int)trend.captured_at[0], 12);
+  ASSERT_INT_EQ((int)trend.captured_at[1], 15);
+  ASSERT_INT_EQ((int)trend.rx_bytes_per_sec[0], 60);
+  ASSERT_INT_EQ((int)trend.tx_bytes_per_sec[0], 150);
+  ASSERT_INT_EQ((int)trend.rx_bytes_per_sec[1], 20);
+  ASSERT_INT_EQ((int)trend.tx_bytes_per_sec[1], 40);
+
+  return 0;
+}
+
 int main(void) {
   if (test_bandwidth_report_unsupported() != 0)
     return 1;
@@ -142,6 +174,9 @@ int main(void) {
     return 1;
 
   if (test_bandwidth_report_process_estimate() != 0)
+    return 1;
+
+  if (test_bandwidth_trend_rendering() != 0)
     return 1;
 
   return 0;

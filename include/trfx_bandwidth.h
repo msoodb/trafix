@@ -13,6 +13,7 @@
 #include "trfx_netinfo.h"
 
 #define TRFX_MAX_BANDWIDTH_FLOWS 64
+#define TRFX_MAX_BANDWIDTH_TREND_POINTS 4
 
 typedef enum {
   TRFX_BW_MODE_UNSUPPORTED = 0,
@@ -42,10 +43,22 @@ typedef struct {
   TrfxBandwidthFlow flows[TRFX_MAX_BANDWIDTH_FLOWS];
 } TrfxBandwidthReport;
 
+typedef struct {
+  int point_count;
+  char source[128];
+  time_t captured_at[TRFX_MAX_BANDWIDTH_TREND_POINTS];
+  double rx_bytes_per_sec[TRFX_MAX_BANDWIDTH_TREND_POINTS];
+  double tx_bytes_per_sec[TRFX_MAX_BANDWIDTH_TREND_POINTS];
+} TrfxBandwidthTrend;
+
 void trfx_init_bandwidth_report(TrfxBandwidthReport *report);
 TrfxCollectorStatus trfx_collect_bandwidth_report(
     const TrfxNetworkSampleBuffer *buffer, TrfxBandwidthReport *report,
     char *error, size_t error_size);
 const char *trfx_bandwidth_mode_name(TrfxBandwidthMode mode);
+void trfx_init_bandwidth_trend(TrfxBandwidthTrend *trend);
+TrfxCollectorStatus trfx_collect_bandwidth_trend(
+    const TrfxNetworkSampleBuffer *buffer, TrfxBandwidthTrend *trend,
+    char *error, size_t error_size);
 
 #endif // TRFX_BANDWIDTH_H

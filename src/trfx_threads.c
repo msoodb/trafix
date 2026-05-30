@@ -371,6 +371,59 @@ static void render_bandwidth_talkers_summary(
   }
 }
 
+static void format_bandwidth_history_time(time_t value, char *buf,
+                                          size_t buf_size) {
+  struct tm tm_value;
+
+  if (!buf || buf_size == 0)
+    return;
+
+  if (localtime_r(&value, &tm_value) == NULL) {
+    snprintf(buf, buf_size, "unknown");
+    return;
+  }
+
+  strftime(buf, buf_size, "%H:%M:%S", &tm_value);
+}
+
+static void render_bandwidth_history_summary(WINDOW *win,
+                                             const TrfxBandwidthTrend *trend,
+                                             int *row, int line,
+                                             int max_lines) {
+  char history_line[256];
+
+  if (!win || !trend || !row)
+    return;
+
+  if (!panel_has_room(*row, max_lines))
+    return;
+
+  mvwprintw(win, (*row)++, line, "Recent trend:");
+
+  if (trend->point_count <= 0) {
+    snprintf(history_line, sizeof(history_line), "Trend: %s", trend->source);
+    if (panel_has_room(*row, max_lines))
+      trfx_print_clipped(win, (*row)++, line, history_line);
+    return;
+  }
+
+  for (int i = 0; i < trend->point_count && panel_has_room(*row, max_lines);
+       i++) {
+    char rx[32];
+    char tx[32];
+    char time_line[32];
+
+    trfx_format_net_bytes(trend->rx_bytes_per_sec[i], rx, sizeof(rx));
+    trfx_format_net_bytes(trend->tx_bytes_per_sec[i], tx, sizeof(tx));
+    format_bandwidth_history_time(trend->captured_at[i], time_line,
+                                  sizeof(time_line));
+
+    snprintf(history_line, sizeof(history_line), "%s | rx %s/s tx %s/s",
+             time_line, rx, tx);
+    trfx_print_clipped(win, (*row)++, line, history_line);
+  }
+}
+
 void trfx_bandwidth_state_init(void) {
   pthread_mutex_lock(&bandwidth_state_mutex);
   if (!bandwidth_state_initialized) {
@@ -1121,7 +1174,9 @@ void *network_info_thread(void *arg) {
     TrfxNetworkSnapshot snapshot;
     char snapshot_error[128];
     char bandwidth_error[128];
+    char trend_error[128];
     TrfxBandwidthReport bandwidth_report;
+    TrfxBandwidthTrend bandwidth_trend;
 
     trfx_init_network_snapshot(&snapshot);
     TrfxCollectorStatus snapshot_status = trfx_collect_network_snapshot(
@@ -1130,6 +1185,9 @@ void *network_info_thread(void *arg) {
     trfx_init_bandwidth_report(&bandwidth_report);
     trfx_collect_bandwidth_report(&bandwidth_samples, &bandwidth_report,
                                   bandwidth_error, sizeof(bandwidth_error));
+    trfx_init_bandwidth_trend(&bandwidth_trend);
+    trfx_collect_bandwidth_trend(&bandwidth_samples, &bandwidth_trend,
+                                 trend_error, sizeof(trend_error));
 
     char **interfaces_usage = get_interfaces_usage(&num_interfaces);
     bool interface_collect_failed = interfaces_usage == NULL;
@@ -1159,6 +1217,11 @@ void *network_info_thread(void *arg) {
     render_bandwidth_talkers_summary(win, &bandwidth_report, &row, line,
                                      max_lines);
 
+    if (panel_has_room(row, max_lines))
+      row++;
+    render_bandwidth_history_summary(win, &bandwidth_trend, &row, line,
+                                     max_lines);
+
     if (snapshot_status != TRFX_COLLECTOR_OK && snapshot_error[0] != '\0' &&
         panel_has_room(row, max_lines)) {
       mvwprintw(win, row++, line, "Network snapshot: %s", snapshot_error);
@@ -1166,6 +1229,11 @@ void *network_info_thread(void *arg) {
 
     if (bandwidth_error[0] != '\0' && panel_has_room(row, max_lines)) {
       mvwprintw(win, row++, line, "Bandwidth: %s", bandwidth_error);
+    }
+
+    if (trend_error[0] != '\0' && bandwidth_trend.point_count <= 0 &&
+        panel_has_room(row, max_lines)) {
+      mvwprintw(win, row++, line, "Trend: %s", trend_error);
     }
 
     if (panel_has_room(row, max_lines))
