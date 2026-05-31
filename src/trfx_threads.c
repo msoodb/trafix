@@ -148,10 +148,8 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines,
     if (!spec)
       continue;
 
-    if (compact_mode)
-      snprintf(line, sizeof(line), "%s", spec->title);
-    else
-      snprintf(line, sizeof(line), "%s - %s", spec->title, spec->description);
+    trfx_support_view_format_selector_line(spec, compact_mode, line,
+                                           sizeof(line));
     if (i == selected_index)
       wattron(win, A_REVERSE);
     trfx_print_clipped(win, (*row)++, 2, line);

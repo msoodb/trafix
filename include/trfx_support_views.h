@@ -44,5 +44,8 @@ int trfx_support_view_consume_refresh_request(void);
 TrfxSupportViewId trfx_support_view_id_at(size_t index);
 size_t trfx_support_view_index_for_id(TrfxSupportViewId id);
 size_t trfx_support_view_next_index(size_t current_index, int delta);
+void trfx_support_view_format_selector_line(const TrfxSupportViewSpec *spec,
+                                            int compact_mode, char *buf,
+                                            size_t buf_size);
 
 #endif // TRFX_SUPPORT_VIEWS_H

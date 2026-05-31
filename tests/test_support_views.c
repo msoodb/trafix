@@ -52,9 +52,26 @@ static int test_support_view_selection_state(void) {
   return 0;
 }
 
+static int test_support_view_selector_formatting(void) {
+  char line[256];
+  const TrfxSupportViewSpec *spec = trfx_support_view_default();
+
+  trfx_support_view_format_selector_line(spec, 0, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Overview - Route, DNS, alerts, and live support context.");
+
+  trfx_support_view_format_selector_line(spec, 1, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Overview");
+
+  trfx_support_view_format_selector_line(NULL, 0, line, sizeof(line));
+  ASSERT_STR_EQ(line, "Unknown view");
+
+  return 0;
+}
+
 static int test_support_view_null_safety(void) {
   ASSERT_INT_EQ(trfx_support_view_spec_at((size_t)-1) == NULL, 1);
   ASSERT_INT_EQ(trfx_support_view_by_id((TrfxSupportViewId)999) == NULL, 1);
+  trfx_support_view_format_selector_line(NULL, 1, NULL, 0);
   return 0;
 }
 
@@ -64,6 +81,8 @@ int main(void) {
   if (test_support_view_cycle() != 0)
     return 1;
   if (test_support_view_selection_state() != 0)
+    return 1;
+  if (test_support_view_selector_formatting() != 0)
     return 1;
   if (test_support_view_null_safety() != 0)
     return 1;

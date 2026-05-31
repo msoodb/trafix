@@ -10,6 +10,7 @@
 #include "trfx_support_views.h"
 
 #include <pthread.h>
+#include <stdio.h>
 
 static pthread_mutex_t support_view_mutex = PTHREAD_MUTEX_INITIALIZER;
 static size_t support_view_selected_index_value = 0;
@@ -147,4 +148,23 @@ size_t trfx_support_view_next_index(size_t current_index, int delta) {
     next_index -= (int)count;
 
   return (size_t)next_index;
+}
+
+void trfx_support_view_format_selector_line(const TrfxSupportViewSpec *spec,
+                                            int compact_mode, char *buf,
+                                            size_t buf_size) {
+  if (!buf || buf_size == 0)
+    return;
+
+  if (!spec) {
+    snprintf(buf, buf_size, "Unknown view");
+    return;
+  }
+
+  if (compact_mode)
+    snprintf(buf, buf_size, "%s", spec->title ? spec->title : "Unknown view");
+  else
+    snprintf(buf, buf_size, "%s - %s",
+             spec->title ? spec->title : "Unknown view",
+             spec->description ? spec->description : "");
 }
