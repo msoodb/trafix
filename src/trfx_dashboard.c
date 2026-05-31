@@ -1874,6 +1874,8 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
       touchwin(support_window);
       wrefresh(support_window);
     }
+  } else {
+    cleanup_support_column();
   }
 
   pthread_mutex_unlock(&ncurses_mutex);
@@ -1902,6 +1904,12 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 's':
   case 'S':
     current_sort_type = (current_sort_type + 1) % SORT_MAX;
+    break;
+
+  case 'm':
+  case 'M':
+    trfx_two_column_layout_toggle_secondary(&dashboard_layout_state);
+    resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win);
     break;
 
   case 'c':
