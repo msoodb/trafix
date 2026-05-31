@@ -616,7 +616,7 @@ void show_hotkeys_popup(void) {
       {"[1-3]", "Switch the second-row panel set"},
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
-      {"[c]", "Cycle the available column layouts"},
+      {"[c]", "Change the primary module"},
       {"[d]", "Open the focused bandwidth detail"},
       {"[x]", "Open the controlled process kill flow"},
       {"[z]", "Open the controlled connection drop flow"},
@@ -1928,28 +1928,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'c':
   case 'C':
-    cleanup_row2_modules();
-
-    ROW2_MODULES++;
-    if (ROW2_MODULES > MAX_ROW2_MODULES) {
-      ROW2_MODULES = 1;
-    }
-
-    row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
-    if (!row2_slots) {
-      endwin();
-      fprintf(stderr, "Failed to allocate memory for row2_slots\n");
-      exit(EXIT_FAILURE);
-    }
-
-    int current_height, current_width;
-    getmaxyx(stdscr, current_height, current_width);
-    if (tui_size_is_too_small(current_height, current_width)) {
-      draw_small_terminal_message(current_height, current_width);
-      break;
-    }
-    load_row2_modules(calculate_row2_height(current_height), current_width,
-                      calculate_row2_y());
+    change_window_module(0);
     break;
 
   case 'r':

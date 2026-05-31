@@ -41,6 +41,8 @@ In the Network panel, `j` and `k` move the selected top talker, and `d` or
 The `x` key opens a process chooser and requests a kill after confirmation.
 The `z` key opens a connection chooser and requests a drop where supported.
 The `a` key opens the recent action audit popup.
+The `c` key changes the primary module shown in the main column instead of
+changing the number of visible columns.
 
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
@@ -193,7 +195,8 @@ Current options:
 
 - `TEMP_WARN_YELLOW`: CPU temperature warning threshold.
 - `TEMP_WARN_RED`: CPU temperature critical threshold.
-- `ROW2_MODULES`: number of second-row TUI modules, from 1 to 3.
+- `ROW2_MODULES`: legacy setting kept for compatibility; the current
+  two-column TUI fixes the primary module pane to one slot.
 - `SHOW_TOP_PANELS`: enable or disable the top system, CPU, memory, and disk
   panel row together.
 - `TUI_REFRESH_INTERVAL_MS`: standard TUI panel refresh cadence.

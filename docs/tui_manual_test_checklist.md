@@ -118,12 +118,11 @@ threading, rendering, keyboard handling, or collectors.
 
 - Start the TUI.
 - Press `c` repeatedly.
-- Confirm the number of second-row columns cycles through the supported layouts.
-- Confirm panel borders align after every layout change.
-- Confirm active panel workers keep updating after each layout change.
+- Confirm the primary module changes while the support column remains separate.
+- Confirm the dashboard does not grow extra primary columns.
+- Confirm the support column still repaints cleanly after each switch.
 - Set `SHOW_TOP_PANELS = FALSE`.
-- Confirm the second row stays aligned and fills the available space.
-- Cycle columns again with the top row hidden.
+- Confirm the same primary-module switching works with the top row hidden.
 - Confirm the dashboard remains responsive and borders stay intact.
 
 ## Two-Column Layout

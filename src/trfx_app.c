@@ -37,6 +37,7 @@ int trfx_run_tui(const TrfxCliOptions *options) {
     fprintf(stderr, "trafix: %s\n", error[0] ? error : "failed to load profile");
     return TRFX_EXIT_ERROR;
   }
+  ROW2_MODULES = 1;
   start_dashboard();
   return TRFX_EXIT_OK;
 }

@@ -206,7 +206,7 @@ terminals, Trafix collapses it automatically.
 - `[1]`, `[2]`, `[3]` — **Switch Panels:** Toggle between different dashboard views.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
-- `[c]` — **Columns:** Toggle or cycle through different column views in specific panels.
+- `[c]` — **Primary Module:** Change the main module shown in the primary column.
 - `[t]` — **Top Panels:** Show or hide the top system, CPU, memory, and disk panels.
 - `[m]` — **Support Column:** Show or hide the logs and diagnostics column.
 - `[p]` — **Pause:** Pause/resume real-time updates.
@@ -231,7 +231,7 @@ sudo nano /etc/trafix/config.cfg
 TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
 
-ROW2_MODULES = 3
+ROW2_MODULES = 1
 SHOW_TOP_PANELS = 1
 TUI_REFRESH_INTERVAL_MS = 1000
 TUI_PAUSE_INTERVAL_MS = 100
@@ -247,8 +247,8 @@ TUI_SMALL_PANEL_REFRESH_MS = 2000
 - **TEMP_WARN_RED** *(default: 75)*  
   Temperature threshold in °C that triggers a red warning in the UI, indicating a high or dangerous temperature.
 
-- **ROW2_MODULES** *(default: 3)*  
-  Number of columns (modules) shown in the second row of the dashboard. Adjust this to control layout density (1 to 3).
+- **ROW2_MODULES** *(legacy; fixed to 1 in the two-column TUI)*  
+  Kept for compatibility with older configs. The current two-column layout uses a single primary module pane and a separate support column.
 
 - **SHOW_TOP_PANELS** *(default: 1)*  
   Controls whether the top system, CPU, memory, and disk panels are shown.
