@@ -99,9 +99,11 @@ static int trfx_wait_for_static_refresh(int module_index, int milliseconds) {
   return trfx_runtime_consume_static_refresh(module_index);
 }
 
-static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
+static void render_support_view_selector(WINDOW *win, int *row, int max_lines,
+                                         int max_cols) {
   size_t selected_index;
   const TrfxSupportViewSpec *selected_view;
+  int compact_mode = max_cols > 0 && max_cols < 54;
 
   if (!win || !row)
     return;
@@ -111,7 +113,9 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
 
   if (panel_has_room(*row, max_lines)) {
     char title_line[160];
-    snprintf(title_line, sizeof(title_line), "Support Views (l/L to cycle)");
+    snprintf(title_line, sizeof(title_line), compact_mode
+                                              ? "Support Views (l/L)"
+                                              : "Support Views (l/L to cycle)");
     trfx_print_clipped(win, (*row)++, 2, title_line);
   }
 
@@ -124,6 +128,11 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
 
   if (selected_view && panel_has_room(*row, max_lines)) {
     trfx_print_clipped(win, (*row)++, 2, selected_view->description);
+  }
+
+  if (compact_mode && panel_has_room(*row, max_lines)) {
+    trfx_print_clipped(win, (*row)++, 2,
+                       "Descriptions hidden on narrow widths.");
   }
 
   if (panel_has_room(*row, max_lines)) {
@@ -139,7 +148,10 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
     if (!spec)
       continue;
 
-    snprintf(line, sizeof(line), "%s - %s", spec->title, spec->description);
+    if (compact_mode)
+      snprintf(line, sizeof(line), "%s", spec->title);
+    else
+      snprintf(line, sizeof(line), "%s - %s", spec->title, spec->description);
     if (i == selected_index)
       wattron(win, A_REVERSE);
     trfx_print_clipped(win, (*row)++, 2, line);
@@ -2037,7 +2049,7 @@ void *support_info_thread(void *arg) {
 
     if (panel_has_room(row, max_rows)) {
       row++;
-      render_support_view_selector(win, &row, max_rows);
+      render_support_view_selector(win, &row, max_rows, max_cols);
     }
 
     if (panel_has_room(row, max_rows))
