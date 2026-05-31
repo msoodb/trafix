@@ -98,7 +98,8 @@ int trfx_two_column_layout_compute_geometry(
   geometry->secondary_visible =
       trfx_two_column_layout_secondary_visible(state);
 
-  if (!geometry->secondary_visible || total_width <= 0) {
+  if (!geometry->secondary_visible || total_width < 90 || total_width <= 0) {
+    geometry->secondary_visible = 0;
     geometry->primary_width = total_width;
     geometry->secondary_width = 0;
     geometry->secondary_x = origin_x + total_width;

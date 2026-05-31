@@ -85,6 +85,21 @@ static int test_two_column_layout_state_restore(void) {
   return 0;
 }
 
+static int test_two_column_layout_narrow_fallback(void) {
+  TrfxTwoColumnLayoutState state;
+  TrfxTwoColumnLayoutGeometry geometry;
+
+  trfx_two_column_layout_init(&state);
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 0, 0, 20, 80, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.secondary_visible, 0);
+  ASSERT_INT_EQ(geometry.primary_width, 80);
+  ASSERT_INT_EQ(geometry.secondary_width, 0);
+
+  return 0;
+}
+
 int main(void) {
   if (test_two_column_layout_defaults() != 0)
     return 1;
@@ -93,6 +108,8 @@ int main(void) {
   if (test_two_column_layout_geometry() != 0)
     return 1;
   if (test_two_column_layout_state_restore() != 0)
+    return 1;
+  if (test_two_column_layout_narrow_fallback() != 0)
     return 1;
   if (test_two_column_layout_null_safety() != 0)
     return 1;
