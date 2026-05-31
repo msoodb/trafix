@@ -111,7 +111,7 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
 
   if (panel_has_room(*row, max_lines)) {
     char title_line[160];
-    snprintf(title_line, sizeof(title_line), "Support Views");
+    snprintf(title_line, sizeof(title_line), "Support Views (l/L to cycle)");
     trfx_print_clipped(win, (*row)++, 2, title_line);
   }
 
@@ -124,6 +124,11 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
 
   if (selected_view && panel_has_room(*row, max_lines)) {
     trfx_print_clipped(win, (*row)++, 2, selected_view->description);
+  }
+
+  if (panel_has_room(*row, max_lines)) {
+    trfx_print_clipped(win, (*row)++, 2,
+                       "Read-only views stay here; x/z remain modal.");
   }
 
   for (size_t i = 0; i < trfx_support_view_count() && panel_has_room(*row, max_lines);
