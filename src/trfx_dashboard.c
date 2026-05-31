@@ -275,6 +275,11 @@ static void format_popup_time(time_t value, char *buf, size_t buf_size) {
   strftime(buf, buf_size, "%H:%M:%S", &tm_value);
 }
 
+static void resume_dashboard_after_popup(void) {
+  trfx_runtime_set_paused(0);
+  trfx_runtime_request_static_refresh_all();
+}
+
 static const TrfxBandwidthFlow *find_hot_flow_for_connection(
     const TrfxConnectionSummary *connection, const TrfxBandwidthReport *report) {
   if (!connection || !report)
@@ -403,7 +408,7 @@ static void show_bandwidth_detail_popup(void) {
   pthread_mutex_unlock(&ncurses_mutex);
 
 out:
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 void show_connection_detail_popup(void) {
@@ -517,7 +522,7 @@ void show_connection_detail_popup(void) {
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -548,7 +553,7 @@ void show_connection_detail_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 void draw_centered_message(WINDOW *win, const char *message) {
@@ -658,7 +663,7 @@ void show_hotkeys_popup(void) {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -699,8 +704,7 @@ void show_hotkeys_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 void show_diagnostics_popup(void) {
@@ -764,7 +768,7 @@ void show_diagnostics_popup(void) {
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -825,7 +829,7 @@ void show_diagnostics_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 static void show_route_dns_popup(void) {
@@ -857,7 +861,7 @@ static void show_route_dns_popup(void) {
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -922,7 +926,7 @@ static void show_route_dns_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 static void show_network_health_popup(void) {
@@ -956,7 +960,7 @@ static void show_network_health_popup(void) {
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -1023,7 +1027,7 @@ static void show_network_health_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 int show_action_review_popup(const TrfxActionReview *review) {
@@ -1064,7 +1068,7 @@ int show_action_review_popup(const TrfxActionReview *review) {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return 0;
   }
 
@@ -1098,7 +1102,7 @@ int show_action_review_popup(const TrfxActionReview *review) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 
   return confirmed;
 }
@@ -1126,7 +1130,7 @@ static void show_action_feedback_popup(const char *title, const char *message) {
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -1154,6 +1158,7 @@ static void show_action_feedback_popup(const char *title, const char *message) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
+  resume_dashboard_after_popup();
 }
 
 static void show_action_result_popup(const TrfxActionRequest *request,
@@ -1201,7 +1206,7 @@ static void show_action_result_popup(const TrfxActionRequest *request,
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -1235,7 +1240,7 @@ static void show_action_result_popup(const TrfxActionRequest *request,
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 static void show_action_audit_popup(void) {
@@ -1275,8 +1280,10 @@ static void show_action_audit_popup(void) {
   int popup_x = (screen_width - popup_width) / 2;
   popup = create_bordered_window(popup_height, popup_width, popup_y, popup_x,
                                  COLOR_BORDER);
-  if (!popup)
+  if (!popup) {
+    resume_dashboard_after_popup();
     return;
+  }
 
   pthread_mutex_lock(&ncurses_mutex);
   werase(popup);
@@ -1326,7 +1333,7 @@ static void show_action_audit_popup(void) {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 static int select_process_for_kill(ProcessInfo *selected) {
@@ -1570,7 +1577,7 @@ int select_module() {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return -1;
   }
 
@@ -1612,7 +1619,7 @@ int select_module() {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
   return selected_index;
 }
 
@@ -1631,7 +1638,7 @@ void pause_screen() {
   WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
                                          popup_x, COLOR_BORDER);
   if (!popup) {
-    trfx_runtime_set_paused(0);
+    resume_dashboard_after_popup();
     return;
   }
 
@@ -1644,8 +1651,7 @@ void pause_screen() {
   wrefresh(popup);
   delwin(popup);
   pthread_mutex_unlock(&ncurses_mutex);
-
-  trfx_runtime_set_paused(0);
+  resume_dashboard_after_popup();
 }
 
 void change_window_module(int slot_idx) {
