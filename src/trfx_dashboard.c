@@ -405,6 +405,16 @@ static WINDOW *create_plain_window(int height, int width, int y, int x) {
   return newwin(height, width, y, x);
 }
 
+static void draw_initial_frame(WINDOW *win) {
+  if (!win)
+    return;
+
+  pthread_mutex_lock(&ncurses_mutex);
+  box(win, 0, 0);
+  wrefresh(win);
+  pthread_mutex_unlock(&ncurses_mutex);
+}
+
 static void format_popup_time(time_t value, char *buf, size_t buf_size) {
   struct tm tm_value;
 
@@ -1263,6 +1273,7 @@ void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
   for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     WINDOW *win = newwin(row2_height, row2_widths[i], row2_y, x_offset);
     row2_slots[i].window = win;
+    draw_initial_frame(win);
     row2_slots[i].module_index = get_module_index_by_name(modules[i].name);
     row2_slots[i].thread_id = 0;
     row2_slots[i].stop_requested = 0;
@@ -1596,6 +1607,10 @@ void start_dashboard() {
   disk_win = create_plain_window(row1_height, row1_widths[3], row1_y,
                                  row1_widths[0] + row1_widths[1] +
                                      row1_widths[2]);
+  draw_initial_frame(sys_win);
+  draw_initial_frame(cpu_win);
+  draw_initial_frame(mem_win);
+  draw_initial_frame(disk_win);
 
   pthread_t sys_tid, cpu_tid, mem_tid, disk_tid;
   pthread_create(&sys_tid, NULL, system_info_thread, sys_win);
