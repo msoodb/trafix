@@ -1,0 +1,54 @@
+#include "test_common.h"
+#include "trfx_support_views.h"
+
+static int test_support_view_registry(void) {
+  ASSERT_INT_EQ((int)trfx_support_view_count(), (int)TRFX_SUPPORT_VIEW_COUNT);
+  ASSERT_INT_EQ((int)trfx_support_view_default_index(), 0);
+
+  const TrfxSupportViewSpec *default_view = trfx_support_view_default();
+  ASSERT_INT_EQ(default_view != NULL, 1);
+  ASSERT_INT_EQ(default_view->id, TRFX_SUPPORT_VIEW_OVERVIEW);
+  ASSERT_STR_EQ(default_view->title, "Overview");
+  ASSERT_INT_EQ((int)strlen(default_view->description) > 0, 1);
+
+  for (size_t i = 0; i < trfx_support_view_count(); i++) {
+    const TrfxSupportViewSpec *spec = trfx_support_view_spec_at(i);
+    ASSERT_INT_EQ(spec != NULL, 1);
+    ASSERT_INT_EQ(spec->id, trfx_support_view_id_at(i));
+    ASSERT_INT_EQ((int)strlen(spec->title) > 0, 1);
+    ASSERT_INT_EQ((int)strlen(spec->description) > 0, 1);
+  }
+
+  ASSERT_INT_EQ(trfx_support_view_spec_at(trfx_support_view_count()) == NULL, 1);
+  ASSERT_INT_EQ(trfx_support_view_by_id(TRFX_SUPPORT_VIEW_ACTION_AUDIT) != NULL,
+                1);
+  ASSERT_INT_EQ((int)trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_NETWORK_HEALTH),
+                4);
+  ASSERT_INT_EQ((int)trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_COUNT), 0);
+
+  return 0;
+}
+
+static int test_support_view_cycle(void) {
+  ASSERT_INT_EQ((int)trfx_support_view_next_index(0, 1), 1);
+  ASSERT_INT_EQ((int)trfx_support_view_next_index(0, -1), 7);
+  ASSERT_INT_EQ((int)trfx_support_view_next_index(7, 1), 0);
+  ASSERT_INT_EQ((int)trfx_support_view_next_index(99, 1), 1);
+  return 0;
+}
+
+static int test_support_view_null_safety(void) {
+  ASSERT_INT_EQ(trfx_support_view_spec_at((size_t)-1) == NULL, 1);
+  ASSERT_INT_EQ(trfx_support_view_by_id((TrfxSupportViewId)999) == NULL, 1);
+  return 0;
+}
+
+int main(void) {
+  if (test_support_view_registry() != 0)
+    return 1;
+  if (test_support_view_cycle() != 0)
+    return 1;
+  if (test_support_view_null_safety() != 0)
+    return 1;
+  return 0;
+}
