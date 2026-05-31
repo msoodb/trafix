@@ -19,6 +19,7 @@
 void format_bytes(double mb, char *buf, size_t bufsize);
 void trfx_clip_text(const char *src, char *dest, size_t dest_size,
                     int max_width);
+void trfx_clear_window_content(WINDOW *win);
 void trfx_format_endpoint_for_tui(const char *value, char *buf,
                                   size_t bufsize);
 void safe_mvwprintw(WINDOW *win, int y, int x, int max_width, const char *fmt, ...);

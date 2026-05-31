@@ -1257,7 +1257,7 @@ void *system_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1308,7 +1308,7 @@ void *cpu_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     int h, w;
     getmaxyx(win, h, w);
@@ -1419,7 +1419,7 @@ void *memory_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1502,7 +1502,7 @@ void *disk_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     int h, w;
     getmaxyx(win, h, w);
@@ -1587,7 +1587,7 @@ void *process_info_thread(void *arg) {
     int h, w;
     getmaxyx(win, h, w);
     (void)w;
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1681,7 +1681,7 @@ void *process_compact_info_thread(void *arg) {
     int h, w;
     getmaxyx(win, h, w);
     (void)w;
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1772,7 +1772,7 @@ void *connection_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1871,7 +1871,7 @@ void *socket_owner_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
@@ -1992,7 +1992,7 @@ void *support_info_thread(void *arg) {
     pthread_mutex_lock(&ncurses_mutex);
     getmaxyx(win, max_rows, max_cols);
     (void)max_cols;
-    werase(win);
+    trfx_clear_window_content(win);
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
@@ -2106,7 +2106,7 @@ void *network_info_thread(void *arg) {
     int line = 4;
     int max_lines = max_rows - 1;
 
-    werase(win);
+    trfx_clear_window_content(win);
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
@@ -2199,7 +2199,7 @@ void *help_info_thread(void *arg) {
 
     pthread_mutex_lock(&ncurses_mutex);
 
-    werase(win);
+    trfx_clear_window_content(win);
 
     wattron(win, trfx_color_attr(COLOR_BORDER));
     box(win, 0, 0);

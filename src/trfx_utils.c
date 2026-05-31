@@ -95,6 +95,21 @@ void trfx_format_endpoint_for_tui(const char *value, char *buf,
   snprintf(buf, bufsize, "%.*s...", (int)(bufsize - 4), value);
 }
 
+void trfx_clear_window_content(WINDOW *win) {
+  int h, w;
+
+  if (!win)
+    return;
+
+  getmaxyx(win, h, w);
+  if (h < 3 || w < 3)
+    return;
+
+  for (int row = 1; row < h - 1; row++) {
+    mvwhline(win, row, 1, ' ', w - 2);
+  }
+}
+
 void trfx_print_clipped(WINDOW *win, int y, int x, const char *line) {
   int h, w;
   getmaxyx(win, h, w);
