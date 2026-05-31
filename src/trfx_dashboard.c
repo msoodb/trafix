@@ -32,7 +32,6 @@
 #define TOTAL_ROWS 3
 #define ROW1_MODULES 4
 #define PRIMARY_PANE_SLOTS 1
-#define MAX_PRIMARY_MODULE_CHOICES 3
 #define ROW3_MODULES 1
 
 #define FIXED_ROW1_HEIGHT 11
@@ -2096,13 +2095,6 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
     resize_dashboard_windows(sys_win, cpu_win, mem_win, disk_win);
     break;
 
-  case '1':
-  case '2':
-  case '3': {
-    change_window_module(0);
-    break;
-  }
-    
   case 's':
   case 'S':
     current_sort_type = (current_sort_type + 1) % SORT_MAX;
