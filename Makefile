@@ -24,6 +24,7 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_layout \
 	$(BUILD_DIR)/test_support_views \
 	$(BUILD_DIR)/test_connections \
+	$(BUILD_DIR)/test_rendering \
 	$(BUILD_DIR)/test_netinfo \
 	$(BUILD_DIR)/test_bandwidth \
 	$(BUILD_DIR)/test_performance_guardrails \
@@ -91,6 +92,9 @@ $(BUILD_DIR)/test_support_views: tests/test_support_views.c src/trfx_support_vie
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_connections: tests/test_connections.c src/trfx_connections.c src/trfx_socket_owners.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_rendering: tests/test_rendering.c src/trfx_utils.c src/trfx_globals.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_netinfo: tests/test_netinfo.c src/trfx_netinfo.c | $(BUILD_DIR)
