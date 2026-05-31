@@ -613,7 +613,6 @@ void show_hotkeys_popup(void) {
   } HotkeyHelpRow;
 
   static const HotkeyHelpRow hotkeys[] = {
-      {"[1-3]", "Change the primary module"},
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
       {"[c]", "Change the primary module"},
@@ -637,7 +636,7 @@ void show_hotkeys_popup(void) {
   getmaxyx(stdscr, screen_height, screen_width);
 
   const char *title = "Hotkeys";
-  const char *subtitle = "Primary column stays visible. `m` toggles support.";
+  const char *subtitle = "Primary and support columns stay visible.";
   const int key_col_width = 8;
   int popup_height = hotkey_count + 6;
   int popup_width = (int)strlen(title) + 8;

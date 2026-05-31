@@ -46,6 +46,29 @@ Turn the Connections panel into a serious drill-down instead of a raw list:
 - add a focused detail view for the selected connection
 - keep empty states and narrow-terminal clipping explicit and stable
 
+## Phase 15: Two-Column Operator Layout
+
+Reframe the dashboard into a stable operator surface with one persistent
+primary column and one persistent supporting column:
+
+- keep the primary column always visible for overview and drill-down modules
+- use the secondary column for logs, diagnostics, audits, and live support data
+- preserve the current module content while changing how it is arranged
+- hide gracefully on narrow terminals and collapse the supporting column there
+- keep the layout readable, fast, and predictable during resize and refresh
+
+## Phase 16: Support View Selector And Detail Dock
+
+Turn the supporting column into a named inspection dock instead of a generic
+side panel:
+
+- let the support column host one selected inspection view at a time
+- move read-only detail views into the support dock instead of standalone popups
+- show a short description for each selectable support item
+- keep confirmation and destructive action flows separate from the support dock
+- remove stale main-column numbering and keep the help text aligned with the live layout
+- preserve narrow-terminal fallback behavior and readable clipping
+
 ## Future Phases
 
 Any later phase numbers will follow the same pattern: ship the code, verify it

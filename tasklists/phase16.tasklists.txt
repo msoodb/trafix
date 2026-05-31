@@ -1,0 +1,112 @@
+Phase 16 Task List: Support View Selector And Detail Dock
+---------------------------------------------------------
+
+Goal
+----
+Turn the supporting column into a clear inspection dock with selectable live
+views, descriptive labels, and a cleaner help model.
+
+Constraints
+-----------
+- Keep the primary column behavior stable.
+- Keep confirmation and destructive action flows separate from the support dock.
+- Keep support-view changes small enough to implement, verify, and commit one at a time.
+- Preserve narrow-terminal fallback and clipping.
+
+Task 1: Define The Support View Registry
+----------------------------------------
+Introduce a structured registry for support-column views so each item has a
+stable id, title, and short description.
+
+Acceptance checks:
+- Every selectable support item has a description string.
+- The registry has a clear default view.
+- The model is testable without changing layout behavior yet.
+
+Task 2: Render A Support View Selector
+--------------------------------------
+Show the available support views in the support column and let the user see
+which one is currently active.
+
+Acceptance checks:
+- The support column lists selectable views clearly.
+- The active view is obvious without opening a popup.
+- Long labels clip cleanly in narrow terminals.
+
+Task 3: Add A Key To Cycle Support Views
+----------------------------------------
+Bind a key for moving through support views in the same way the main column can
+be cycled.
+
+Acceptance checks:
+- The key updates the support view immediately.
+- The visible support content changes with the selection.
+- The help popup documents the key.
+
+Task 4: Move Read-Only Detail Views Into The Support Dock
+---------------------------------------------------------
+Relocate inspection-only views such as bandwidth detail and connection detail
+into the support column instead of separate standalone popups.
+
+Acceptance checks:
+- The support column can show the selected detail view.
+- Read-only details stay visible while the primary column remains stable.
+- Popups remain reserved for confirmations and chooser flows.
+
+Task 5: Add Support-View Descriptions In The UI
+-----------------------------------------------
+Make each selectable support item self-explanatory with a short description.
+
+Acceptance checks:
+- Selector rows include concise descriptions.
+- Descriptions do not break the support-column layout.
+- The UI still reads cleanly at smaller widths.
+
+Task 6: Keep Action Confirmations Separate
+------------------------------------------
+Ensure destructive or confirmable flows still use modal confirmation paths
+instead of being folded into the support dock.
+
+Acceptance checks:
+- Kill/drop/other confirmations remain modal.
+- The support dock is not used for destructive actions.
+- Existing action audit behavior stays intact.
+
+Task 7: Remove Stale Main-Column Numbering
+------------------------------------------
+Remove outdated `[1]` / `[1-3]` wording from the live help and docs so the UI
+describes the actual primary-column behavior.
+
+Acceptance checks:
+- Hotkey help no longer advertises stale numbering.
+- README and user-facing docs match the live key model.
+- The primary column description stays accurate.
+
+Task 8: Handle Narrow Terminals Cleanly
+--------------------------------------
+Keep the support dock readable when space is limited.
+
+Acceptance checks:
+- The selector degrades gracefully in narrow terminals.
+- Long labels and descriptions clip safely.
+- The fallback state remains explicit and stable.
+
+Task 9: Extend Tests For Support View Selection
+-----------------------------------------------
+Add automated coverage for the support-view registry, cycling, and selector
+rendering.
+
+Acceptance checks:
+- Tests cover the default support view.
+- Tests cover cycling and restore behavior.
+- The new tests run in normal and sanitizer builds.
+
+Task 10: Update Docs And Manual Checks
+--------------------------------------
+Document the support dock workflow and extend the manual checklist with the new
+selector and view-switching behavior.
+
+Acceptance checks:
+- The docs explain which views belong in the support dock.
+- The manual checklist covers selection and narrow-terminal behavior.
+- The shipped UI matches the documented workflow.
