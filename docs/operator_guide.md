@@ -24,6 +24,14 @@ Use the Network panel to get the first read on the host:
 - top talkers
 - recent sample trend
 
+The main dashboard uses two columns when the terminal is wide enough:
+
+- primary column: the core overview and drill-down views
+- support column: logs, diagnostics, audits, and supporting live data
+
+Use `m` to show or hide the support column. On narrow terminals Trafix
+collapses it automatically.
+
 Use the Connections panel when you need the raw socket table and the grouped
 summary by protocol, state, and ownership.
 

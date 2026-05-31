@@ -46,7 +46,7 @@ threading, rendering, keyboard handling, or collectors.
 - Press `F1`, `h`, and `H`.
 - Confirm the hotkey popup opens from each key.
 - Confirm the popup lists the keys with short descriptions, including `g`,
-  `n`, and `v`.
+  `n`, `v`, and `m`.
 - Press `Esc`.
 - Confirm the popup closes immediately and returns to the dashboard.
 - Resize the terminal while the popup is open.
@@ -125,6 +125,21 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the second row stays aligned and fills the available space.
 - Cycle columns again with the top row hidden.
 - Confirm the dashboard remains responsive and borders stay intact.
+
+## Two-Column Layout
+
+- Start the TUI on a wide terminal, for example `120x40`.
+- Confirm the primary column stays visible and the support column is present.
+- Press `m`.
+- Confirm the support column hides and the primary column keeps its context.
+- Press `m` again.
+- Confirm the support column returns with its previous content.
+- Start the TUI on a narrow terminal, for example `80x24`.
+- Confirm the support column collapses automatically instead of rendering
+  cramped borders.
+- Resize between narrow and wide states.
+- Confirm the primary column stays readable and the support column repaints
+  cleanly when it becomes available.
 
 ## Network Views
 

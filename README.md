@@ -186,6 +186,11 @@ Trafix offers an interactive command-line interface with real-time controls. You
 For release and regression checks, use the manual TUI checklist in
 `docs/tui_manual_test_checklist.md`.
 
+The dashboard is arranged as a primary column for the core observability
+views and a toggleable support column for logs, diagnostics, audits, and other
+supporting live data. Use `m` to show or hide that support column. On narrow
+terminals, Trafix collapses it automatically.
+
 ### Hotkeys
 
 - `[F1]`, `[h]`, `[H]` — **Help Popup:** Show the hotkey help popup.
@@ -203,6 +208,7 @@ For release and regression checks, use the manual TUI checklist in
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Columns:** Toggle or cycle through different column views in specific panels.
 - `[t]` — **Top Panels:** Show or hide the top system, CPU, memory, and disk panels.
+- `[m]` — **Support Column:** Show or hide the logs and diagnostics column.
 - `[p]` — **Pause:** Pause/resume real-time updates.
 - `[q]` — **Quit:** Exit the Trafix application.
 
