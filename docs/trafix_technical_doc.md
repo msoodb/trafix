@@ -31,14 +31,15 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
-The `g` key opens the troubleshooting diagnostics popup.
-The `n` key opens a route and DNS checks popup.
-The `v` key opens a network health correlation popup.
+The `g` key shows the troubleshooting diagnostics in the support dock.
+The `n` key shows the route and DNS checks in the support dock.
+The `v` key shows the network health correlation in the support dock.
+The `l` key cycles the support dock view.
 In the Network panel, `j` and `k` move the selected top talker, and `d` or
-`Enter` opens a detail popup for the selected flow.
+`Enter` shows the bandwidth detail in the support dock.
 The `x` key opens a process chooser and requests a kill after confirmation.
 The `z` key opens a connection chooser and requests a drop where supported.
-The `a` key opens the recent action audit popup.
+The `a` key shows the recent action audit in the support dock.
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
 top-talkers, trend history, and estimated socket/process bandwidth are now

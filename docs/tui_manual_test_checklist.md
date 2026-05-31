@@ -34,9 +34,12 @@ threading, rendering, keyboard handling, or collectors.
 ## Panel Switching
 
 - Start the TUI.
-- Press `1`, `2`, and `3` repeatedly.
-- Confirm each visible second-row slot switches panels without flicker, stale data,
-  or broken borders.
+- Press `c` repeatedly.
+- Confirm the primary module changes without flicker, stale data, or broken
+  borders.
+- Press `l` repeatedly.
+- Confirm the support dock cycles through its views without breaking the
+  layout.
 - Continue switching for at least 30 seconds.
 - Confirm CPU usage remains reasonable and the TUI stays responsive.
 
@@ -46,7 +49,7 @@ threading, rendering, keyboard handling, or collectors.
 - Press `F1`, `h`, and `H`.
 - Confirm the hotkey popup opens from each key.
 - Confirm the popup lists the keys with short descriptions, including `g`,
-  `n`, `v`, and `m`.
+  `n`, `v`, `l`, `o`, `a`, `d`, `x`, and `z`.
 - Press `Esc`.
 - Confirm the popup closes immediately and returns to the dashboard.
 - Resize the terminal while the popup is open.
@@ -56,17 +59,17 @@ threading, rendering, keyboard handling, or collectors.
 
 - Start the TUI.
 - Press `g`.
-- Confirm the troubleshooting popup shows system, network, log, and pressure
-  context.
+- Confirm the support dock switches to the diagnostics view and shows system,
+  network, log, and pressure context.
 - Press `n`.
-- Confirm the route and DNS popup shows the default route, resolver data, and
-  active interface summary.
+- Confirm the support dock switches to the route and DNS view and shows the
+  default route, resolver data, and active interface summary.
 - Press `v`.
-- Confirm the network health popup shows CPU, memory, disk, process, and
-  network correlation in one compact view.
+- Confirm the support dock switches to the network health view and shows CPU,
+  memory, disk, process, and network correlation in one compact view.
 - Run with missing log access or broken route/DNS data.
-- Confirm the popups show explicit fallback text instead of blank panes or
-  crashes.
+- Confirm the support dock shows explicit fallback text instead of blank panes
+  or crashes.
 
 ## Bandwidth Detail
 
@@ -75,17 +78,19 @@ threading, rendering, keyboard handling, or collectors.
 - Press `j` and `k`.
 - Confirm the selected top talker moves without breaking the layout.
 - Press `d` or `Enter`.
-- Confirm the bandwidth detail popup opens for the selected top talker.
-- Confirm the popup shows current metadata and recent sample history.
-- Close the popup with `Esc`.
-- Confirm the dashboard returns cleanly.
+- Confirm the support dock switches to the bandwidth detail view for the
+  selected top talker.
+- Confirm the support dock shows current metadata and recent sample history.
+- Press `l`.
+- Confirm the support dock cycles to the next support view and returns cleanly.
 - Run in an environment with no meaningful ownership data.
 - Confirm the top talker area shows an explicit fallback instead of crashing.
 
 ## Action Workflow
 
 - Start the TUI and open the hotkey popup.
-- Confirm the popup lists `x`, `z`, and `a` alongside the existing controls.
+- Confirm the popup lists `x`, `z`, `a`, `d`, `g`, `n`, `v`, `l`, and `o`
+  alongside the existing controls.
 - Press `x`.
 - Confirm the process chooser opens, the selected process is visible, and the
   confirmation step appears before any action runs.
@@ -97,9 +102,9 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the confirmation step appears and unsupported targets fail cleanly
   instead of crashing or claiming success.
 - Press `a`.
-- Confirm the audit popup shows the recent action trail with readable status
+- Confirm the support dock shows the recent action trail with readable status
   and message fields.
-- Confirm the audit popup closes cleanly and returns to the dashboard.
+- Confirm the support dock keeps the dashboard stable while switching views.
 
 ## Top Panels Toggle
 
