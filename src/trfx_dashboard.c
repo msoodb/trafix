@@ -84,6 +84,105 @@ static int calculate_row2_y(void) {
   return SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
 }
 
+static int tui_size_is_too_small(int screen_height, int screen_width);
+static void calculate_row1_widths(int screen_width,
+                                  int row1_widths[ROW1_MODULES]);
+static void calculate_row2_widths(int screen_width, int row2_widths[]);
+static void destroy_support_column(void);
+static void start_support_column_thread(WINDOW *win);
+WINDOW *create_bordered_window(int height, int width, int y, int x,
+                               int color_pair);
+
+typedef struct {
+  int screen_height;
+  int screen_width;
+  int row1_height;
+  int row2_height;
+  int row2_y;
+  int row1_widths[ROW1_MODULES];
+  int row2_widths[PRIMARY_PANE_SLOTS];
+  TrfxTwoColumnLayoutGeometry row2_geometry;
+} DashboardLayoutGeometry;
+
+static int compute_dashboard_layout(DashboardLayoutGeometry *layout) {
+  if (!layout)
+    return 0;
+
+  getmaxyx(stdscr, layout->screen_height, layout->screen_width);
+  if (tui_size_is_too_small(layout->screen_height, layout->screen_width))
+    return 0;
+
+  calculate_row1_widths(layout->screen_width, layout->row1_widths);
+  layout->row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
+  layout->row2_height = calculate_row2_height(layout->screen_height);
+  layout->row2_y = calculate_row2_y();
+  trfx_two_column_layout_compute_geometry(&dashboard_layout_state,
+                                          layout->row2_y, 0,
+                                          layout->row2_height,
+                                          layout->screen_width,
+                                          &layout->row2_geometry);
+  calculate_row2_widths(layout->row2_geometry.primary_width,
+                        layout->row2_widths);
+  return 1;
+}
+
+static void apply_top_panel_geometry(const DashboardLayoutGeometry *layout,
+                                     WINDOW *sys_win, WINDOW *cpu_win,
+                                     WINDOW *mem_win, WINDOW *disk_win) {
+  if (!layout || !sys_win || !cpu_win || !mem_win || !disk_win)
+    return;
+
+  if (!SHOW_TOP_PANELS)
+    return;
+
+  wresize(sys_win, layout->row1_height, layout->row1_widths[0]);
+  mvwin(sys_win, 0, 0);
+  wresize(cpu_win, layout->row1_height, layout->row1_widths[1]);
+  mvwin(cpu_win, 0, layout->row1_widths[0]);
+  wresize(mem_win, layout->row1_height, layout->row1_widths[2]);
+  mvwin(mem_win, 0, layout->row1_widths[0] + layout->row1_widths[1]);
+  wresize(disk_win, layout->row1_height, layout->row1_widths[3]);
+  mvwin(disk_win, 0,
+        layout->row1_widths[0] + layout->row1_widths[1] + layout->row1_widths[2]);
+}
+
+static void apply_primary_panes_geometry(const DashboardLayoutGeometry *layout) {
+  int x_offset = 0;
+
+  if (!layout || !row2_slots)
+    return;
+
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
+    if (row2_slots[i].window) {
+      wresize(row2_slots[i].window, layout->row2_height,
+              layout->row2_widths[i]);
+      mvwin(row2_slots[i].window, layout->row2_y, x_offset);
+      touchwin(row2_slots[i].window);
+      wrefresh(row2_slots[i].window);
+    }
+    x_offset += layout->row2_widths[i];
+  }
+
+  if (layout->row2_geometry.secondary_visible &&
+      layout->row2_geometry.secondary_width > 0) {
+    if (!support_window) {
+      support_window = create_bordered_window(
+          layout->row2_height, layout->row2_geometry.secondary_width,
+          layout->row2_y, layout->row2_geometry.secondary_x, COLOR_BORDER);
+    } else {
+      wresize(support_window, layout->row2_height,
+              layout->row2_geometry.secondary_width);
+      mvwin(support_window, layout->row2_y, layout->row2_geometry.secondary_x);
+      touchwin(support_window);
+      wrefresh(support_window);
+    }
+    if (support_window && !support_thread_active)
+      start_support_column_thread(support_window);
+  } else {
+    destroy_support_column();
+  }
+}
+
 static int layout_timing_enabled(void) {
   static int cached = -1;
   const char *value;
@@ -183,79 +282,29 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
                                  WINDOW *mem_win, WINDOW *disk_win) {
   struct timespec layout_start;
   int layout_timing_active = 0;
-  int screen_height, screen_width;
+  DashboardLayoutGeometry layout;
 
   if (layout_timing_enabled() &&
       clock_gettime(CLOCK_MONOTONIC, &layout_start) == 0)
     layout_timing_active = 1;
 
-  getmaxyx(stdscr, screen_height, screen_width);
-
-  if (tui_size_is_too_small(screen_height, screen_width)) {
-    draw_small_terminal_message(screen_height, screen_width);
+  if (!compute_dashboard_layout(&layout)) {
+    draw_small_terminal_message(layout.screen_height, layout.screen_width);
     return;
-  }
-
-  int row1_widths[ROW1_MODULES];
-  calculate_row1_widths(screen_width, row1_widths);
-
-  const int row1_height = FIXED_ROW1_HEIGHT;
-  const int row2_height = calculate_row2_height(screen_height);
-  const int row2_y = calculate_row2_y();
-  TrfxTwoColumnLayoutGeometry layout_geometry;
-
-  trfx_two_column_layout_compute_geometry(&dashboard_layout_state, row2_y, 0,
-                                          row2_height, screen_width,
-                                          &layout_geometry);
-
-  int preserved_modules[MAX_PRIMARY_MODULE_CHOICES] = {0};
-  if (row2_slots) {
-    for (int i = 0; i < PRIMARY_PANE_SLOTS &&
-                    i < MAX_PRIMARY_MODULE_CHOICES; i++)
-      preserved_modules[i] = row2_slots[i].module_index;
   }
 
   pthread_mutex_lock(&ncurses_mutex);
   endwin();
   refresh();
   clear();
-  if (SHOW_TOP_PANELS) {
-    wresize(sys_win, row1_height, row1_widths[0]);
-    mvwin(sys_win, 0, 0);
-    wresize(cpu_win, row1_height, row1_widths[1]);
-    mvwin(cpu_win, 0, row1_widths[0]);
-    wresize(mem_win, row1_height, row1_widths[2]);
-    mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
-    wresize(disk_win, row1_height, row1_widths[3]);
-    mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  }
+  apply_top_panel_geometry(&layout, sys_win, cpu_win, mem_win, disk_win);
+  apply_primary_panes_geometry(&layout);
 
   pthread_mutex_unlock(&ncurses_mutex);
   if (layout_timing_active)
     layout_timing_log("toggle:top pane relayout", &layout_start);
-
-  destroy_support_column();
-  cleanup_row2_modules();
-  row2_slots = calloc(PRIMARY_PANE_SLOTS, sizeof(WindowSlot));
-  if (!row2_slots) {
-    endwin();
-    fprintf(stderr, "Failed to allocate memory for row2_slots\n");
-    exit(EXIT_FAILURE);
-  }
-
-  load_row2_modules_with_selection(row2_height, layout_geometry.primary_width,
-                                   row2_y,
-                                   preserved_modules);
   if (layout_timing_active)
     layout_timing_log("toggle:primary pane rebuild", &layout_start);
-
-  if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
-    support_window = create_bordered_window(
-        row2_height, layout_geometry.secondary_width, row2_y,
-        layout_geometry.secondary_x, COLOR_BORDER);
-    if (support_window)
-      start_support_column_thread(support_window);
-  }
 
   if (SHOW_TOP_PANELS)
     trfx_runtime_request_static_refresh_all();
@@ -1991,77 +2040,23 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
 
 static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
                                      WINDOW *mem_win, WINDOW *disk_win) {
-  int screen_height, screen_width;
-  getmaxyx(stdscr, screen_height, screen_width);
+  DashboardLayoutGeometry layout;
 
-  if (tui_size_is_too_small(screen_height, screen_width)) {
-    draw_small_terminal_message(screen_height, screen_width);
+  if (!compute_dashboard_layout(&layout)) {
+    draw_small_terminal_message(layout.screen_height, layout.screen_width);
     return;
   }
-
-  int row1_widths[ROW1_MODULES];
-  int *row2_widths = malloc(PRIMARY_PANE_SLOTS * sizeof(int));
-  TrfxTwoColumnLayoutGeometry layout_geometry;
-  if (!row2_widths)
-    return;
-
-  calculate_row1_widths(screen_width, row1_widths);
-  const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
-  const int row2_height = calculate_row2_height(screen_height);
-  const int row2_y = calculate_row2_y();
-  trfx_two_column_layout_compute_geometry(&dashboard_layout_state, row2_y, 0,
-                                          row2_height, screen_width,
-                                          &layout_geometry);
-  calculate_row2_widths(layout_geometry.primary_width, row2_widths);
 
   pthread_mutex_lock(&ncurses_mutex);
   endwin();
   refresh();
   clear();
-
-  if (SHOW_TOP_PANELS) {
-    wresize(sys_win, row1_height, row1_widths[0]);
-    mvwin(sys_win, 0, 0);
-    wresize(cpu_win, row1_height, row1_widths[1]);
-    mvwin(cpu_win, 0, row1_widths[0]);
-    wresize(mem_win, row1_height, row1_widths[2]);
-    mvwin(mem_win, 0, row1_widths[0] + row1_widths[1]);
-    wresize(disk_win, row1_height, row1_widths[3]);
-    mvwin(disk_win, 0, row1_widths[0] + row1_widths[1] + row1_widths[2]);
-  }
-
-  int x_offset = 0;
-  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
-    if (row2_slots[i].window) {
-      wresize(row2_slots[i].window, row2_height, row2_widths[i]);
-      mvwin(row2_slots[i].window, row2_y, x_offset);
-      touchwin(row2_slots[i].window);
-      wrefresh(row2_slots[i].window);
-    }
-    x_offset += row2_widths[i];
-  }
-
-  if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
-    if (!support_window) {
-      support_window = create_bordered_window(
-          row2_height, layout_geometry.secondary_width, row2_y,
-          layout_geometry.secondary_x, COLOR_BORDER);
-    } else {
-      wresize(support_window, row2_height, layout_geometry.secondary_width);
-      mvwin(support_window, row2_y, layout_geometry.secondary_x);
-      touchwin(support_window);
-      wrefresh(support_window);
-    }
-    if (support_window && !support_thread_active)
-      start_support_column_thread(support_window);
-  } else {
-    destroy_support_column();
-  }
+  apply_top_panel_geometry(&layout, sys_win, cpu_win, mem_win, disk_win);
+  apply_primary_panes_geometry(&layout);
 
   pthread_mutex_unlock(&ncurses_mutex);
 
   trfx_runtime_request_static_refresh_all();
-  free(row2_widths);
 }
 
 void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
