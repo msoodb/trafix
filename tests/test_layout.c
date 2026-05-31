@@ -120,6 +120,66 @@ static int test_two_column_layout_narrow_fallback(void) {
   return 0;
 }
 
+static int test_two_column_layout_toggle_resize_regression(void) {
+  TrfxTwoColumnLayoutState state;
+  TrfxTwoColumnLayoutGeometry geometry;
+
+  trfx_two_column_layout_init(&state);
+
+  for (int i = 0; i < 6; i++) {
+    int total_width = 96 + (i * 4);
+    int total_height = 30 + i;
+
+    trfx_two_column_layout_toggle_secondary(&state);
+    ASSERT_INT_EQ(
+        trfx_two_column_layout_compute_geometry(&state, 1, 2, total_height,
+                                                total_width, &geometry),
+        1);
+    ASSERT_INT_EQ(geometry.primary_y, 1);
+    ASSERT_INT_EQ(geometry.primary_x, 2);
+    ASSERT_INT_EQ(geometry.primary_height, total_height);
+    ASSERT_INT_EQ(geometry.secondary_height, total_height);
+
+    if (trfx_two_column_layout_secondary_visible(&state)) {
+      ASSERT_INT_EQ(geometry.secondary_visible, 1);
+      ASSERT_INT_EQ(geometry.secondary_width,
+                    total_width - geometry.primary_width);
+      ASSERT_INT_EQ(geometry.secondary_x, geometry.primary_x + geometry.primary_width);
+    } else {
+      ASSERT_INT_EQ(geometry.secondary_visible, 0);
+      ASSERT_INT_EQ(geometry.primary_width, total_width);
+      ASSERT_INT_EQ(geometry.secondary_width, 0);
+      ASSERT_INT_EQ(geometry.secondary_x, geometry.primary_x + total_width);
+    }
+  }
+
+  trfx_two_column_layout_set_secondary_visible(&state, 1);
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 0, 0, 40, 120, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.secondary_visible, 1);
+  ASSERT_INT_EQ(geometry.primary_width, 84);
+  ASSERT_INT_EQ(geometry.secondary_width, 36);
+
+  trfx_two_column_layout_toggle_secondary(&state);
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 0, 0, 40, 120, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.secondary_visible, 0);
+  ASSERT_INT_EQ(geometry.primary_width, 120);
+  ASSERT_INT_EQ(geometry.secondary_width, 0);
+
+  trfx_two_column_layout_toggle_secondary(&state);
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 0, 0, 48, 150, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.secondary_visible, 1);
+  ASSERT_INT_EQ(geometry.primary_width, 105);
+  ASSERT_INT_EQ(geometry.secondary_width, 45);
+
+  return 0;
+}
+
 int main(void) {
   if (test_two_column_layout_defaults() != 0)
     return 1;
@@ -132,6 +192,8 @@ int main(void) {
   if (test_two_column_layout_state_restore() != 0)
     return 1;
   if (test_two_column_layout_narrow_fallback() != 0)
+    return 1;
+  if (test_two_column_layout_toggle_resize_regression() != 0)
     return 1;
   if (test_two_column_layout_null_safety() != 0)
     return 1;
