@@ -298,6 +298,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     return;
   }
 
+  trfx_runtime_set_paused(1);
+
   int create_support = 0;
   int destroy_support = 0;
 
@@ -324,6 +326,7 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   if (SHOW_TOP_PANELS)
     refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
   trfx_runtime_request_static_refresh_all();
+  trfx_runtime_set_paused(0);
   if (layout_timing_active)
     layout_timing_log("toggle:full refresh path", &layout_start);
 }
