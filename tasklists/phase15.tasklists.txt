@@ -1,0 +1,114 @@
+Phase 15 Task List: Two-Column Operator Layout
+----------------------------------------------
+
+Goal
+----
+Turn the dashboard into a two-column operator surface: one always-visible
+primary column for the main observability modules and one toggleable secondary
+column for logs, diagnostics, and supporting live data.
+
+Constraints
+-----------
+- Do not change the shipped module content unless a task explicitly requires it.
+- Keep the primary column visible at all times on supported terminals.
+- Keep the secondary column toggleable and explicit.
+- Preserve narrow-terminal behavior and fallback states.
+- Keep every task small enough to implement, verify, and commit on its own.
+
+Task 1: Define The Two-Column Layout Model
+-----------------------------------------
+Introduce a layout model that distinguishes the persistent primary column from
+the optional secondary column.
+
+Acceptance checks:
+- The layout state has a clear default.
+- The model can represent hidden and visible secondary-column states.
+- The change has a testable shape without altering module content.
+
+Task 2: Split The Dashboard Geometry
+------------------------------------
+Rework dashboard sizing so the main column and support column can be sized and
+positioned independently.
+
+Acceptance checks:
+- The primary column stays visible.
+- The secondary column receives its own width and x-position.
+- Resize handling still works cleanly.
+
+Task 3: Assign Modules To The New Columns
+----------------------------------------
+Map the current modules into the new layout so the main operational views stay
+in the primary column and the troubleshooting views move to the secondary one.
+
+Acceptance checks:
+- The module placement is explicit and readable.
+- The primary column keeps overview-style modules.
+- The secondary column holds logs and support views.
+
+Task 4: Add A Toggle For The Secondary Column
+--------------------------------------------
+Add a runtime key to show or hide the secondary column without losing the main
+dashboard context.
+
+Acceptance checks:
+- The toggle updates the layout immediately.
+- Hidden state stays explicit.
+- The key is documented in help text.
+
+Task 5: Preserve The Last Secondary-Column State
+------------------------------------------------
+Remember which secondary view was active when the column was hidden and restore
+it when the column is shown again.
+
+Acceptance checks:
+- Reopening the secondary column restores the last active view.
+- Toggling does not reset the user's context.
+- The behavior is stable after resize.
+
+Task 6: Handle Narrow Terminals Cleanly
+--------------------------------------
+Make sure the dashboard falls back sensibly when the terminal cannot support
+both columns.
+
+Acceptance checks:
+- Narrow terminals do not render broken columns.
+- The secondary column hides or collapses explicitly.
+- The UI remains readable rather than cramped.
+
+Task 7: Add Clear Column Labels And Help Text
+--------------------------------------------
+Make the two-column meaning obvious in the UI and hotkeys popup.
+
+Acceptance checks:
+- The labels describe primary vs supporting content clearly.
+- The help popup includes the new toggle key.
+- The labels match the actual layout behavior.
+
+Task 8: Keep Popup And Action Flows Working
+------------------------------------------
+Verify that the existing popups, confirmation flows, and drill-downs still work
+with the new column layout.
+
+Acceptance checks:
+- Popups open above the current layout without corruption.
+- Action review and detail flows remain usable.
+- The toggle does not break focus or pause behavior.
+
+Task 9: Extend Automated Tests For Layout Behavior
+-------------------------------------------------
+Add tests for the new layout state, geometry helpers, and restore behavior.
+
+Acceptance checks:
+- Tests cover visible and hidden secondary-column states.
+- Tests cover narrow-terminal fallback conditions.
+- The new tests run in normal and sanitizer builds.
+
+Task 10: Update Docs And Manual Checks
+--------------------------------------
+Document the new two-column workflow and extend the manual checklist with the
+new toggle and restore behavior.
+
+Acceptance checks:
+- The docs explain what belongs in each column.
+- The manual checklist covers hide/show and resize behavior.
+- The shipped UI matches the documented layout.
