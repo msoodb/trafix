@@ -151,12 +151,52 @@ static int test_empty_state_centering(void) {
   return 0;
 }
 
+static int test_frame_first_redraw_consistency(void) {
+  CursesFixture fixture;
+  WINDOW *win;
+  const char *long_line =
+      "This update arrives after the frame is ready and should stay clipped";
+
+  if (!curses_fixture_start(&fixture))
+    return 1;
+
+  win = newwin(9, 36, 0, 0);
+  if (!win) {
+    curses_fixture_stop(&fixture);
+    return 1;
+  }
+
+  trfx_draw_box(win, 0);
+  trfx_print_clipped(win, 1, 2, "Support Panel");
+  trfx_print_empty_state(win, "Waiting for data");
+  trfx_print_clipped(win, 5, 2, long_line);
+
+  ASSERT_INT_EQ((window_cell(win, 0, 0) & A_CHARTEXT),
+                (ACS_ULCORNER & A_CHARTEXT));
+  ASSERT_INT_EQ((window_cell(win, 0, 35) & A_CHARTEXT),
+                (ACS_URCORNER & A_CHARTEXT));
+  ASSERT_INT_EQ((window_cell(win, 8, 0) & A_CHARTEXT),
+                (ACS_LLCORNER & A_CHARTEXT));
+  ASSERT_INT_EQ((window_cell(win, 8, 35) & A_CHARTEXT),
+                (ACS_LRCORNER & A_CHARTEXT));
+  ASSERT_INT_EQ((window_cell(win, 1, 2) & A_CHARTEXT), 'S');
+  ASSERT_INT_EQ((window_cell(win, 5, 2) & A_CHARTEXT), 'T');
+  ASSERT_INT_EQ((window_cell(win, 5, 35) & A_CHARTEXT),
+                (ACS_VLINE & A_CHARTEXT));
+
+  delwin(win);
+  curses_fixture_stop(&fixture);
+  return 0;
+}
+
 int main(void) {
   if (test_box_header_and_content_order() != 0)
     return 1;
   if (test_clipped_content_preserves_border() != 0)
     return 1;
   if (test_empty_state_centering() != 0)
+    return 1;
+  if (test_frame_first_redraw_consistency() != 0)
     return 1;
   return 0;
 }
