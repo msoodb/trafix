@@ -63,9 +63,24 @@ static int test_two_column_layout_null_safety(void) {
   ASSERT_INT_EQ(trfx_two_column_layout_secondary_visible(NULL), 0);
   ASSERT_INT_EQ(trfx_two_column_layout_primary_width_percent(NULL), 70);
   ASSERT_INT_EQ(trfx_two_column_layout_secondary_width_percent(NULL), 30);
+  ASSERT_INT_EQ(trfx_two_column_layout_secondary_state_index(NULL), 0);
 
   trfx_two_column_layout_set_secondary_visible(NULL, 1);
   trfx_two_column_layout_toggle_secondary(NULL);
+  trfx_two_column_layout_set_secondary_state_index(NULL, 2);
+
+  return 0;
+}
+
+static int test_two_column_layout_state_restore(void) {
+  TrfxTwoColumnLayoutState state;
+
+  trfx_two_column_layout_init(&state);
+  trfx_two_column_layout_set_secondary_state_index(&state, 2);
+  trfx_two_column_layout_set_secondary_visible(&state, 0);
+  ASSERT_INT_EQ(trfx_two_column_layout_secondary_state_index(&state), 2);
+  trfx_two_column_layout_set_secondary_visible(&state, 1);
+  ASSERT_INT_EQ(trfx_two_column_layout_secondary_state_index(&state), 2);
 
   return 0;
 }
@@ -76,6 +91,8 @@ int main(void) {
   if (test_two_column_layout_toggle() != 0)
     return 1;
   if (test_two_column_layout_geometry() != 0)
+    return 1;
+  if (test_two_column_layout_state_restore() != 0)
     return 1;
   if (test_two_column_layout_null_safety() != 0)
     return 1;

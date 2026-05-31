@@ -22,6 +22,7 @@ void trfx_two_column_layout_init(TrfxTwoColumnLayoutState *state) {
   state->secondary_visible = 1;
   state->primary_width_percent = 70;
   state->secondary_width_percent = 30;
+  state->secondary_state_index = 0;
 }
 
 int trfx_two_column_layout_secondary_visible(
@@ -59,6 +60,22 @@ int trfx_two_column_layout_secondary_width_percent(
     return 30;
 
   return clamp_percent(state->secondary_width_percent, 30);
+}
+
+int trfx_two_column_layout_secondary_state_index(
+    const TrfxTwoColumnLayoutState *state) {
+  if (!state)
+    return 0;
+
+  return state->secondary_state_index < 0 ? 0 : state->secondary_state_index;
+}
+
+void trfx_two_column_layout_set_secondary_state_index(
+    TrfxTwoColumnLayoutState *state, int state_index) {
+  if (!state)
+    return;
+
+  state->secondary_state_index = state_index < 0 ? 0 : state_index;
 }
 
 int trfx_two_column_layout_compute_geometry(

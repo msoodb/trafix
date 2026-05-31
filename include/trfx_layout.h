@@ -14,6 +14,7 @@ typedef struct {
   int secondary_visible;
   int primary_width_percent;
   int secondary_width_percent;
+  int secondary_state_index;
 } TrfxTwoColumnLayoutState;
 
 typedef struct {
@@ -39,6 +40,10 @@ int trfx_two_column_layout_primary_width_percent(
     const TrfxTwoColumnLayoutState *state);
 int trfx_two_column_layout_secondary_width_percent(
     const TrfxTwoColumnLayoutState *state);
+int trfx_two_column_layout_secondary_state_index(
+    const TrfxTwoColumnLayoutState *state);
+void trfx_two_column_layout_set_secondary_state_index(
+    TrfxTwoColumnLayoutState *state, int state_index);
 int trfx_two_column_layout_compute_geometry(
     const TrfxTwoColumnLayoutState *state, int origin_y, int origin_x,
     int total_height, int total_width, TrfxTwoColumnLayoutGeometry *geometry);
