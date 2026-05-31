@@ -21,6 +21,7 @@ TEST_BINS = \
 	$(BUILD_DIR)/test_cli \
 	$(BUILD_DIR)/test_cli_output \
 	$(BUILD_DIR)/test_version \
+	$(BUILD_DIR)/test_layout \
 	$(BUILD_DIR)/test_connections \
 	$(BUILD_DIR)/test_netinfo \
 	$(BUILD_DIR)/test_bandwidth \
@@ -80,6 +81,9 @@ $(BUILD_DIR)/test_cli_output: tests/test_cli_output.c src/trfx_cli_output.c src/
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_version: tests/test_version.c src/trfx_version.c | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/test_layout: tests/test_layout.c src/trfx_layout.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/test_connections: tests/test_connections.c src/trfx_connections.c src/trfx_socket_owners.c | $(BUILD_DIR)
