@@ -311,10 +311,14 @@ static void sync_support_window_geometry(const DashboardLayoutGeometry *layout) 
   }
 }
 
-static void queue_dashboard_data_refresh(WINDOW *sys_win, WINDOW *cpu_win,
-                                         WINDOW *mem_win, WINDOW *disk_win) {
+static void refresh_dashboard_frame_borders(WINDOW *sys_win, WINDOW *cpu_win,
+                                            WINDOW *mem_win,
+                                            WINDOW *disk_win) {
   if (SHOW_TOP_PANELS)
     refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+}
+
+static void request_dashboard_data_refresh(void) {
   trfx_runtime_request_static_refresh_all();
   trfx_runtime_set_paused(0);
 }
@@ -356,7 +360,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   sync_support_window_geometry(&frame_update.layout);
 
-  queue_dashboard_data_refresh(sys_win, cpu_win, mem_win, disk_win);
+  refresh_dashboard_frame_borders(sys_win, cpu_win, mem_win, disk_win);
+  request_dashboard_data_refresh();
   if (layout_timing_active)
     layout_timing_log_phase("toggle:full refresh path", &layout_start);
 }
@@ -1424,7 +1429,8 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 
   sync_support_window_geometry(&frame_update.layout);
 
-  queue_dashboard_data_refresh(sys_win, cpu_win, mem_win, disk_win);
+  refresh_dashboard_frame_borders(sys_win, cpu_win, mem_win, disk_win);
+  request_dashboard_data_refresh();
   if (layout_timing_active)
     layout_timing_log_phase("resize:full refresh path", &layout_start);
 }
