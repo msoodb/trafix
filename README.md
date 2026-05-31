@@ -194,8 +194,9 @@ Audit with `l`. On narrow terminals, Trafix collapses that support column
 automatically.
 
 The current windowing work is focused on making hotkeys and resize events feel
-immediate, so repeated `t` toggles and redraws should stay responsive instead of
-forcing full teardown work.
+immediate. The frame should appear first, then the data refresh fills it in,
+so repeated `t` toggles and redraws stay responsive instead of forcing full
+teardown work.
 
 ### Hotkeys
 

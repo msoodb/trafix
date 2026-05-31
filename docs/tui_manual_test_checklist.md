@@ -42,6 +42,7 @@ threading, rendering, keyboard handling, or collectors.
   layout.
 - Press `t` repeatedly.
 - Confirm the top panels hide and show immediately without lag or crashes.
+- Confirm the frame appears before the data refresh repaints the panels.
 - Resize the terminal while toggling `t`.
 - Confirm the layout stays aligned and the dashboard remains responsive.
 - Continue switching for at least 30 seconds.
@@ -136,6 +137,16 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the top panels start hidden.
 - Press `t`.
 - Confirm the top panels appear and the layout stays aligned.
+- Confirm the frame is visible before the panel data repopulates.
+
+## Frame First Refresh
+
+- Start the TUI and press `t` several times.
+- Confirm the border and frame geometry update first.
+- Confirm the data refresh happens after the frame is visible.
+- Resize the terminal immediately after `t`.
+- Confirm the layout redraw stays aligned and the later data fill does not
+  tear the frame.
 
 ## Columns
 

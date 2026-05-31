@@ -31,6 +31,8 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
+The frame layout is committed first, then the panel data refresh runs after
+the windows are ready.
 The `g` key shows the troubleshooting diagnostics in the support panel.
 The `n` key shows the route and DNS checks in the support panel.
 The `v` key shows the network health correlation in the support panel.
@@ -50,6 +52,7 @@ data. The support panel can show Overview, Logs, Diagnostics, Route/DNS,
 Network Health, Bandwidth Detail, Connection Detail, and Action Audit. The
 `l` key opens a modal selector for those views. On narrow terminals, the
 support column collapses automatically instead of forcing cramped rendering.
+The rendered frame is intended to be visible before the live data fill begins.
 The diagnostics snapshot intentionally pulls together system overview, route,
 DNS, recent log lines, CPU, memory, disk, and process pressure so the
 operator can explain a problem without jumping across panels.
