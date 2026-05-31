@@ -187,9 +187,9 @@ For release and regression checks, use the manual TUI checklist in
 `docs/tui_manual_test_checklist.md`.
 
 The dashboard is arranged as a primary column for the core observability
-views and a toggleable support column for logs, diagnostics, audits, and other
-supporting live data. Use `m` to show or hide that support column. On narrow
-terminals, Trafix collapses it automatically.
+views and a support column for logs, diagnostics, audits, and other supporting
+live data. On narrow terminals, Trafix collapses that support column
+automatically.
 
 ### Hotkeys
 
@@ -208,7 +208,6 @@ terminals, Trafix collapses it automatically.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Primary Module:** Change the main module shown in the primary column.
 - `[t]` — **Top Panels:** Show or hide the top system, CPU, memory, and disk panels.
-- `[m]` — **Support Column:** Show or hide the logs and diagnostics column.
 - `[p]` — **Pause:** Pause/resume real-time updates.
 - `[q]` — **Quit:** Exit the Trafix application.
 

@@ -31,8 +31,6 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
-The `m` key toggles the support column at runtime; the initial secondary-column
-state is preserved separately so reopening it restores the last support view.
 The `g` key opens the troubleshooting diagnostics popup.
 The `n` key opens a route and DNS checks popup.
 The `v` key opens a network health correlation popup.
@@ -41,17 +39,14 @@ In the Network panel, `j` and `k` move the selected top talker, and `d` or
 The `x` key opens a process chooser and requests a kill after confirmation.
 The `z` key opens a connection chooser and requests a drop where supported.
 The `a` key opens the recent action audit popup.
-The `c` key changes the primary module shown in the main column instead of
-changing the number of visible columns.
-
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
 top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
 The dashboard is arranged as a primary column for the core overview modules
-and a toggleable support column for logs, diagnostics, audits, and other live
-support data. On narrow terminals, the support column collapses automatically
-instead of forcing cramped rendering.
+and a support column for logs, diagnostics, audits, and other live support
+data. On narrow terminals, the support column collapses automatically instead
+of forcing cramped rendering.
 The diagnostics snapshot intentionally pulls together system overview, route,
 DNS, recent log lines, CPU, memory, disk, and process pressure so the
 operator can explain a problem without jumping across panels.

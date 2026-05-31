@@ -118,9 +118,9 @@ threading, rendering, keyboard handling, or collectors.
 
 - Start the TUI.
 - Press `c` repeatedly.
-- Confirm the primary module changes while the support column remains separate.
+- Confirm the primary module changes while the support column remains visible.
 - Confirm the dashboard does not grow extra primary columns.
-- Confirm the support column still repaints cleanly after each switch.
+- Confirm the support column repaints cleanly after each switch.
 - Set `SHOW_TOP_PANELS = FALSE`.
 - Confirm the same primary-module switching works with the top row hidden.
 - Confirm the dashboard remains responsive and borders stay intact.
@@ -129,10 +129,6 @@ threading, rendering, keyboard handling, or collectors.
 
 - Start the TUI on a wide terminal, for example `120x40`.
 - Confirm the primary column stays visible and the support column is present.
-- Press `m`.
-- Confirm the support column hides and the primary column keeps its context.
-- Press `m` again.
-- Confirm the support column returns with its previous content.
 - Start the TUI on a narrow terminal, for example `80x24`.
 - Confirm the support column collapses automatically instead of rendering
   cramped borders.
