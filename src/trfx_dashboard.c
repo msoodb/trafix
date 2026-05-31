@@ -29,13 +29,10 @@
 #include "trfx_support_views.h"
 #include "trfx_utils.h"
 
-#define TOTAL_ROWS 3
 #define ROW1_MODULES 4
 #define PRIMARY_PANE_SLOTS 1
-#define ROW3_MODULES 1
 
 #define FIXED_ROW1_HEIGHT 11
-#define FIXED_ROW3_HEIGHT 4
 #define MIN_ROW2_HEIGHT 3
 #define MIN_TUI_WIDTH 50
 
@@ -228,16 +225,7 @@ static void calculate_row1_widths(int screen_width,
 }
 
 static void calculate_row2_widths(int screen_width, int row2_widths[]) {
-  if (PRIMARY_PANE_SLOTS == 1) {
-    row2_widths[0] = screen_width;
-  } else if (PRIMARY_PANE_SLOTS == 2) {
-    row2_widths[0] = screen_width / 2;
-    row2_widths[1] = screen_width - row2_widths[0];
-  } else if (PRIMARY_PANE_SLOTS == 3) {
-    row2_widths[0] = screen_width / 3;
-    row2_widths[1] = screen_width / 3;
-    row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
-  }
+  row2_widths[0] = screen_width;
 }
 
 static int get_module_array_index_by_dynamic_index(int module_index) {
