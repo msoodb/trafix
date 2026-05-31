@@ -81,6 +81,18 @@ paths:
 - remove dead and unused code paths that no longer support the shipped UI
 - keep the result measurable with fast rebuilds, tests, and sanitizer runs
 
+## Phase 18: Immediate Window Lifecycle And Deferred Data Refresh
+
+Make layout changes feel instantaneous by separating window/frame management
+from data collection and panel writes:
+
+- make `t` and resize paths finish the window work first
+- defer data fetching and panel writes until the frame is ready
+- keep frame borders, titles, and geometry independent from live data
+- reuse panel windows when possible instead of rebuilding them on every toggle
+- keep the support dock and main column responsive during repeated hotkeys
+- preserve narrow-terminal fallback and existing interaction behavior
+
 ## Future Phases
 
 Any later phase numbers will follow the same pattern: ship the code, verify it

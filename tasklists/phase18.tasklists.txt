@@ -1,0 +1,115 @@
+Phase 18 Task List: Immediate Window Lifecycle And Deferred Data Refresh
+------------------------------------------------------------------------
+
+Goal
+----
+Make Trafix respond to `t`, resize, and show/hide transitions immediately by
+separating window/frame management from data collection and panel writes.
+
+Constraints
+-----------
+- Keep user-visible behavior stable while refactoring internals.
+- Keep each task small enough to implement, verify, and commit on its own.
+- Preserve the current two-column operator layout and support dock behavior.
+- Preserve narrow-terminal fallback and clipping.
+- Do not move live data writes into the same path as window creation.
+
+Task 1: Measure The Hot Window Path
+-----------------------------------
+Add a small way to inspect the cost of toggle and resize handling so the
+refactor is driven by the actual slow path.
+
+Acceptance checks:
+- The `t` and resize path cost is visible locally.
+- The measurement does not change the UI behavior.
+- The code can be removed cleanly after the refactor.
+
+Task 2: Split Window State From Data State
+-----------------------------------------
+Introduce a clear separation between frame geometry/window ownership and live
+collector state so panel setup no longer depends on data fetching.
+
+Acceptance checks:
+- Window objects can be updated without forcing collector work.
+- Data collectors can run without rebuilding geometry.
+- The new separation is easy to follow in the code.
+
+Task 3: Make Layout Commit First, Data Later
+-------------------------------------------
+Refactor toggle and resize handling so the window/frame commit happens before
+any data refresh work starts.
+
+Acceptance checks:
+- The screen responds to `t` before data repaints.
+- Resize handling finishes the frame layout first.
+- Data refresh is queued only after the frame is stable.
+
+Task 4: Reuse Frame Windows Where Possible
+-----------------------------------------
+Stop recreating windows when the geometry can be updated in place, especially
+for the top panels and support dock.
+
+Acceptance checks:
+- Repeated toggles reuse windows when safe.
+- Borders and titles stay correct after resize.
+- No extra flicker is introduced.
+
+Task 5: Decouple Collector Refresh From Frame Creation
+-----------------------------------------------------
+Move collector wakeups and panel writes into a separate refresh step so
+window creation does not wait on data work.
+
+Acceptance checks:
+- The frame is visible before the data fill starts.
+- Collector refresh requests are explicit.
+- The code no longer mixes creation logic with panel writes.
+
+Task 6: Remove Legacy Rebuild Branches
+-------------------------------------
+Delete old code paths that still rebuild the whole UI when a smaller frame
+update would suffice.
+
+Acceptance checks:
+- Legacy rebuild branches are removed or clearly isolated.
+- The active code path is simpler than before.
+- No shipped behavior regresses.
+
+Task 7: Add Rapid Toggle And Resize Regression Coverage
+------------------------------------------------------
+Add automated tests that cover repeated toggle and resize transitions with the
+new split between frame setup and data refresh.
+
+Acceptance checks:
+- Tests cover repeated `t` transitions.
+- Tests cover resize immediately after toggle.
+- Tests run cleanly in normal and sanitizer builds.
+
+Task 8: Add Frame-First Rendering Checks
+----------------------------------------
+Cover the render order so borders, titles, and empty frames appear before the
+live data fill.
+
+Acceptance checks:
+- Rendering tests cover the frame-first order.
+- Content clipping still works.
+- Empty frames render cleanly before data arrives.
+
+Task 9: Clean Up Warnings And Unused Paths
+-----------------------------------------
+Run a cleanup pass to remove warnings, stale branches, and unused helpers left
+behind by the refactor.
+
+Acceptance checks:
+- Build warnings are gone or explicitly justified.
+- Unused helpers are removed.
+- The codebase reads cleaner after the cleanup.
+
+Task 10: Update Docs And Manual Checks
+-------------------------------------
+Document the frame-first behavior and extend the manual checklist with the
+immediate-toggle and deferred-refresh checks used to validate the refactor.
+
+Acceptance checks:
+- The docs describe the frame-first rendering flow.
+- The manual checklist covers toggle, resize, and repaint order.
+- The shipped behavior matches the written workflow.
