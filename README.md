@@ -205,7 +205,7 @@ automatically.
 - `[g]` — **Diagnostics:** Show the troubleshooting snapshot in the support dock.
 - `[n]` — **Route/DNS Checks:** Show the route and DNS correlation in the support dock.
 - `[v]` — **Network Health:** Show the network and system pressure correlation in the support dock.
-- `[l]` — **Support View:** Cycle the active support dock view.
+- `[l]` — **Support View:** Open the support dock selector.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Primary Module:** Change the main module shown in the primary column.

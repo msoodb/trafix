@@ -58,14 +58,15 @@ threading, rendering, keyboard handling, or collectors.
 ## Support Dock Selector
 
 - Start the TUI.
-- Press `l` repeatedly.
-- Confirm the support dock cycles through Overview, Logs, Diagnostics,
-  Route/DNS, Network Health, Bandwidth Detail, Connection Detail, and Action
-  Audit.
-- Confirm the active view changes immediately and the selector text stays
-  readable when the support area is tight.
-- Resize to a narrower support-dock width while the selector is visible.
-- Confirm the dock stays stable and the compact description mode clips safely.
+- Press `l`.
+- Confirm a modal selector opens for Overview, Logs, Diagnostics, Route/DNS,
+  Network Health, Bandwidth Detail, Connection Detail, and Action Audit.
+- Use Up/Down to move between items.
+- Confirm the selected view changes only after Enter.
+- Press `Esc`.
+- Confirm the selector closes without changing the active support view.
+- Resize to a narrower terminal while the selector is visible.
+- Confirm the modal stays stable and clips descriptions safely.
 
 ## Diagnostics Views
 
@@ -94,7 +95,8 @@ threading, rendering, keyboard handling, or collectors.
   selected top talker.
 - Confirm the support dock shows current metadata and recent sample history.
 - Press `l`.
-- Confirm the support dock cycles to the next support view and returns cleanly.
+- Confirm the support view selector opens and returns cleanly after selection
+  or cancel.
 - Run in an environment with no meaningful ownership data.
 - Confirm the top talker area shows an explicit fallback instead of crashing.
 

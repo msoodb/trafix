@@ -624,7 +624,7 @@ void show_hotkeys_popup(void) {
       {"[g]", "Show diagnostics in the support dock"},
       {"[n]", "Show route and DNS in the support dock"},
       {"[v]", "Show network health in the support dock"},
-      {"[l]", "Cycle the support dock view"},
+      {"[l]", "Open the support dock selector"},
       {"[t]", "Show or hide the top system panels"},
       {"[J/K]", "Move the selected connection row"},
       {"[o]", "Show connection detail in the support dock"},
@@ -639,7 +639,7 @@ void show_hotkeys_popup(void) {
 
   const char *title = "Hotkeys";
   const char *subtitle =
-      "Primary and support columns stay visible. `l` cycles support views.";
+      "Primary and support columns stay visible. `l` opens the support view selector.";
   const int key_col_width = 8;
   int popup_height = hotkey_count + 6;
   int popup_width = (int)strlen(title) + 8;
@@ -1624,6 +1624,121 @@ int select_module() {
   return selected_index;
 }
 
+int select_support_view() {
+  trfx_runtime_set_paused(1);
+
+  int screen_height, screen_width;
+  getmaxyx(stdscr, screen_height, screen_width);
+
+  size_t selected_index = trfx_support_view_selected_index();
+  size_t active_index = selected_index;
+  const char *title = "Support Views";
+  const char *subtitle = "Select the view shown in the support dock:";
+  const char *footer = "Up/Down to move, Enter to apply, Esc to cancel.";
+  int popup_height = (int)trfx_support_view_count() + 6;
+  int popup_width = (int)strlen(title) + 8;
+  {
+    int subtitle_width = (int)strlen(subtitle) + 4;
+    if (subtitle_width > popup_width)
+      popup_width = subtitle_width;
+  }
+  {
+    int footer_width = (int)strlen(footer) + 4;
+    if (footer_width > popup_width)
+      popup_width = footer_width;
+  }
+  for (size_t i = 0; i < trfx_support_view_count(); ++i) {
+    const TrfxSupportViewSpec *spec = trfx_support_view_spec_at(i);
+    char line[256];
+
+    if (!spec)
+      continue;
+
+    trfx_support_view_format_selector_line(spec, 0, line, sizeof(line));
+    {
+      int line_width = (int)strlen(line) + 6;
+      if (line_width > popup_width)
+        popup_width = line_width;
+    }
+  }
+
+  if (popup_width > screen_width - 4)
+    popup_width = screen_width - 4;
+  if (popup_width < 56)
+    popup_width = 56;
+  if (popup_height > screen_height - 4)
+    popup_height = screen_height - 4;
+  if (popup_height < 10)
+    popup_height = 10;
+
+  int popup_y = (screen_height - popup_height) / 2;
+  int popup_x = (screen_width - popup_width) / 2;
+
+  WINDOW *popup = create_bordered_window(popup_height, popup_width, popup_y,
+                                         popup_x, COLOR_BORDER);
+  if (!popup) {
+    resume_dashboard_after_popup();
+    return -1;
+  }
+
+  keypad(popup, TRUE);
+
+  while (1) {
+    pthread_mutex_lock(&ncurses_mutex);
+    werase(popup);
+    wattron(popup, trfx_color_attr(COLOR_BORDER));
+    box(popup, 0, 0);
+    wattroff(popup, trfx_color_attr(COLOR_BORDER));
+    wattron(popup, A_BOLD);
+    mvwprintw(popup, 1, 2, "%s", title);
+    wattroff(popup, A_BOLD);
+    trfx_print_clipped(popup, 2, 2, subtitle);
+    trfx_print_clipped(popup, 3, 2, footer);
+
+    for (size_t i = 0; i < trfx_support_view_count(); ++i) {
+      const TrfxSupportViewSpec *spec = trfx_support_view_spec_at(i);
+      char line[256];
+
+      if (!spec)
+        continue;
+
+      trfx_support_view_format_selector_line(spec, 0, line, sizeof(line));
+      if (i == active_index)
+        wattron(popup, A_REVERSE);
+      trfx_print_clipped(popup, (int)i + 4, 2, line);
+      if (i == active_index)
+        wattroff(popup, A_REVERSE);
+    }
+
+    wrefresh(popup);
+    pthread_mutex_unlock(&ncurses_mutex);
+
+    int ch = wgetch(popup);
+    if (ch == KEY_UP)
+      active_index = trfx_support_view_next_index(active_index, -1);
+    else if (ch == KEY_DOWN)
+      active_index = trfx_support_view_next_index(active_index, 1);
+    else if (ch == KEY_ENTER || ch == 10 || ch == '\n') {
+      selected_index = active_index;
+      break;
+    } else if (ch == KEY_ESC || ch == 'q' || ch == 'Q') {
+      selected_index = trfx_support_view_selected_index();
+      break;
+    }
+  }
+
+  pthread_mutex_lock(&ncurses_mutex);
+  werase(popup);
+  wrefresh(popup);
+  delwin(popup);
+  pthread_mutex_unlock(&ncurses_mutex);
+  resume_dashboard_after_popup();
+
+  trfx_support_view_set_selected_index(selected_index);
+  trfx_support_view_request_refresh();
+  return (int)selected_index;
+}
+
 void pause_screen() {
   trfx_runtime_set_paused(1);
 
@@ -2002,8 +2117,8 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'l':
   case 'L':
-    trfx_support_view_cycle_selected_index(ch == 'L' ? -1 : 1);
-    trfx_support_view_request_refresh();
+    if (select_support_view() >= 0)
+      trfx_support_view_request_refresh();
     break;
 
   case 'p':

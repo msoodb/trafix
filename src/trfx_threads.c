@@ -99,30 +99,20 @@ static int trfx_wait_for_static_refresh(int module_index, int milliseconds) {
   return trfx_runtime_consume_static_refresh(module_index);
 }
 
-static void render_support_view_selector(WINDOW *win, int *row, int max_lines,
-                                         int max_cols) {
-  size_t selected_index;
+static void render_support_view_header(WINDOW *win, int *row, int max_lines) {
   const TrfxSupportViewSpec *selected_view;
-  int compact_mode = max_cols > 0 && max_cols < 54;
 
   if (!win || !row)
     return;
 
-  selected_index = trfx_support_view_selected_index();
-  selected_view = trfx_support_view_spec_at(selected_index);
-
+  selected_view = trfx_support_view_selected();
   if (panel_has_room(*row, max_lines)) {
-    char title_line[160];
-    snprintf(title_line, sizeof(title_line), compact_mode
-                                              ? "Support Views (l/L)"
-                                              : "Support Views (l/L to cycle)");
-    trfx_print_clipped(win, (*row)++, 2, title_line);
+    trfx_print_clipped(win, (*row)++, 2, "Support Dock");
   }
 
   if (selected_view && panel_has_room(*row, max_lines)) {
     char active_line[256];
-    snprintf(active_line, sizeof(active_line), "Active: %s",
-             selected_view->title);
+    snprintf(active_line, sizeof(active_line), "View: %s", selected_view->title);
     trfx_print_clipped(win, (*row)++, 2, active_line);
   }
 
@@ -130,31 +120,9 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines,
     trfx_print_clipped(win, (*row)++, 2, selected_view->description);
   }
 
-  if (compact_mode && panel_has_room(*row, max_lines)) {
-    trfx_print_clipped(win, (*row)++, 2,
-                       "Descriptions hidden on narrow widths.");
-  }
-
   if (panel_has_room(*row, max_lines)) {
     trfx_print_clipped(win, (*row)++, 2,
-                       "Read-only views stay here; x/z remain modal.");
-  }
-
-  for (size_t i = 0; i < trfx_support_view_count() && panel_has_room(*row, max_lines);
-       i++) {
-    const TrfxSupportViewSpec *spec = trfx_support_view_spec_at(i);
-    char line[256];
-
-    if (!spec)
-      continue;
-
-    trfx_support_view_format_selector_line(spec, compact_mode, line,
-                                           sizeof(line));
-    if (i == selected_index)
-      wattron(win, A_REVERSE);
-    trfx_print_clipped(win, (*row)++, 2, line);
-    if (i == selected_index)
-      wattroff(win, A_REVERSE);
+                       "Press l/L to choose a support view.");
   }
 }
 
@@ -2047,7 +2015,7 @@ void *support_info_thread(void *arg) {
 
     if (panel_has_room(row, max_rows)) {
       row++;
-      render_support_view_selector(win, &row, max_rows, max_cols);
+      render_support_view_header(win, &row, max_rows);
     }
 
     if (panel_has_room(row, max_rows))

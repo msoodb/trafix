@@ -34,7 +34,7 @@ the initial state still comes from `SHOW_TOP_PANELS` in the config file.
 The `g` key shows the troubleshooting diagnostics in the support dock.
 The `n` key shows the route and DNS checks in the support dock.
 The `v` key shows the network health correlation in the support dock.
-The `l` key cycles the support dock view.
+The `l` key opens the support dock selector.
 In the Network panel, `j` and `k` move the selected top talker, and `d` or
 `Enter` shows the bandwidth detail in the support dock.
 The `x` key opens a process chooser and requests a kill after confirmation.
@@ -46,11 +46,10 @@ top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
 The dashboard is arranged as a primary column for the core overview modules
 and a support column for logs, diagnostics, audits, and other live support
-data. The support dock cycles through Overview, Logs, Diagnostics, Route/DNS,
-Network Health, Bandwidth Detail, Connection Detail, and Action Audit. On
-narrow terminals, the support column collapses automatically instead of
-forcing cramped rendering, and the selector switches to a compact mode that
-keeps titles readable while clipping longer descriptions safely.
+data. The support dock can show Overview, Logs, Diagnostics, Route/DNS,
+Network Health, Bandwidth Detail, Connection Detail, and Action Audit. The
+`l` key opens a modal selector for those views. On narrow terminals, the
+support column collapses automatically instead of forcing cramped rendering.
 The diagnostics snapshot intentionally pulls together system overview, route,
 DNS, recent log lines, CPU, memory, disk, and process pressure so the
 operator can explain a problem without jumping across panels.
