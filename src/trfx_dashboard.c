@@ -123,7 +123,8 @@ static int get_module_array_index_by_dynamic_index(int module_index) {
 static void load_row2_modules_with_selection(int row2_height, int screen_width,
                                              int row2_y,
                                              const int *selected_modules);
-static void cleanup_support_column(void);
+static void hide_support_column(void);
+static void destroy_support_column(void);
 static void start_support_column_thread(WINDOW *win);
 WINDOW *create_bordered_window(int height, int width, int y, int x,
                                int color_pair);
@@ -185,7 +186,7 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   pthread_mutex_unlock(&ncurses_mutex);
 
-  cleanup_support_column();
+  destroy_support_column();
   cleanup_row2_modules();
   row2_slots = calloc(PRIMARY_PANE_SLOTS, sizeof(WindowSlot));
   if (!row2_slots) {
@@ -1729,7 +1730,7 @@ void cleanup_row2_modules() {
   row2_slots = NULL;
 }
 
-static void cleanup_support_column(void) {
+static void hide_support_column(void) {
   if (support_thread_active) {
     support_stop_requested = 1;
     pthread_join(support_thread_id, NULL);
@@ -1740,6 +1741,14 @@ static void cleanup_support_column(void) {
     pthread_mutex_lock(&ncurses_mutex);
     werase(support_window);
     wrefresh(support_window);
+    pthread_mutex_unlock(&ncurses_mutex);
+  }
+}
+
+static void destroy_support_column(void) {
+  hide_support_column();
+  if (support_window) {
+    pthread_mutex_lock(&ncurses_mutex);
     delwin(support_window);
     pthread_mutex_unlock(&ncurses_mutex);
     support_window = NULL;
@@ -1880,16 +1889,16 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
       support_window = create_bordered_window(
           row2_height, layout_geometry.secondary_width, row2_y,
           layout_geometry.secondary_x, COLOR_BORDER);
-      if (support_window && !support_thread_active)
-        start_support_column_thread(support_window);
     } else {
       wresize(support_window, row2_height, layout_geometry.secondary_width);
       mvwin(support_window, row2_y, layout_geometry.secondary_x);
       touchwin(support_window);
       wrefresh(support_window);
     }
+    if (support_window && !support_thread_active)
+      start_support_column_thread(support_window);
   } else {
-    cleanup_support_column();
+    hide_support_column();
   }
 
   pthread_mutex_unlock(&ncurses_mutex);
@@ -2113,7 +2122,7 @@ void start_dashboard() {
   pthread_join(cpu_tid, NULL);
   pthread_join(mem_tid, NULL);
   pthread_join(disk_tid, NULL);
-  cleanup_support_column();
+  destroy_support_column();
   cleanup_row2_modules();
 
   destroy_window(&sys_win);
