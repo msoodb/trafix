@@ -69,7 +69,6 @@ static pthread_t support_thread_id;
 static volatile int support_stop_requested = 0;
 static int support_thread_active = 0;
 static TrfxTwoColumnLayoutState dashboard_layout_state;
-static int dashboard_frame_only_mode = 1;
 
 static int calculate_row2_height(int screen_height) {
   int top_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
@@ -1324,9 +1323,6 @@ static void destroy_support_column(void) {
 }
 
 static void start_support_column_thread(WINDOW *win) {
-  if (dashboard_frame_only_mode)
-    return;
-
   ThreadArg *arg = malloc(sizeof(ThreadArg));
   if (!arg) {
     fprintf(stderr, "Failed to allocate memory for support ThreadArg\n");
@@ -1379,9 +1375,6 @@ static void load_row2_modules_with_selection(int row2_height, int screen_width,
     int module_slot = get_module_array_index_by_dynamic_index(module_index);
 
     row2_slots[i].module_index = module_index;
-
-    if (dashboard_frame_only_mode)
-      continue;
 
     ThreadArg *arg = malloc(sizeof(ThreadArg));
     if (!arg) {
@@ -1647,12 +1640,10 @@ void start_dashboard() {
     support_window = create_bordered_window(
         row2_height, layout_geometry.secondary_width, row2_y,
         layout_geometry.secondary_x, COLOR_BORDER);
-    if (support_window && !dashboard_frame_only_mode)
+    if (support_window)
       start_support_column_thread(support_window);
   }
 
-  if (!dashboard_frame_only_mode)
-    sleep(1);
   trfx_runtime_set_ready(1);
 
   int ch;
