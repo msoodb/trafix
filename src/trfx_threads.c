@@ -1435,7 +1435,6 @@ void *socket_owner_info_thread(void *arg) {
 
 void *support_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
 
@@ -1470,8 +1469,10 @@ void *support_info_thread(void *arg) {
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [%d] Support ", my_index + 1);
+    mvwprintw(win, row++, 2, " Supporting Column ");
     wattroff(win, A_BOLD);
+    trfx_print_clipped(win, row++, 2,
+                       "Logs, diagnostics, and live support data.");
 
     snprintf(health_line, sizeof(health_line),
              "Status: %s | route %s | DNS %s | active %s",

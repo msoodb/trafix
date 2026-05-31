@@ -620,6 +620,7 @@ void show_hotkeys_popup(void) {
       {"[n]", "Inspect route and DNS health"},
       {"[v]", "Review network and system pressure"},
       {"[t]", "Show or hide the top system panels"},
+      {"[m]", "Toggle the supporting column"},
       {"[J/K]", "Move the selected connection row"},
       {"[o]", "Open the selected connection detail"},
       {"[p]", "Pause or resume live updates"},
@@ -632,9 +633,15 @@ void show_hotkeys_popup(void) {
   getmaxyx(stdscr, screen_height, screen_width);
 
   const char *title = "Hotkeys";
+  const char *subtitle = "Primary column stays visible. `m` toggles support.";
   const int key_col_width = 8;
-  int popup_height = hotkey_count + 5;
+  int popup_height = hotkey_count + 6;
   int popup_width = (int)strlen(title) + 8;
+  {
+    int subtitle_width = (int)strlen(subtitle) + 4;
+    if (subtitle_width > popup_width)
+      popup_width = subtitle_width;
+  }
   for (int i = 0; i < hotkey_count; ++i) {
     int line_width = key_col_width + (int)strlen(hotkeys[i].description) + 6;
     if (line_width > popup_width)
@@ -666,11 +673,12 @@ void show_hotkeys_popup(void) {
   wattron(popup, A_BOLD);
   mvwprintw(popup, 1, 2, "%s", title);
   wattroff(popup, A_BOLD);
-  mvwprintw(popup, 2, 2, "%-7s %s", "Key", "Description");
+  trfx_print_clipped(popup, 2, 2, subtitle);
+  mvwprintw(popup, 3, 2, "%-7s %s", "Key", "Description");
   for (int i = 0; i < hotkey_count; ++i)
-    mvwprintw(popup, i + 3, 2, "%-7s", hotkeys[i].key);
+    mvwprintw(popup, i + 4, 2, "%-7s", hotkeys[i].key);
   for (int i = 0; i < hotkey_count; ++i)
-    trfx_print_clipped(popup, i + 3, 11, hotkeys[i].description);
+    trfx_print_clipped(popup, i + 4, 11, hotkeys[i].description);
   trfx_print_clipped(popup, popup_height - 2, 2,
                      "Press Esc, Enter, or q to close.");
   wrefresh(popup);
