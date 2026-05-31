@@ -38,7 +38,7 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the primary module changes without flicker, stale data, or broken
   borders.
 - Press `l` repeatedly.
-- Confirm the support dock cycles through its views without breaking the
+- Confirm the support panel cycles through its views without breaking the
   layout.
 - Press `t` repeatedly.
 - Confirm the top panels hide and show immediately without lag or crashes.
@@ -59,7 +59,7 @@ threading, rendering, keyboard handling, or collectors.
 - Resize the terminal while the popup is open.
 - Confirm the screen redraws cleanly after the popup closes.
 
-## Support Dock Selector
+## Support Panel Selector
 
 - Start the TUI.
 - Press `l`.
@@ -76,16 +76,16 @@ threading, rendering, keyboard handling, or collectors.
 
 - Start the TUI.
 - Press `g`.
-- Confirm the support dock switches to the diagnostics view and shows system,
+- Confirm the support panel switches to the diagnostics view and shows system,
   network, log, and pressure context.
 - Press `n`.
-- Confirm the support dock switches to the route and DNS view and shows the
+- Confirm the support panel switches to the route and DNS view and shows the
   default route, resolver data, and active interface summary.
 - Press `v`.
-- Confirm the support dock switches to the network health view and shows CPU,
+- Confirm the support panel switches to the network health view and shows CPU,
   memory, disk, process, and network correlation in one compact view.
 - Run with missing log access or broken route/DNS data.
-- Confirm the support dock shows explicit fallback text instead of blank panes
+- Confirm the support panel shows explicit fallback text instead of blank panes
   or crashes.
 
 ## Bandwidth Detail
@@ -95,9 +95,9 @@ threading, rendering, keyboard handling, or collectors.
 - Press `j` and `k`.
 - Confirm the selected top talker moves without breaking the layout.
 - Press `d` or `Enter`.
-- Confirm the support dock switches to the bandwidth detail view for the
+- Confirm the support panel switches to the bandwidth detail view for the
   selected top talker.
-- Confirm the support dock shows current metadata and recent sample history.
+- Confirm the support panel shows current metadata and recent sample history.
 - Press `l`.
 - Confirm the support view selector opens and returns cleanly after selection
   or cancel.
@@ -120,9 +120,9 @@ threading, rendering, keyboard handling, or collectors.
 - Confirm the confirmation step appears and unsupported targets fail cleanly
   instead of crashing or claiming success.
 - Press `a`.
-- Confirm the support dock shows the recent action trail with readable status
+- Confirm the support panel shows the recent action trail with readable status
   and message fields.
-- Confirm the support dock keeps the dashboard stable while switching views.
+- Confirm the support panel keeps the dashboard stable while switching views.
 
 ## Top Panels Toggle
 

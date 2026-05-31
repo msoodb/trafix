@@ -458,17 +458,17 @@ void show_hotkeys_popup(void) {
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
       {"[c]", "Change the primary module"},
-      {"[d]", "Show bandwidth detail in the support dock"},
+      {"[d]", "Show bandwidth detail in the secondary panel"},
       {"[x]", "Open the modal process kill confirmation"},
       {"[z]", "Open the modal connection drop confirmation"},
-      {"[a]", "Show action audit in the support dock"},
-      {"[g]", "Show diagnostics in the support dock"},
-      {"[n]", "Show route and DNS in the support dock"},
-      {"[v]", "Show network health in the support dock"},
-      {"[l]", "Open the support dock selector"},
+      {"[a]", "Show action audit in the secondary panel"},
+      {"[g]", "Show diagnostics in the secondary panel"},
+      {"[n]", "Show route and DNS in the secondary panel"},
+      {"[v]", "Show network health in the secondary panel"},
+      {"[l]", "Open the view selector"},
       {"[t]", "Show or hide the top system panels"},
       {"[J/K]", "Move the selected connection row"},
-      {"[o]", "Show connection detail in the support dock"},
+      {"[o]", "Show connection detail in the secondary panel"},
       {"[p]", "Pause or resume live updates"},
       {"[h]", "Open this help popup"},
       {"[q]", "Quit Trafix"},
@@ -480,7 +480,7 @@ void show_hotkeys_popup(void) {
 
   const char *title = "Hotkeys";
   const char *subtitle =
-      "Primary and support columns stay visible. `l` opens the support view selector.";
+      "Primary and support columns stay visible. `l` opens the view selector.";
   const int key_col_width = 8;
   int popup_height = hotkey_count + 6;
   int popup_width = (int)strlen(title) + 8;
@@ -1058,7 +1058,7 @@ int select_support_view() {
   size_t selected_index = trfx_support_view_selected_index();
   size_t active_index = selected_index;
   const char *title = "Support Views";
-  const char *subtitle = "Select the view shown in the support dock:";
+  const char *subtitle = "Select the active view:";
   const char *footer = "Up/Down to move, Enter to apply, Esc to cancel.";
   int popup_height = (int)trfx_support_view_count() + 6;
   int popup_width = (int)strlen(title) + 8;

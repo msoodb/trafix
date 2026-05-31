@@ -106,23 +106,10 @@ static void render_support_view_header(WINDOW *win, int *row, int max_lines) {
     return;
 
   selected_view = trfx_support_view_selected();
-  if (panel_has_room(*row, max_lines)) {
-    trfx_print_clipped(win, (*row)++, 2, "Support Dock");
-  }
-
   if (selected_view && panel_has_room(*row, max_lines)) {
     char active_line[256];
     snprintf(active_line, sizeof(active_line), "View: %s", selected_view->title);
     trfx_print_clipped(win, (*row)++, 2, active_line);
-  }
-
-  if (selected_view && panel_has_room(*row, max_lines)) {
-    trfx_print_clipped(win, (*row)++, 2, selected_view->description);
-  }
-
-  if (panel_has_room(*row, max_lines)) {
-    trfx_print_clipped(win, (*row)++, 2,
-                       "Press l/L to choose a support view.");
   }
 }
 
@@ -2003,11 +1990,8 @@ void *support_info_thread(void *arg) {
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " Support Dock ");
+    mvwprintw(win, row++, 2, " Support Panel ");
     wattroff(win, A_BOLD);
-    trfx_print_clipped(win, row++, 2,
-                       "Live inspection views and supporting data.");
-
     if (panel_has_room(row, max_rows)) {
       row++;
       render_support_view_header(win, &row, max_rows);

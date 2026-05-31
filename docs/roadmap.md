@@ -63,9 +63,9 @@ Turn the supporting column into a named inspection dock instead of a generic
 side panel:
 
 - let the support column host one selected inspection view at a time
-- move read-only detail views into the support dock instead of standalone popups
+- move read-only detail views into the support panel instead of standalone popups
 - show a short description for each selectable support item
-- keep confirmation and destructive action flows separate from the support dock
+- keep confirmation and destructive action flows separate from the support panel
 - remove stale main-column numbering and keep the help text aligned with the live layout
 - preserve narrow-terminal fallback behavior and readable clipping
 

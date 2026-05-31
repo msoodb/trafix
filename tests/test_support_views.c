@@ -57,7 +57,7 @@ static int test_support_view_selector_formatting(void) {
   const TrfxSupportViewSpec *spec = trfx_support_view_default();
 
   trfx_support_view_format_selector_line(spec, 0, line, sizeof(line));
-  ASSERT_STR_EQ(line, "Overview - Route, DNS, alerts, and live support context.");
+  ASSERT_STR_EQ(line, "Overview - Network overview.");
 
   trfx_support_view_format_selector_line(spec, 1, line, sizeof(line));
   ASSERT_STR_EQ(line, "Overview");

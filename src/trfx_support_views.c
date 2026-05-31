@@ -18,7 +18,7 @@ static int support_view_refresh_requested = 0;
 
 static const TrfxSupportViewSpec support_views[] = {
     {TRFX_SUPPORT_VIEW_OVERVIEW, "Overview",
-     "Route, DNS, alerts, and live support context."},
+     "Network overview."},
     {TRFX_SUPPORT_VIEW_LOGS, "Logs",
      "Recent log lines and troubleshooting output."},
     {TRFX_SUPPORT_VIEW_DIAGNOSTICS, "Diagnostics",

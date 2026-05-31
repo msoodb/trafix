@@ -31,22 +31,22 @@ Inside the TUI, the hotkey help is shown in a popup opened with `F1`, `h`, or
 `Esc`, `Enter`, or `q`.
 The `t` key toggles the top system, CPU, memory, and disk panels at runtime;
 the initial state still comes from `SHOW_TOP_PANELS` in the config file.
-The `g` key shows the troubleshooting diagnostics in the support dock.
-The `n` key shows the route and DNS checks in the support dock.
-The `v` key shows the network health correlation in the support dock.
-The `l` key opens the support dock selector.
+The `g` key shows the troubleshooting diagnostics in the support panel.
+The `n` key shows the route and DNS checks in the support panel.
+The `v` key shows the network health correlation in the support panel.
+The `l` key opens the view selector.
 In the Network panel, `j` and `k` move the selected top talker, and `d` or
-`Enter` shows the bandwidth detail in the support dock.
+`Enter` shows the bandwidth detail in the support panel.
 The `x` key opens a process chooser and requests a kill after confirmation.
 The `z` key opens a connection chooser and requests a drop where supported.
-The `a` key shows the recent action audit in the support dock.
+The `a` key shows the recent action audit in the support panel.
 The shipped filter surface is limited to `connections --proto` and
 `connections --state`. Alerts and remote agents remain roadmap items, but
 top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
 The dashboard is arranged as a primary column for the core overview modules
 and a support column for logs, diagnostics, audits, and other live support
-data. The support dock can show Overview, Logs, Diagnostics, Route/DNS,
+data. The support panel can show Overview, Logs, Diagnostics, Route/DNS,
 Network Health, Bandwidth Detail, Connection Detail, and Action Audit. The
 `l` key opens a modal selector for those views. On narrow terminals, the
 support column collapses automatically instead of forcing cramped rendering.

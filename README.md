@@ -41,7 +41,7 @@ Trafix is designed to be lightweight, efficient, and to use minimal system resou
 
 ## Bandwidth Scope
 
-Trafix now estimates bandwidth from interface counters and visible ownership metadata. The Network panel shows top talkers and a short recent trend, and the selected flow can be inspected in the support dock with its current metadata and history. Where ownership data is missing, the UI keeps the fallback explicit instead of pretending exact per-socket accounting.
+Trafix now estimates bandwidth from interface counters and visible ownership metadata. The Network panel shows top talkers and a short recent trend, and the selected flow can be inspected in the support panel with its current metadata and history. Where ownership data is missing, the UI keeps the fallback explicit instead of pretending exact per-socket accounting.
 
 ## Build Requirements
 
@@ -188,7 +188,7 @@ For release and regression checks, use the manual TUI checklist in
 
 The dashboard is arranged as a primary column for the core observability
 views and a support column for logs, diagnostics, audits, and other supporting
-live data. The support dock can cycle through Overview, Logs, Diagnostics,
+live data. The support panel can cycle through Overview, Logs, Diagnostics,
 Route/DNS, Network Health, Bandwidth Detail, Connection Detail, and Action
 Audit with `l`. On narrow terminals, Trafix collapses that support column
 automatically.
@@ -200,16 +200,16 @@ forcing full teardown work.
 ### Hotkeys
 
 - `[F1]`, `[h]`, `[H]` — **Help Popup:** Show the hotkey help popup.
-- `[d]`, `[Enter]` — **Bandwidth Detail:** Show the selected top-talker detail in the support dock.
+- `[d]`, `[Enter]` — **Bandwidth Detail:** Show the selected top-talker detail in the support panel.
 - `[j]`, `[k]` — **Move Selection:** Move the selected top talker up or down.
 - `[Esc]`, `[Enter]`, `[q]` — **Close Popup:** Dismiss the hotkey popup.
 - `[x]` — **Kill Process:** Open a process chooser and confirm a kill action.
 - `[z]` — **Drop Connection:** Open a connection chooser and confirm a drop action where supported.
-- `[a]` — **Action Audit:** Show the recent action trail in the support dock.
-- `[g]` — **Diagnostics:** Show the troubleshooting snapshot in the support dock.
-- `[n]` — **Route/DNS Checks:** Show the route and DNS correlation in the support dock.
-- `[v]` — **Network Health:** Show the network and system pressure correlation in the support dock.
-- `[l]` — **Support View:** Open the support dock selector.
+- `[a]` — **Action Audit:** Show the recent action trail in the support panel.
+- `[g]` — **Diagnostics:** Show the troubleshooting snapshot in the support panel.
+- `[n]` — **Route/DNS Checks:** Show the route and DNS correlation in the support panel.
+- `[v]` — **Network Health:** Show the network and system pressure correlation in the support panel.
+- `[l]` — **View Selector:** Open the view selector.
 - `[s]` — **Sort Processes:** Change the sorting order of process information.
 - `[r]` — **Refresh:** Force a manual refresh of all panels.
 - `[c]` — **Primary Module:** Change the main module shown in the primary column.
