@@ -69,6 +69,18 @@ side panel:
 - remove stale main-column numbering and keep the help text aligned with the live layout
 - preserve narrow-terminal fallback behavior and readable clipping
 
+## Phase 17: Responsive Window Drawing And Cleanup
+
+Make hotkeys feel immediate by tightening redraw, resize, and window lifecycle
+paths:
+
+- remove unnecessary window teardown/rebuild work from the `t` hotkey path
+- separate layout recomputation from window destruction so state changes are cheap
+- make redraw ordering deterministic so borders and content update cleanly
+- reduce ncurses lock hold time around high-frequency refresh work
+- remove dead and unused code paths that no longer support the shipped UI
+- keep the result measurable with fast rebuilds, tests, and sanitizer runs
+
 ## Future Phases
 
 Any later phase numbers will follow the same pattern: ship the code, verify it

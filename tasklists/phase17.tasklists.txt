@@ -1,0 +1,115 @@
+Phase 17 Task List: Responsive Window Drawing And Cleanup
+----------------------------------------------------------
+
+Goal
+----
+Make Trafix feel immediate on hotkeys and resize events by simplifying window
+lifecycles, reducing redraw overhead, and removing dead code that no longer
+supports the shipped UI.
+
+Constraints
+-----------
+- Keep user-visible behavior stable while refactoring internals.
+- Keep each task small enough to implement, verify, and commit on its own.
+- Preserve the current two-column operator layout and support dock behavior.
+- Preserve narrow-terminal fallback and clipping.
+
+Task 1: Measure The Slow Paths
+------------------------------
+Add a small way to inspect redraw and toggle latency so the refactor is guided
+by the actual hot paths rather than guesswork.
+
+Acceptance checks:
+- The slow `t` path is visible in local debugging or logging.
+- The measurement change does not alter user-visible behavior.
+- The code is easy to remove or keep without affecting the UI.
+
+Task 2: Separate Layout Calculation From Window Lifecycle
+---------------------------------------------------------
+Split geometry updates from window destruction and recreation so toggle and
+resize paths can reuse existing windows when possible.
+
+Acceptance checks:
+- Layout recomputation happens without always rebuilding the whole pane tree.
+- The `t` path updates geometry with less work.
+- Resize handling still produces the same final layout.
+
+Task 3: Make Top-Pane Visibility Changes Cheap
+---------------------------------------------
+Refactor the top-panel show/hide path so it does not force unnecessary global
+teardown or full redraw work.
+
+Acceptance checks:
+- `t` responds immediately.
+- The top panels hide and show without visible lag.
+- The code path no longer depends on accidental side effects.
+
+Task 4: Tighten ncurses Locking And Refresh Order
+-------------------------------------------------
+Reduce time spent holding the ncurses mutex and make refresh ordering
+predictable so the UI stops feeling sluggish.
+
+Acceptance checks:
+- High-frequency redraw code holds the lock for less time.
+- Borders and content repaint in a stable order.
+- No new flicker or race conditions appear.
+
+Task 5: Remove Dead Window Code Paths
+------------------------------------
+Delete helper functions, branches, and legacy window code that are no longer
+used by the shipped UI.
+
+Acceptance checks:
+- Unused code is removed instead of being left behind with warnings.
+- The active code paths remain easy to follow.
+- No shipped behavior depends on the deleted paths.
+
+Task 6: Remove Unused Popups And Stale Helpers
+----------------------------------------------
+Audit popup and selector helpers, then remove or fold any code that is no
+longer reachable after the layout changes.
+
+Acceptance checks:
+- The source no longer carries dead modal helpers.
+- Warnings for unused code are gone or justified.
+- The remaining helpers match the current interaction model.
+
+Task 7: Add Rapid Toggle Regression Coverage
+-------------------------------------------
+Add automated coverage for repeated hotkey toggles and resize transitions so
+the lag and crash class is tested instead of rediscovered manually.
+
+Acceptance checks:
+- Tests cover repeated `t` toggles.
+- Tests cover resize after toggle.
+- Tests run cleanly in normal and sanitizer builds.
+
+Task 8: Add Redraw Consistency Checks
+------------------------------------
+Cover the redraw order for borders, headers, and content so the top panels and
+support dock repaint consistently.
+
+Acceptance checks:
+- The relevant rendering helpers have test coverage.
+- The tests capture the intended order or geometry behavior.
+- The panel content still clips safely.
+
+Task 9: Clean Up Warnings And Legacy Branches
+--------------------------------------------
+Run a focused cleanup pass to remove compiler warnings, stale branches, and
+leftover assumptions from earlier layout phases.
+
+Acceptance checks:
+- Build warnings are gone or explicitly justified.
+- Legacy branches are either removed or clearly isolated.
+- The codebase reads cleaner after the cleanup.
+
+Task 10: Update Docs And Manual Checks
+-------------------------------------
+Document the immediate-response goal and extend the manual checklist with the
+rapid-toggle and resize checks used to validate the refactor.
+
+Acceptance checks:
+- The docs describe the responsiveness goal in plain terms.
+- The manual checklist covers `t`, resize, and repeated refresh checks.
+- The shipped behavior matches the written workflow.
