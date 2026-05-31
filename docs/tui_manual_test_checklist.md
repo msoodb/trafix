@@ -40,6 +40,10 @@ threading, rendering, keyboard handling, or collectors.
 - Press `l` repeatedly.
 - Confirm the support dock cycles through its views without breaking the
   layout.
+- Press `t` repeatedly.
+- Confirm the top panels hide and show immediately without lag or crashes.
+- Resize the terminal while toggling `t`.
+- Confirm the layout stays aligned and the dashboard remains responsive.
 - Continue switching for at least 30 seconds.
 - Confirm CPU usage remains reasonable and the TUI stays responsive.
 

@@ -193,6 +193,10 @@ Route/DNS, Network Health, Bandwidth Detail, Connection Detail, and Action
 Audit with `l`. On narrow terminals, Trafix collapses that support column
 automatically.
 
+The current windowing work is focused on making hotkeys and resize events feel
+immediate, so repeated `t` toggles and redraws should stay responsive instead of
+forcing full teardown work.
+
 ### Hotkeys
 
 - `[F1]`, `[h]`, `[H]` — **Help Popup:** Show the hotkey help popup.
