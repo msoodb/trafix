@@ -22,6 +22,7 @@
 #include "trfx_diagnostics.h"
 #include "trfx_globals.h"
 #include "trfx_connections.h"
+#include "trfx_layout.h"
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
@@ -67,6 +68,11 @@ typedef struct {
 } WindowSlot;
 // WindowSlot row2_slots[ROW2_MODULES];
 WindowSlot *row2_slots = NULL;
+static WINDOW *support_window = NULL;
+static pthread_t support_thread_id;
+static volatile int support_stop_requested = 0;
+static int support_thread_active = 0;
+static TrfxTwoColumnLayoutState dashboard_layout_state;
 
 static int calculate_row2_height(int screen_height) {
   int top_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
@@ -118,6 +124,10 @@ static int get_module_array_index_by_dynamic_index(int module_index) {
 static void load_row2_modules_with_selection(int row2_height, int screen_width,
                                              int row2_y,
                                              const int *selected_modules);
+static void cleanup_support_column(void);
+static void start_support_column_thread(WINDOW *win);
+WINDOW *create_bordered_window(int height, int width, int y, int x,
+                               int color_pair);
 void cleanup_row2_modules(void);
 
 static void draw_small_terminal_message(int screen_height, int screen_width) {
@@ -146,6 +156,11 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
   const int row2_y = calculate_row2_y();
+  TrfxTwoColumnLayoutGeometry layout_geometry;
+
+  trfx_two_column_layout_compute_geometry(&dashboard_layout_state, row2_y, 0,
+                                          row2_height, screen_width,
+                                          &layout_geometry);
 
   int preserved_modules[MAX_ROW2_MODULES] = {0};
   if (row2_slots) {
@@ -170,6 +185,7 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   pthread_mutex_unlock(&ncurses_mutex);
 
+  cleanup_support_column();
   cleanup_row2_modules();
   row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
   if (!row2_slots) {
@@ -178,8 +194,17 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     exit(EXIT_FAILURE);
   }
 
-  load_row2_modules_with_selection(row2_height, screen_width, row2_y,
+  load_row2_modules_with_selection(row2_height, layout_geometry.primary_width,
+                                   row2_y,
                                    preserved_modules);
+
+  if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
+    support_window = create_bordered_window(
+        row2_height, layout_geometry.secondary_width, row2_y,
+        layout_geometry.secondary_x, COLOR_BORDER);
+    if (support_window)
+      start_support_column_thread(support_window);
+  }
 
   if (SHOW_TOP_PANELS)
     trfx_runtime_request_static_refresh_all();
@@ -1690,6 +1715,43 @@ void cleanup_row2_modules() {
   row2_slots = NULL;
 }
 
+static void cleanup_support_column(void) {
+  if (support_thread_active) {
+    support_stop_requested = 1;
+    pthread_join(support_thread_id, NULL);
+    support_thread_active = 0;
+  }
+
+  if (support_window) {
+    pthread_mutex_lock(&ncurses_mutex);
+    werase(support_window);
+    wrefresh(support_window);
+    delwin(support_window);
+    pthread_mutex_unlock(&ncurses_mutex);
+    support_window = NULL;
+  }
+}
+
+static void start_support_column_thread(WINDOW *win) {
+  ThreadArg *arg = malloc(sizeof(ThreadArg));
+  if (!arg) {
+    fprintf(stderr, "Failed to allocate memory for support ThreadArg\n");
+    return;
+  }
+
+  arg->module_index = 0;
+  arg->window = win;
+  support_stop_requested = 0;
+  arg->stop_requested = &support_stop_requested;
+
+  if (pthread_create(&support_thread_id, NULL, support_info_thread, arg) != 0) {
+    free(arg);
+    return;
+  }
+
+  support_thread_active = 1;
+}
+
 static void destroy_window(WINDOW **win) {
   if (!win || !*win)
     return;
@@ -1759,15 +1821,18 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 
   int row1_widths[ROW1_MODULES];
   int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  TrfxTwoColumnLayoutGeometry layout_geometry;
   if (!row2_widths)
     return;
 
   calculate_row1_widths(screen_width, row1_widths);
-  calculate_row2_widths(screen_width, row2_widths);
-
   const int row1_height = SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
   const int row2_height = calculate_row2_height(screen_height);
   const int row2_y = calculate_row2_y();
+  trfx_two_column_layout_compute_geometry(&dashboard_layout_state, row2_y, 0,
+                                          row2_height, screen_width,
+                                          &layout_geometry);
+  calculate_row2_widths(layout_geometry.primary_width, row2_widths);
 
   pthread_mutex_lock(&ncurses_mutex);
   endwin();
@@ -1794,6 +1859,21 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
       wrefresh(row2_slots[i].window);
     }
     x_offset += row2_widths[i];
+  }
+
+  if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
+    if (!support_window) {
+      support_window = create_bordered_window(
+          row2_height, layout_geometry.secondary_width, row2_y,
+          layout_geometry.secondary_x, COLOR_BORDER);
+      if (support_window && !support_thread_active)
+        start_support_column_thread(support_window);
+    } else {
+      wresize(support_window, row2_height, layout_geometry.secondary_width);
+      mvwin(support_window, row2_y, layout_geometry.secondary_x);
+      touchwin(support_window);
+      wrefresh(support_window);
+    }
   }
 
   pthread_mutex_unlock(&ncurses_mutex);
@@ -1942,6 +2022,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
 void start_dashboard() {
   trfx_runtime_reset();
+  trfx_two_column_layout_init(&dashboard_layout_state);
 
   initscr();
   noecho();
@@ -1965,10 +2046,14 @@ void start_dashboard() {
 
   const int row1_height = FIXED_ROW1_HEIGHT;
   const int row2_height = calculate_row2_height(screen_height);
+  TrfxTwoColumnLayoutGeometry layout_geometry;
 
   int row1_widths[ROW1_MODULES] = {0};
   calculate_row1_widths(screen_width, row1_widths);
   int row1_y = 0, row2_y = calculate_row2_y();
+  trfx_two_column_layout_compute_geometry(&dashboard_layout_state, row2_y, 0,
+                                          row2_height, screen_width,
+                                          &layout_geometry);
 
   WINDOW *sys_win = NULL;
   WINDOW *cpu_win = NULL;
@@ -2006,7 +2091,15 @@ void start_dashboard() {
       free(arg);
     }
     }*/
-  load_row2_modules(row2_height, screen_width, row2_y);
+  load_row2_modules(row2_height, layout_geometry.primary_width, row2_y);
+
+  if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
+    support_window = create_bordered_window(
+        row2_height, layout_geometry.secondary_width, row2_y,
+        layout_geometry.secondary_x, COLOR_BORDER);
+    if (support_window)
+      start_support_column_thread(support_window);
+  }
 
   sleep(1);
   trfx_runtime_set_ready(1);
@@ -2022,6 +2115,7 @@ void start_dashboard() {
   pthread_join(cpu_tid, NULL);
   pthread_join(mem_tid, NULL);
   pthread_join(disk_tid, NULL);
+  cleanup_support_column();
   cleanup_row2_modules();
 
   destroy_window(&sys_win);

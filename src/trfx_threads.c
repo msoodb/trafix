@@ -18,6 +18,7 @@
 
 #include "trfx_threads.h"
 #include "trfx_config.h"
+#include "trfx_diagnostics.h"
 #include "trfx_bandwidth.h"
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
@@ -1426,6 +1427,100 @@ void *socket_owner_info_thread(void *arg) {
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
 
+    trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
+  }
+
+  return NULL;
+}
+
+void *support_info_thread(void *arg) {
+  ThreadArg *thread_arg = (ThreadArg *)arg;
+  int my_index = thread_arg->module_index;
+  WINDOW *win = thread_arg->window;
+  volatile int *local_stop = thread_arg->stop_requested;
+
+  free(arg);
+  wait_until_ready();
+
+  while (!trfx_thread_should_stop(local_stop)) {
+    if (trfx_runtime_is_paused()) {
+      trfx_dynamic_thread_sleep_ms(local_stop, TUI_PAUSE_INTERVAL_MS);
+      continue;
+    }
+
+    TrfxDiagnosticsSnapshot snapshot;
+    TrfxAlertSummary alerts;
+    char error[256];
+    char alerts_line[384];
+    char health_line[256];
+    int row = 0;
+    int max_rows, max_cols;
+
+    trfx_init_diagnostics_snapshot(&snapshot);
+    trfx_init_alert_summary(&alerts);
+    TrfxCollectorStatus status =
+        trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
+    trfx_collect_diagnostics_alerts(&snapshot, &alerts);
+
+    pthread_mutex_lock(&ncurses_mutex);
+    getmaxyx(win, max_rows, max_cols);
+    (void)max_cols;
+    werase(win);
+    wattron(win, trfx_color_attr(COLOR_BORDER));
+    box(win, 0, 0);
+    wattroff(win, trfx_color_attr(COLOR_BORDER));
+    wattron(win, A_BOLD);
+    mvwprintw(win, row++, 2, " [%d] Support ", my_index + 1);
+    wattroff(win, A_BOLD);
+
+    snprintf(health_line, sizeof(health_line),
+             "Status: %s | route %s | DNS %s | active %s",
+             status == TRFX_COLLECTOR_OK ? "ok" : "partial",
+             snapshot.network.route.has_default ? "ok" : "missing",
+             snapshot.network.dns.count > 0 ? "ok" : "missing",
+             snapshot.network.has_active_interface ? "ok" : "missing");
+    trfx_print_clipped(win, row++, 2, health_line);
+
+    snprintf(alerts_line, sizeof(alerts_line), "Alerts: ");
+    if (trfx_diagnostics_alert_count(&alerts) == 0) {
+      strncat(alerts_line, "none", sizeof(alerts_line) - strlen(alerts_line) - 1);
+    } else {
+      for (size_t i = 0; i < trfx_diagnostics_alert_count(&alerts); i++) {
+        const char *alert = trfx_diagnostics_alert_at(&alerts, i);
+        if (!alert)
+          continue;
+        if (i > 0)
+          strncat(alerts_line, "; ",
+                  sizeof(alerts_line) - strlen(alerts_line) - 1);
+        strncat(alerts_line, alert,
+                sizeof(alerts_line) - strlen(alerts_line) - 1);
+      }
+    }
+    trfx_print_clipped(win, row++, 2, alerts_line);
+
+    if (error[0] != '\0')
+      trfx_print_clipped(win, row++, 2, error);
+
+    if (panel_has_room(row, max_rows))
+      trfx_print_clipped(win, row++, 2, "Recent logs:");
+
+    if (trfx_diagnostics_log_count(&snapshot.logs) == 0) {
+      trfx_print_empty_state(win, "No readable log lines available");
+    } else {
+      for (size_t i = 0; i < trfx_diagnostics_log_count(&snapshot.logs) &&
+                         row < max_rows - 1; i++) {
+        const TrfxDiagnosticsLogLine *entry =
+            trfx_diagnostics_log_at(&snapshot.logs, i);
+        char line[384];
+        if (!entry)
+          continue;
+        snprintf(line, sizeof(line), "[%s] %s", entry->source, entry->text);
+        trfx_print_clipped(win, row++, 2, line);
+      }
+    }
+
+    wrefresh(win);
+    pthread_mutex_unlock(&ncurses_mutex);
     trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
   }
 
