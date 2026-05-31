@@ -88,6 +88,8 @@ static int tui_size_is_too_small(int screen_height, int screen_width);
 static void calculate_row1_widths(int screen_width,
                                   int row1_widths[ROW1_MODULES]);
 static void calculate_row2_widths(int screen_width, int row2_widths[]);
+void refresh_static_windows(WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
+                            WINDOW *disk_win);
 static void destroy_support_column(void);
 static void start_support_column_thread(WINDOW *win);
 WINDOW *create_bordered_window(int height, int width, int y, int x,
@@ -294,9 +296,6 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   }
 
   pthread_mutex_lock(&ncurses_mutex);
-  endwin();
-  refresh();
-  clear();
   apply_top_panel_geometry(&layout, sys_win, cpu_win, mem_win, disk_win);
   apply_primary_panes_geometry(&layout);
 
@@ -307,7 +306,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
     layout_timing_log("toggle:primary pane rebuild", &layout_start);
 
   if (SHOW_TOP_PANELS)
-    trfx_runtime_request_static_refresh_all();
+    refresh_static_windows(sys_win, cpu_win, mem_win, disk_win);
+  trfx_runtime_request_static_refresh_all();
   if (layout_timing_active)
     layout_timing_log("toggle:full refresh path", &layout_start);
 }
