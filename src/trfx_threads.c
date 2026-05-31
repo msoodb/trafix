@@ -669,7 +669,7 @@ static void render_connection_group_summary(
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
-static const TrfxBandwidthFlow *__attribute__((unused))
+static const TrfxBandwidthFlow *
 connection_find_hot_flow(const TrfxConnectionSummary *connection,
                          const TrfxBandwidthReport *report) {
   if (!connection || !report)
@@ -690,11 +690,6 @@ connection_find_hot_flow(const TrfxConnectionSummary *connection,
   }
 
   return NULL;
-}
-
-static int connection_matches_hot_flow(const TrfxConnectionSummary *connection,
-                                       const TrfxBandwidthReport *report) {
-  return connection_find_hot_flow(connection, report) != NULL;
 }
 
 static int connection_state_matches(const ConnectionInfo *connection,
@@ -1840,7 +1835,7 @@ void *connection_info_thread(void *arg) {
     for (int i = 0; i < connections.count && y < getmaxy(win) - 1; ++i) {
       char line[256];
       char marker = connections.rows[i].has_owner ? ' ' : '!';
-      if (connection_matches_hot_flow(&connections.rows[i], &bandwidth_report))
+      if (connection_find_hot_flow(&connections.rows[i], &bandwidth_report))
         marker = '*';
       format_connection_summary_row(&connections.rows[i], panel_width, line,
                                     sizeof(line));
