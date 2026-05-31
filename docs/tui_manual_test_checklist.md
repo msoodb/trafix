@@ -55,6 +55,18 @@ threading, rendering, keyboard handling, or collectors.
 - Resize the terminal while the popup is open.
 - Confirm the screen redraws cleanly after the popup closes.
 
+## Support Dock Selector
+
+- Start the TUI.
+- Press `l` repeatedly.
+- Confirm the support dock cycles through Overview, Logs, Diagnostics,
+  Route/DNS, Network Health, Bandwidth Detail, Connection Detail, and Action
+  Audit.
+- Confirm the active view changes immediately and the selector text stays
+  readable when the support area is tight.
+- Resize to a narrower support-dock width while the selector is visible.
+- Confirm the dock stays stable and the compact description mode clips safely.
+
 ## Diagnostics Views
 
 - Start the TUI.

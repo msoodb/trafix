@@ -188,7 +188,9 @@ For release and regression checks, use the manual TUI checklist in
 
 The dashboard is arranged as a primary column for the core observability
 views and a support column for logs, diagnostics, audits, and other supporting
-live data. On narrow terminals, Trafix collapses that support column
+live data. The support dock can cycle through Overview, Logs, Diagnostics,
+Route/DNS, Network Health, Bandwidth Detail, Connection Detail, and Action
+Audit with `l`. On narrow terminals, Trafix collapses that support column
 automatically.
 
 ### Hotkeys

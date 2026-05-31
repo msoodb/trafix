@@ -46,8 +46,11 @@ top-talkers, trend history, and estimated socket/process bandwidth are now
 part of the shipped UI.
 The dashboard is arranged as a primary column for the core overview modules
 and a support column for logs, diagnostics, audits, and other live support
-data. On narrow terminals, the support column collapses automatically instead
-of forcing cramped rendering.
+data. The support dock cycles through Overview, Logs, Diagnostics, Route/DNS,
+Network Health, Bandwidth Detail, Connection Detail, and Action Audit. On
+narrow terminals, the support column collapses automatically instead of
+forcing cramped rendering, and the selector switches to a compact mode that
+keeps titles readable while clipping longer descriptions safely.
 The diagnostics snapshot intentionally pulls together system overview, route,
 DNS, recent log lines, CPU, memory, disk, and process pressure so the
 operator can explain a problem without jumping across panels.
