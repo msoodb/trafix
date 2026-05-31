@@ -123,7 +123,7 @@ static int get_module_array_index_by_dynamic_index(int module_index) {
 static void load_row2_modules_with_selection(int row2_height, int screen_width,
                                              int row2_y,
                                              const int *selected_modules);
-static void hide_support_column(void);
+static void request_hide_support_column(void);
 static void destroy_support_column(void);
 static void start_support_column_thread(WINDOW *win);
 WINDOW *create_bordered_window(int height, int width, int y, int x,
@@ -1730,23 +1730,19 @@ void cleanup_row2_modules() {
   row2_slots = NULL;
 }
 
-static void hide_support_column(void) {
+static void request_hide_support_column(void) {
+  if (support_thread_active) {
+    support_stop_requested = 1;
+  }
+}
+
+static void destroy_support_column(void) {
   if (support_thread_active) {
     support_stop_requested = 1;
     pthread_join(support_thread_id, NULL);
     support_thread_active = 0;
   }
 
-  if (support_window) {
-    pthread_mutex_lock(&ncurses_mutex);
-    werase(support_window);
-    wrefresh(support_window);
-    pthread_mutex_unlock(&ncurses_mutex);
-  }
-}
-
-static void destroy_support_column(void) {
-  hide_support_column();
   if (support_window) {
     pthread_mutex_lock(&ncurses_mutex);
     delwin(support_window);
@@ -1898,10 +1894,13 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     if (support_window && !support_thread_active)
       start_support_column_thread(support_window);
   } else {
-    hide_support_column();
+    request_hide_support_column();
   }
 
   pthread_mutex_unlock(&ncurses_mutex);
+
+  if (!layout_geometry.secondary_visible || layout_geometry.secondary_width <= 0)
+    destroy_support_column();
 
   trfx_runtime_request_static_refresh_all();
   free(row2_widths);
