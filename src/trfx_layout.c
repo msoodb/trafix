@@ -60,3 +60,53 @@ int trfx_two_column_layout_secondary_width_percent(
 
   return clamp_percent(state->secondary_width_percent, 30);
 }
+
+int trfx_two_column_layout_compute_geometry(
+    const TrfxTwoColumnLayoutState *state, int origin_y, int origin_x,
+    int total_height, int total_width, TrfxTwoColumnLayoutGeometry *geometry) {
+  int primary_width;
+  int secondary_width;
+  int primary_percent;
+  int secondary_percent;
+
+  if (!geometry || total_height < 0 || total_width < 0)
+    return 0;
+
+  geometry->primary_x = origin_x;
+  geometry->primary_y = origin_y;
+  geometry->primary_height = total_height;
+  geometry->secondary_x = origin_x;
+  geometry->secondary_y = origin_y;
+  geometry->secondary_height = total_height;
+  geometry->secondary_visible =
+      trfx_two_column_layout_secondary_visible(state);
+
+  if (!geometry->secondary_visible || total_width <= 0) {
+    geometry->primary_width = total_width;
+    geometry->secondary_width = 0;
+    geometry->secondary_x = origin_x + total_width;
+    return 1;
+  }
+
+  primary_percent = trfx_two_column_layout_primary_width_percent(state);
+  secondary_percent = trfx_two_column_layout_secondary_width_percent(state);
+  if (primary_percent + secondary_percent <= 0) {
+    primary_percent = 70;
+    secondary_percent = 30;
+  }
+
+  primary_width = (total_width * primary_percent) / 100;
+  if (primary_width < 1)
+    primary_width = 1;
+  if (primary_width >= total_width && total_width > 1)
+    primary_width = total_width - 1;
+
+  secondary_width = total_width - primary_width;
+  if (secondary_width < 0)
+    secondary_width = 0;
+
+  geometry->primary_width = primary_width;
+  geometry->secondary_width = secondary_width;
+  geometry->secondary_x = origin_x + primary_width;
+  return 1;
+}

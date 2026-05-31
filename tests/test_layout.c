@@ -29,6 +29,36 @@ static int test_two_column_layout_toggle(void) {
   return 0;
 }
 
+static int test_two_column_layout_geometry(void) {
+  TrfxTwoColumnLayoutState state;
+  TrfxTwoColumnLayoutGeometry geometry;
+
+  trfx_two_column_layout_init(&state);
+
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 2, 4, 40, 100, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.primary_x, 4);
+  ASSERT_INT_EQ(geometry.primary_y, 2);
+  ASSERT_INT_EQ(geometry.primary_width, 70);
+  ASSERT_INT_EQ(geometry.primary_height, 40);
+  ASSERT_INT_EQ(geometry.secondary_x, 74);
+  ASSERT_INT_EQ(geometry.secondary_y, 2);
+  ASSERT_INT_EQ(geometry.secondary_width, 30);
+  ASSERT_INT_EQ(geometry.secondary_height, 40);
+  ASSERT_INT_EQ(geometry.secondary_visible, 1);
+
+  trfx_two_column_layout_set_secondary_visible(&state, 0);
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 0, 0, 20, 50, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.primary_width, 50);
+  ASSERT_INT_EQ(geometry.secondary_width, 0);
+  ASSERT_INT_EQ(geometry.secondary_visible, 0);
+
+  return 0;
+}
+
 static int test_two_column_layout_null_safety(void) {
   ASSERT_INT_EQ(trfx_two_column_layout_secondary_visible(NULL), 0);
   ASSERT_INT_EQ(trfx_two_column_layout_primary_width_percent(NULL), 70);
@@ -44,6 +74,8 @@ int main(void) {
   if (test_two_column_layout_defaults() != 0)
     return 1;
   if (test_two_column_layout_toggle() != 0)
+    return 1;
+  if (test_two_column_layout_geometry() != 0)
     return 1;
   if (test_two_column_layout_null_safety() != 0)
     return 1;
