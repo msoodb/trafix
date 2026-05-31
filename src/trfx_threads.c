@@ -402,6 +402,9 @@ static void render_support_bandwidth_view(
     const char *bandwidth_error, const char *trend_error, int *row,
     int max_lines) {
   char line[256];
+  char label[32];
+  char local[48];
+  char remote[48];
   char rx[32];
   char tx[32];
 
@@ -434,12 +437,16 @@ static void render_support_bandwidth_view(
     int visible = report->flow_count < 3 ? report->flow_count : 3;
     for (int i = 0; i < visible && panel_has_room(*row, max_lines); i++) {
       const TrfxBandwidthFlow *flow = &report->flows[i];
+      trfx_clip_text(flow->label[0] ? flow->label : "flow", label,
+                     sizeof(label), (int)sizeof(label) - 1);
+      trfx_clip_text(flow->local[0] ? flow->local : "-", local,
+                     sizeof(local), (int)sizeof(local) - 1);
+      trfx_clip_text(flow->remote[0] ? flow->remote : "-", remote,
+                     sizeof(remote), (int)sizeof(remote) - 1);
       trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
       trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
       snprintf(line, sizeof(line), "%d. %s | %s -> %s | rx %s/s | tx %s/s",
-               i + 1, flow->label[0] ? flow->label : "flow",
-               flow->local[0] ? flow->local : "-", flow->remote[0] ? flow->remote : "-",
-               rx, tx);
+               i + 1, label, local, remote, rx, tx);
       trfx_print_clipped(win, (*row)++, 2, line);
     }
   }
