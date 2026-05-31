@@ -227,6 +227,14 @@ static void layout_timing_log(const char *label,
           layout_elapsed_us(start, &end));
 }
 
+static void layout_timing_log_phase(const char *phase,
+                                    const struct timespec *start) {
+  if (!layout_timing_enabled() || !phase || !start)
+    return;
+
+  layout_timing_log(phase, start);
+}
+
 static int tui_size_is_too_small(int screen_height, int screen_width) {
   int min_height = (SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0) + MIN_ROW2_HEIGHT;
   return screen_width < MIN_TUI_WIDTH ||
@@ -309,9 +317,9 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   pthread_mutex_unlock(&ncurses_mutex);
   if (layout_timing_active)
-    layout_timing_log("toggle:top pane relayout", &layout_start);
+    layout_timing_log_phase("toggle:top pane relayout", &layout_start);
   if (layout_timing_active)
-    layout_timing_log("toggle:primary pane rebuild", &layout_start);
+    layout_timing_log_phase("toggle:primary pane rebuild", &layout_start);
 
   if (create_support) {
     support_window = create_bordered_window(
@@ -328,7 +336,7 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   trfx_runtime_request_static_refresh_all();
   trfx_runtime_set_paused(0);
   if (layout_timing_active)
-    layout_timing_log("toggle:full refresh path", &layout_start);
+    layout_timing_log_phase("toggle:full refresh path", &layout_start);
 }
 
 static int init_color_pair_checked(short pair, short foreground,
@@ -1367,7 +1375,13 @@ void load_row2_modules(int row2_height, int screen_width, int row2_y) {
 
 static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
                                      WINDOW *mem_win, WINDOW *disk_win) {
+  struct timespec layout_start;
+  int layout_timing_active = 0;
   DashboardLayoutGeometry layout;
+
+  if (layout_timing_enabled() &&
+      clock_gettime(CLOCK_MONOTONIC, &layout_start) == 0)
+    layout_timing_active = 1;
 
   if (!compute_dashboard_layout(&layout)) {
     draw_small_terminal_message(layout.screen_height, layout.screen_width);
@@ -1386,6 +1400,11 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
 
   pthread_mutex_unlock(&ncurses_mutex);
 
+  if (layout_timing_active)
+    layout_timing_log_phase("resize:top pane relayout", &layout_start);
+  if (layout_timing_active)
+    layout_timing_log_phase("resize:primary pane rebuild", &layout_start);
+
   if (create_support) {
     support_window = create_bordered_window(
         layout.row2_height, layout.row2_geometry.secondary_width, layout.row2_y,
@@ -1397,6 +1416,8 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
     destroy_support_column();
 
   trfx_runtime_request_static_refresh_all();
+  if (layout_timing_active)
+    layout_timing_log_phase("resize:full refresh path", &layout_start);
 }
 
 void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
