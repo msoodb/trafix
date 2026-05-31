@@ -9,6 +9,11 @@
 
 #include "trfx_support_views.h"
 
+#include <pthread.h>
+
+static pthread_mutex_t support_view_mutex = PTHREAD_MUTEX_INITIALIZER;
+static size_t support_view_selected_index_value = 0;
+
 static const TrfxSupportViewSpec support_views[] = {
     {TRFX_SUPPORT_VIEW_OVERVIEW, "Overview",
      "Route, DNS, alerts, and live support context."},
@@ -54,6 +59,41 @@ const TrfxSupportViewSpec *trfx_support_view_by_id(TrfxSupportViewId id) {
   }
 
   return NULL;
+}
+
+const TrfxSupportViewSpec *trfx_support_view_selected(void) {
+  return trfx_support_view_spec_at(trfx_support_view_selected_index());
+}
+
+size_t trfx_support_view_selected_index(void) {
+  size_t index;
+
+  pthread_mutex_lock(&support_view_mutex);
+  index = support_view_selected_index_value;
+  pthread_mutex_unlock(&support_view_mutex);
+
+  if (index >= trfx_support_view_count())
+    return trfx_support_view_default_index();
+
+  return index;
+}
+
+void trfx_support_view_set_selected_index(size_t index) {
+  pthread_mutex_lock(&support_view_mutex);
+  support_view_selected_index_value = trfx_support_view_next_index(index, 0);
+  pthread_mutex_unlock(&support_view_mutex);
+}
+
+size_t trfx_support_view_cycle_selected_index(int delta) {
+  size_t next_index;
+
+  pthread_mutex_lock(&support_view_mutex);
+  next_index =
+      trfx_support_view_next_index(support_view_selected_index_value, delta);
+  support_view_selected_index_value = next_index;
+  pthread_mutex_unlock(&support_view_mutex);
+
+  return next_index;
 }
 
 TrfxSupportViewId trfx_support_view_id_at(size_t index) {

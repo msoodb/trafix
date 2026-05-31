@@ -23,6 +23,7 @@
 #include "trfx_globals.h"
 #include "trfx_runtime.h"
 #include "trfx_utils.h"
+#include "trfx_support_views.h"
 
 #include "trfx_sysinfo.h"
 #include "trfx_meminfo.h"
@@ -95,6 +96,50 @@ static int trfx_wait_for_static_refresh(int module_index, int milliseconds) {
   }
 
   return trfx_runtime_consume_static_refresh(module_index);
+}
+
+static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
+  size_t selected_index;
+  const TrfxSupportViewSpec *selected_view;
+
+  if (!win || !row)
+    return;
+
+  selected_index = trfx_support_view_selected_index();
+  selected_view = trfx_support_view_spec_at(selected_index);
+
+  if (panel_has_room(*row, max_lines)) {
+    char title_line[160];
+    snprintf(title_line, sizeof(title_line), "Support Views");
+    trfx_print_clipped(win, (*row)++, 2, title_line);
+  }
+
+  if (selected_view && panel_has_room(*row, max_lines)) {
+    char active_line[256];
+    snprintf(active_line, sizeof(active_line), "Active: %s",
+             selected_view->title);
+    trfx_print_clipped(win, (*row)++, 2, active_line);
+  }
+
+  if (selected_view && panel_has_room(*row, max_lines)) {
+    trfx_print_clipped(win, (*row)++, 2, selected_view->description);
+  }
+
+  for (size_t i = 0; i < trfx_support_view_count() && panel_has_room(*row, max_lines);
+       i++) {
+    const TrfxSupportViewSpec *spec = trfx_support_view_spec_at(i);
+    char line[256];
+
+    if (!spec)
+      continue;
+
+    snprintf(line, sizeof(line), "%s - %s", spec->title, spec->description);
+    if (i == selected_index)
+      wattron(win, A_REVERSE);
+    trfx_print_clipped(win, (*row)++, 2, line);
+    if (i == selected_index)
+      wattroff(win, A_REVERSE);
+  }
 }
 
 static void format_connection_summary_row(const TrfxConnectionSummary *connection,
@@ -1469,10 +1514,15 @@ void *support_info_thread(void *arg) {
     box(win, 0, 0);
     wattroff(win, trfx_color_attr(COLOR_BORDER));
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " Supporting Column ");
+    mvwprintw(win, row++, 2, " Support Dock ");
     wattroff(win, A_BOLD);
     trfx_print_clipped(win, row++, 2,
-                       "Logs, diagnostics, and live support data.");
+                       "Live inspection views and supporting data.");
+
+    if (panel_has_room(row, max_rows)) {
+      row++;
+      render_support_view_selector(win, &row, max_rows);
+    }
 
     snprintf(health_line, sizeof(health_line),
              "Status: %s | route %s | DNS %s | active %s",
@@ -1480,6 +1530,8 @@ void *support_info_thread(void *arg) {
              snapshot.network.route.has_default ? "ok" : "missing",
              snapshot.network.dns.count > 0 ? "ok" : "missing",
              snapshot.network.has_active_interface ? "ok" : "missing");
+    if (panel_has_room(row, max_rows))
+      row++;
     trfx_print_clipped(win, row++, 2, health_line);
 
     snprintf(alerts_line, sizeof(alerts_line), "Alerts: ");

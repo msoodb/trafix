@@ -37,6 +37,18 @@ static int test_support_view_cycle(void) {
   return 0;
 }
 
+static int test_support_view_selection_state(void) {
+  trfx_support_view_set_selected_index(3);
+  ASSERT_INT_EQ((int)trfx_support_view_selected_index(), 3);
+  ASSERT_INT_EQ(trfx_support_view_selected() != NULL, 1);
+  ASSERT_STR_EQ(trfx_support_view_selected()->title, "Route and DNS");
+
+  ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(1), 4);
+  ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(-5), 7);
+  ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(1), 0);
+  return 0;
+}
+
 static int test_support_view_null_safety(void) {
   ASSERT_INT_EQ(trfx_support_view_spec_at((size_t)-1) == NULL, 1);
   ASSERT_INT_EQ(trfx_support_view_by_id((TrfxSupportViewId)999) == NULL, 1);
@@ -47,6 +59,8 @@ int main(void) {
   if (test_support_view_registry() != 0)
     return 1;
   if (test_support_view_cycle() != 0)
+    return 1;
+  if (test_support_view_selection_state() != 0)
     return 1;
   if (test_support_view_null_safety() != 0)
     return 1;
