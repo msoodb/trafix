@@ -147,15 +147,8 @@ static void apply_top_panel_geometry(const DashboardLayoutGeometry *layout,
         layout->row1_widths[0] + layout->row1_widths[1] + layout->row1_widths[2]);
 }
 
-static void apply_primary_panes_geometry(const DashboardLayoutGeometry *layout,
-                                         int *create_support_window,
-                                         int *destroy_support_window) {
+static void apply_primary_panes_geometry(const DashboardLayoutGeometry *layout) {
   int x_offset = 0;
-
-  if (create_support_window)
-    *create_support_window = 0;
-  if (destroy_support_window)
-    *destroy_support_window = 0;
 
   if (!layout || !row2_slots)
     return;
@@ -169,22 +162,6 @@ static void apply_primary_panes_geometry(const DashboardLayoutGeometry *layout,
       wrefresh(row2_slots[i].window);
     }
     x_offset += layout->row2_widths[i];
-  }
-
-  if (layout->row2_geometry.secondary_visible &&
-      layout->row2_geometry.secondary_width > 0) {
-    if (support_window) {
-      wresize(support_window, layout->row2_height,
-              layout->row2_geometry.secondary_width);
-      mvwin(support_window, layout->row2_y, layout->row2_geometry.secondary_x);
-      touchwin(support_window);
-      wrefresh(support_window);
-    } else if (create_support_window) {
-      *create_support_window = 1;
-    }
-  } else {
-    if (support_window && destroy_support_window)
-      *destroy_support_window = 1;
   }
 }
 
@@ -283,8 +260,6 @@ void cleanup_row2_modules(void);
 
 typedef struct {
   DashboardLayoutGeometry layout;
-  int create_support;
-  int destroy_support;
 } DashboardFrameUpdate;
 
 static int build_dashboard_frame_update(DashboardFrameUpdate *update) {
@@ -300,16 +275,40 @@ static int build_dashboard_frame_update(DashboardFrameUpdate *update) {
 
 static void apply_dashboard_frame_update(
     const DashboardFrameUpdate *update, WINDOW *sys_win, WINDOW *cpu_win,
-    WINDOW *mem_win, WINDOW *disk_win, int *create_support_window,
-    int *destroy_support_window) {
+    WINDOW *mem_win, WINDOW *disk_win) {
   if (!update)
     return;
 
   pthread_mutex_lock(&ncurses_mutex);
   apply_top_panel_geometry(&update->layout, sys_win, cpu_win, mem_win, disk_win);
-  apply_primary_panes_geometry(&update->layout, create_support_window,
-                               destroy_support_window);
+  apply_primary_panes_geometry(&update->layout);
   pthread_mutex_unlock(&ncurses_mutex);
+}
+
+static void sync_support_window_geometry(const DashboardLayoutGeometry *layout) {
+  if (!layout)
+    return;
+
+  if (layout->row2_geometry.secondary_visible &&
+      layout->row2_geometry.secondary_width > 0) {
+    if (support_window) {
+      pthread_mutex_lock(&ncurses_mutex);
+      wresize(support_window, layout->row2_height,
+              layout->row2_geometry.secondary_width);
+      mvwin(support_window, layout->row2_y, layout->row2_geometry.secondary_x);
+      touchwin(support_window);
+      wrefresh(support_window);
+      pthread_mutex_unlock(&ncurses_mutex);
+    } else {
+      support_window = create_bordered_window(
+          layout->row2_height, layout->row2_geometry.secondary_width,
+          layout->row2_y, layout->row2_geometry.secondary_x, COLOR_BORDER);
+      if (support_window && !support_thread_active)
+        start_support_column_thread(support_window);
+    }
+  } else if (support_window) {
+    destroy_support_column();
+  }
 }
 
 static void queue_dashboard_data_refresh(WINDOW *sys_win, WINDOW *cpu_win,
@@ -349,24 +348,13 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   trfx_runtime_set_paused(1);
 
   apply_dashboard_frame_update(&frame_update, sys_win, cpu_win, mem_win,
-                               disk_win, &frame_update.create_support,
-                               &frame_update.destroy_support);
+                               disk_win);
   if (layout_timing_active)
     layout_timing_log_phase("toggle:top pane relayout", &layout_start);
   if (layout_timing_active)
     layout_timing_log_phase("toggle:primary pane rebuild", &layout_start);
 
-  if (frame_update.create_support) {
-    support_window = create_bordered_window(
-        frame_update.layout.row2_height,
-        frame_update.layout.row2_geometry.secondary_width,
-        frame_update.layout.row2_y,
-        frame_update.layout.row2_geometry.secondary_x, COLOR_BORDER);
-    if (support_window && !support_thread_active)
-      start_support_column_thread(support_window);
-  }
-  if (frame_update.destroy_support)
-    destroy_support_column();
+  sync_support_window_geometry(&frame_update.layout);
 
   queue_dashboard_data_refresh(sys_win, cpu_win, mem_win, disk_win);
   if (layout_timing_active)
@@ -1427,25 +1415,14 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
   refresh();
   clear();
   apply_dashboard_frame_update(&frame_update, sys_win, cpu_win, mem_win,
-                               disk_win, &frame_update.create_support,
-                               &frame_update.destroy_support);
+                               disk_win);
 
   if (layout_timing_active)
     layout_timing_log_phase("resize:top pane relayout", &layout_start);
   if (layout_timing_active)
     layout_timing_log_phase("resize:primary pane rebuild", &layout_start);
 
-  if (frame_update.create_support) {
-    support_window = create_bordered_window(
-        frame_update.layout.row2_height,
-        frame_update.layout.row2_geometry.secondary_width,
-        frame_update.layout.row2_y,
-        frame_update.layout.row2_geometry.secondary_x, COLOR_BORDER);
-    if (support_window && !support_thread_active)
-      start_support_column_thread(support_window);
-  }
-  if (frame_update.destroy_support)
-    destroy_support_column();
+  sync_support_window_geometry(&frame_update.layout);
 
   queue_dashboard_data_refresh(sys_win, cpu_win, mem_win, disk_win);
   if (layout_timing_active)
