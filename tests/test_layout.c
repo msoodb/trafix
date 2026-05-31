@@ -59,6 +59,26 @@ static int test_two_column_layout_geometry(void) {
   return 0;
 }
 
+static int test_two_column_layout_custom_split(void) {
+  TrfxTwoColumnLayoutState state;
+  TrfxTwoColumnLayoutGeometry geometry;
+
+  trfx_two_column_layout_init(&state);
+  state.primary_width_percent = 60;
+  state.secondary_width_percent = 40;
+
+  ASSERT_INT_EQ(
+      trfx_two_column_layout_compute_geometry(&state, 1, 3, 24, 90, &geometry),
+      1);
+  ASSERT_INT_EQ(geometry.primary_x, 3);
+  ASSERT_INT_EQ(geometry.secondary_x, 57);
+  ASSERT_INT_EQ(geometry.primary_width, 54);
+  ASSERT_INT_EQ(geometry.secondary_width, 36);
+  ASSERT_INT_EQ(geometry.secondary_visible, 1);
+
+  return 0;
+}
+
 static int test_two_column_layout_null_safety(void) {
   ASSERT_INT_EQ(trfx_two_column_layout_secondary_visible(NULL), 0);
   ASSERT_INT_EQ(trfx_two_column_layout_primary_width_percent(NULL), 70);
@@ -106,6 +126,8 @@ int main(void) {
   if (test_two_column_layout_toggle() != 0)
     return 1;
   if (test_two_column_layout_geometry() != 0)
+    return 1;
+  if (test_two_column_layout_custom_split() != 0)
     return 1;
   if (test_two_column_layout_state_restore() != 0)
     return 1;
