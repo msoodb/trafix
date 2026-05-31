@@ -30,7 +30,8 @@
 
 #define TOTAL_ROWS 3
 #define ROW1_MODULES 4
-#define MAX_ROW2_MODULES 3
+#define PRIMARY_PANE_SLOTS 1
+#define MAX_PRIMARY_MODULE_CHOICES 3
 #define ROW3_MODULES 1
 
 #define FIXED_ROW1_HEIGHT 11
@@ -39,8 +40,6 @@
 #define MIN_TUI_WIDTH 50
 
 #define KEY_ESC 27
-
-extern int ROW2_MODULES;
 
 typedef struct {
   const char *name;
@@ -66,7 +65,7 @@ typedef struct {
   WINDOW *window;
   volatile int stop_requested;
 } WindowSlot;
-// WindowSlot row2_slots[ROW2_MODULES];
+// WindowSlot row2_slots[PRIMARY_PANE_SLOTS];
 WindowSlot *row2_slots = NULL;
 static WINDOW *support_window = NULL;
 static pthread_t support_thread_id;
@@ -100,12 +99,12 @@ static void calculate_row1_widths(int screen_width,
 }
 
 static void calculate_row2_widths(int screen_width, int row2_widths[]) {
-  if (ROW2_MODULES == 1) {
+  if (PRIMARY_PANE_SLOTS == 1) {
     row2_widths[0] = screen_width;
-  } else if (ROW2_MODULES == 2) {
+  } else if (PRIMARY_PANE_SLOTS == 2) {
     row2_widths[0] = screen_width / 2;
     row2_widths[1] = screen_width - row2_widths[0];
-  } else if (ROW2_MODULES == 3) {
+  } else if (PRIMARY_PANE_SLOTS == 3) {
     row2_widths[0] = screen_width / 3;
     row2_widths[1] = screen_width / 3;
     row2_widths[2] = screen_width - row2_widths[0] - row2_widths[1];
@@ -162,9 +161,10 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
                                           row2_height, screen_width,
                                           &layout_geometry);
 
-  int preserved_modules[MAX_ROW2_MODULES] = {0};
+  int preserved_modules[MAX_PRIMARY_MODULE_CHOICES] = {0};
   if (row2_slots) {
-    for (int i = 0; i < ROW2_MODULES && i < MAX_ROW2_MODULES; i++)
+    for (int i = 0; i < PRIMARY_PANE_SLOTS &&
+                    i < MAX_PRIMARY_MODULE_CHOICES; i++)
       preserved_modules[i] = row2_slots[i].module_index;
   }
 
@@ -187,7 +187,7 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   cleanup_support_column();
   cleanup_row2_modules();
-  row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
+  row2_slots = calloc(PRIMARY_PANE_SLOTS, sizeof(WindowSlot));
   if (!row2_slots) {
     endwin();
     fprintf(stderr, "Failed to allocate memory for row2_slots\n");
@@ -566,7 +566,7 @@ void draw_centered_message(WINDOW *win, const char *message) {
 int find_module_slot_by_name(const char *target_name) {
   if (!target_name)
     return -1;
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     int module_index = row2_slots[i].module_index;
     if (module_index != -1 && modules[module_index].name &&
         strcmp(modules[module_index].name, target_name) == 0) {
@@ -613,7 +613,7 @@ void show_hotkeys_popup(void) {
   } HotkeyHelpRow;
 
   static const HotkeyHelpRow hotkeys[] = {
-      {"[1-3]", "Switch the second-row panel set"},
+      {"[1-3]", "Change the primary module"},
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
       {"[c]", "Change the primary module"},
@@ -1693,7 +1693,7 @@ int get_module_index_by_name(const char *name) {
 
 void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
   int x_offset = 0;
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     WINDOW *win = newwin(row2_height, row2_widths[i], row2_y, x_offset);
     row2_slots[i].window = win;
     row2_slots[i].module_index = get_module_index_by_name(modules[i].name);
@@ -1706,13 +1706,13 @@ void create_row2_windows(int row2_height, int *row2_widths, int row2_y) {
 void cleanup_row2_modules() {
   if (row2_slots == NULL) return;
 
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     if (row2_slots[i].thread_id) {
       row2_slots[i].stop_requested = 1;
     }
   }
 
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     if (row2_slots[i].thread_id) {
       pthread_join(row2_slots[i].thread_id, NULL);
       row2_slots[i].thread_id = 0;
@@ -1781,7 +1781,7 @@ static void destroy_window(WINDOW **win) {
 static void load_row2_modules_with_selection(int row2_height, int screen_width,
                                              int row2_y,
                                              const int *selected_modules) {
-  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  int *row2_widths = malloc(PRIMARY_PANE_SLOTS * sizeof(int));
   if (!row2_widths) {
     endwin();
     fprintf(stderr, "Failed to allocate memory for row2_widths\n");
@@ -1792,7 +1792,7 @@ static void load_row2_modules_with_selection(int row2_height, int screen_width,
 
   create_row2_windows(row2_height, row2_widths, row2_y);
 
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     int module_index =
         selected_modules ? selected_modules[i]
                          : get_module_index_by_name(modules[i].name);
@@ -1834,7 +1834,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
   }
 
   int row1_widths[ROW1_MODULES];
-  int *row2_widths = malloc(ROW2_MODULES * sizeof(int));
+  int *row2_widths = malloc(PRIMARY_PANE_SLOTS * sizeof(int));
   TrfxTwoColumnLayoutGeometry layout_geometry;
   if (!row2_widths)
     return;
@@ -1865,7 +1865,7 @@ static void resize_dashboard_windows(WINDOW *sys_win, WINDOW *cpu_win,
   }
 
   int x_offset = 0;
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     if (row2_slots[i].window) {
       wresize(row2_slots[i].window, row2_height, row2_widths[i]);
       mvwin(row2_slots[i].window, row2_y, x_offset);
@@ -1908,10 +1908,7 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case '1':
   case '2':
   case '3': {
-    int slot = ch - '1';
-    if (slot < ROW2_MODULES) {
-      change_window_module(slot);
-    }
+    change_window_module(0);
     break;
   }
     
@@ -2038,7 +2035,7 @@ void start_dashboard() {
   if (tui_size_is_too_small(screen_height, screen_width))
     draw_small_terminal_message(screen_height, screen_width);
 
-  row2_slots = calloc(ROW2_MODULES, sizeof(WindowSlot));
+  row2_slots = calloc(PRIMARY_PANE_SLOTS, sizeof(WindowSlot));
   if (!row2_slots) {
     endwin();
     fprintf(stderr, "Failed to allocate memory for row2_slots\n");
@@ -2077,7 +2074,7 @@ void start_dashboard() {
   pthread_create(&disk_tid, NULL, disk_info_thread, disk_win);
 
   /*create_row2_windows(row2_height, row2_widths, row2_y);
-  for (int i = 0; i < ROW2_MODULES; i++) {
+  for (int i = 0; i < PRIMARY_PANE_SLOTS; i++) {
     ThreadArg *arg = malloc(sizeof(ThreadArg));
     if (!arg) {
       endwin();

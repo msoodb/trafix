@@ -20,7 +20,6 @@ int ALERT_MEMORY_WARN_PERCENT = 90;
 int ALERT_DISK_WARN_PERCENT = 90;
 int ALERT_REQUIRE_DEFAULT_ROUTE = 1;
 int ALERT_REQUIRE_DNS = 1;
-int ROW2_MODULES = 3;
 int SHOW_TOP_PANELS = 1;
 int TUI_REFRESH_INTERVAL_MS = 1000;
 int TUI_PAUSE_INTERVAL_MS = 100;
@@ -131,15 +130,6 @@ void read_config(const char *config_file) {
       ALERT_REQUIRE_DEFAULT_ROUTE = parse_bool(value, 1, key, line_num);
     } else if (strcmp(key, "ALERT_REQUIRE_DNS") == 0) {
       ALERT_REQUIRE_DNS = parse_bool(value, 1, key, line_num);
-    } else if (strcmp(key, "ROW2_MODULES") == 0) {
-      ROW2_MODULES = atoi(value);
-      if (ROW2_MODULES < 1 || ROW2_MODULES > 3) {
-        fprintf(stderr,
-                "Warning: ROW2_MODULES out of range (1–3), got %d. Defaulting "
-                "to 3.\n",
-                ROW2_MODULES);
-        ROW2_MODULES = 3;
-      }
     } else if (strcmp(key, "SHOW_TOP_PANELS") == 0) {
       SHOW_TOP_PANELS = parse_bool(value, 1, key, line_num);
     } else if (strcmp(key, "TUI_REFRESH_INTERVAL_MS") == 0) {

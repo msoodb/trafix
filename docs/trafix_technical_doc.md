@@ -195,8 +195,6 @@ Current options:
 
 - `TEMP_WARN_YELLOW`: CPU temperature warning threshold.
 - `TEMP_WARN_RED`: CPU temperature critical threshold.
-- `ROW2_MODULES`: legacy setting kept for compatibility; the current
-  two-column TUI fixes the primary module pane to one slot.
 - `SHOW_TOP_PANELS`: enable or disable the top system, CPU, memory, and disk
   panel row together.
 - `TUI_REFRESH_INTERVAL_MS`: standard TUI panel refresh cadence.
@@ -209,7 +207,6 @@ Example:
 ```ini
 TEMP_WARN_YELLOW = 50
 TEMP_WARN_RED = 75
-ROW2_MODULES = 3
 SHOW_TOP_PANELS = 1
 TUI_REFRESH_INTERVAL_MS = 1000
 TUI_PAUSE_INTERVAL_MS = 100
