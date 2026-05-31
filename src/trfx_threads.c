@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "trfx_threads.h"
+#include "trfx_actions.h"
 #include "trfx_config.h"
 #include "trfx_diagnostics.h"
 #include "trfx_bandwidth.h"
@@ -142,6 +143,481 @@ static void render_support_view_selector(WINDOW *win, int *row, int max_lines) {
   }
 }
 
+static void format_network_route_line(const TrfxNetworkSnapshot *snapshot,
+                                      char *line, size_t line_size);
+static void format_network_dns_line(const TrfxNetworkSnapshot *snapshot,
+                                    char *line, size_t line_size);
+static void format_network_active_line(const TrfxNetworkSnapshot *snapshot,
+                                       char *line, size_t line_size);
+static void format_network_vpn_line(const TrfxNetworkSnapshot *snapshot,
+                                    char *line, size_t line_size);
+static void render_bandwidth_totals_summary(WINDOW *win,
+                                            const TrfxBandwidthReport *report,
+                                            int *row, int line,
+                                            int max_lines);
+static void render_bandwidth_talkers_summary(WINDOW *win,
+                                             const TrfxBandwidthReport *report,
+                                             int *row, int line,
+                                             int max_lines);
+static void render_bandwidth_history_summary(WINDOW *win,
+                                             const TrfxBandwidthTrend *trend,
+                                             int *row, int line,
+                                             int max_lines);
+static const TrfxBandwidthFlow *connection_find_hot_flow(
+    const TrfxConnectionSummary *connection, const TrfxBandwidthReport *report);
+
+static void format_support_time(time_t value, char *buf, size_t buf_size) {
+  struct tm tm_value;
+
+  if (!buf || buf_size == 0)
+    return;
+
+  if (localtime_r(&value, &tm_value) == NULL) {
+    snprintf(buf, buf_size, "unknown");
+    return;
+  }
+
+  strftime(buf, buf_size, "%H:%M:%S", &tm_value);
+}
+
+static void render_support_log_lines(WINDOW *win, const TrfxDiagnosticsLogSnapshot *logs,
+                                     int *row, int max_lines) {
+  if (!win || !logs || !row)
+    return;
+
+  if (trfx_diagnostics_log_count(logs) == 0) {
+    trfx_print_empty_state(win, "No readable log lines available");
+    return;
+  }
+
+  for (size_t i = 0; i < trfx_diagnostics_log_count(logs) &&
+                     panel_has_room(*row, max_lines);
+       i++) {
+    const TrfxDiagnosticsLogLine *entry = trfx_diagnostics_log_at(logs, i);
+    char line[384];
+
+    if (!entry)
+      continue;
+
+    snprintf(line, sizeof(line), "[%s] %s", entry->source, entry->text);
+    trfx_print_clipped(win, (*row)++, 2, line);
+  }
+}
+
+static void render_support_overview_view(
+    WINDOW *win, const TrfxDiagnosticsSnapshot *snapshot,
+    const TrfxAlertSummary *alerts, TrfxCollectorStatus status,
+    const char *error, int *row, int max_lines) {
+  char health_line[256];
+  char alerts_line[384];
+
+  if (!win || !snapshot || !alerts || !row)
+    return;
+
+  snprintf(health_line, sizeof(health_line),
+           "Status: %s | route %s | DNS %s | active %s | VPN %s",
+           status == TRFX_COLLECTOR_OK ? "ok" : "partial",
+           snapshot->network.route.has_default ? "ok" : "missing",
+           snapshot->network.dns.count > 0 ? "ok" : "missing",
+           snapshot->network.has_active_interface ? "ok" : "missing",
+           snapshot->network.has_vpn_interface ? "ok" : "missing");
+  trfx_print_clipped(win, (*row)++, 2, health_line);
+
+  snprintf(alerts_line, sizeof(alerts_line), "Alerts: ");
+  if (trfx_diagnostics_alert_count(alerts) == 0) {
+    strncat(alerts_line, "none", sizeof(alerts_line) - strlen(alerts_line) - 1);
+  } else {
+    for (size_t i = 0; i < trfx_diagnostics_alert_count(alerts); i++) {
+      const char *alert = trfx_diagnostics_alert_at(alerts, i);
+      if (!alert)
+        continue;
+      if (i > 0)
+        strncat(alerts_line, "; ",
+                sizeof(alerts_line) - strlen(alerts_line) - 1);
+      strncat(alerts_line, alert,
+              sizeof(alerts_line) - strlen(alerts_line) - 1);
+    }
+  }
+  trfx_print_clipped(win, (*row)++, 2, alerts_line);
+
+  if (error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, error);
+
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, 2, "Recent logs:");
+
+  render_support_log_lines(win, &snapshot->logs, row, max_lines);
+}
+
+static void render_support_logs_view(WINDOW *win,
+                                     const TrfxDiagnosticsSnapshot *snapshot,
+                                     const char *error, int *row,
+                                     int max_lines) {
+  char header[256];
+
+  if (!win || !snapshot || !row)
+    return;
+
+  snprintf(header, sizeof(header), "Log source: %s",
+           snapshot->logs.count > 0 ? snapshot->logs.lines[0].source : "logs");
+  trfx_print_clipped(win, (*row)++, 2, header);
+  if (error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, error);
+  render_support_log_lines(win, &snapshot->logs, row, max_lines);
+}
+
+static void render_support_diagnostics_view(
+    WINDOW *win, const TrfxDiagnosticsSnapshot *snapshot,
+    const TrfxAlertSummary *alerts, const char *error, int *row,
+    int max_lines) {
+  char line[256];
+
+  if (!win || !snapshot || !alerts || !row)
+    return;
+
+  snprintf(line, sizeof(line), "Route: %s",
+           snapshot->network.route.has_default ? "present" : "missing");
+  trfx_print_clipped(win, (*row)++, 2, line);
+  snprintf(line, sizeof(line), "DNS: %s",
+           snapshot->network.dns.count > 0 ? "present" : "missing");
+  trfx_print_clipped(win, (*row)++, 2, line);
+  snprintf(line, sizeof(line), "Active interface: %s",
+           snapshot->network.has_active_interface ? "present" : "missing");
+  trfx_print_clipped(win, (*row)++, 2, line);
+
+  if (trfx_diagnostics_alert_count(alerts) == 0) {
+    trfx_print_clipped(win, (*row)++, 2, "Alerts: none");
+  } else {
+    for (size_t i = 0; i < trfx_diagnostics_alert_count(alerts) &&
+                       panel_has_room(*row, max_lines);
+         i++) {
+      const char *alert = trfx_diagnostics_alert_at(alerts, i);
+      if (alert)
+        trfx_print_clipped(win, (*row)++, 2, alert);
+    }
+  }
+
+  if (error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, error);
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, 2, "Recent logs:");
+  render_support_log_lines(win, &snapshot->logs, row, max_lines);
+}
+
+static void render_support_route_dns_view(WINDOW *win,
+                                          const TrfxDiagnosticsSnapshot *snapshot,
+                                          const char *error, int *row,
+                                          int max_lines) {
+  char route_line[256];
+  char dns_line[256];
+  char active_line[256];
+  char vpn_line[256];
+  char dns_body[192] = "";
+  int shown;
+
+  if (!win || !snapshot || !row)
+    return;
+
+  (void)max_lines;
+
+  if (snapshot->network.route.has_default) {
+    snprintf(route_line, sizeof(route_line), "Route: default via %s dev %s metric %s",
+             snapshot->network.route.gateway, snapshot->network.route.interface,
+             snapshot->network.route.metric);
+  } else {
+    snprintf(route_line, sizeof(route_line), "Route: unavailable");
+  }
+
+  if (snapshot->network.dns.count > 0) {
+    shown = snapshot->network.dns.count < 3 ? snapshot->network.dns.count : 3;
+    for (int i = 0; i < shown; i++) {
+      if (i > 0)
+        strncat(dns_body, ", ", sizeof(dns_body) - strlen(dns_body) - 1);
+      strncat(dns_body, snapshot->network.dns.servers[i],
+              sizeof(dns_body) - strlen(dns_body) - 1);
+    }
+    if (snapshot->network.dns.count > shown)
+      strncat(dns_body, ", ...", sizeof(dns_body) - strlen(dns_body) - 1);
+    snprintf(dns_line, sizeof(dns_line), "DNS: %d server%s detected | %s",
+             snapshot->network.dns.count,
+             snapshot->network.dns.count == 1 ? "" : "s", dns_body);
+  } else {
+    snprintf(dns_line, sizeof(dns_line), "DNS: unavailable");
+  }
+
+  if (snapshot->network.has_active_interface) {
+    snprintf(active_line, sizeof(active_line),
+             "Active: %s (%s) | IP: %s | MAC: %s", snapshot->network.active_interface,
+             snapshot->network.active_type, snapshot->network.active_ip,
+             snapshot->network.active_mac[0] ? snapshot->network.active_mac
+                                             : "N/A");
+  } else {
+    snprintf(active_line, sizeof(active_line), "Active: unavailable");
+  }
+
+  if (!snapshot->network.has_vpn_interface) {
+    snprintf(vpn_line, sizeof(vpn_line), "VPN: none detected");
+  } else if (snapshot->network.vpn_ip[0] == '\0') {
+    snprintf(vpn_line, sizeof(vpn_line), "VPN: %s detected | IP unavailable",
+             snapshot->network.vpn_interface);
+  } else {
+    snprintf(vpn_line, sizeof(vpn_line), "VPN: %s detected | IP %s",
+             snapshot->network.vpn_interface, snapshot->network.vpn_ip);
+  }
+
+  trfx_print_clipped(win, (*row)++, 2, route_line);
+  trfx_print_clipped(win, (*row)++, 2, dns_line);
+  trfx_print_clipped(win, (*row)++, 2, active_line);
+  trfx_print_clipped(win, (*row)++, 2, vpn_line);
+
+  if (error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, error);
+}
+
+static void render_support_network_health_view(
+    WINDOW *win, const TrfxDiagnosticsSnapshot *snapshot, int *row,
+    int max_lines) {
+  char cpu_line[256];
+  char memory_line[256];
+  char disk_line[256];
+  char process_line[256];
+  char network_line[256];
+
+  if (!win || !snapshot || !row)
+    return;
+
+  snprintf(cpu_line, sizeof(cpu_line), "CPU: avg %.1f%% | temp %.1fC | cores %d",
+           snapshot->cpu.avg_usage, snapshot->cpu.temperature,
+           snapshot->cpu.num_cores);
+  snprintf(memory_line, sizeof(memory_line),
+           "Memory: %.1f%% | RAM %ld/%ld | SWAP %ld/%ld",
+           snapshot->memory.mem_percent, snapshot->memory.used_ram,
+           snapshot->memory.total_ram, snapshot->memory.used_swap,
+           snapshot->memory.total_swap);
+  snprintf(disk_line, sizeof(disk_line),
+           "Disk: %d mounts | %.1f/%.1f MB used", snapshot->disk_count,
+           snapshot->disk_total_used_mb, snapshot->disk_total_mb);
+  snprintf(process_line, sizeof(process_line),
+           "Process pressure: %d collected | top %s",
+           snapshot->processes.count,
+           snapshot->processes.count > 0 ? snapshot->processes.processes[0].command
+                                        : "unavailable");
+
+  if (snapshot->network.route.has_default && snapshot->network.dns.count > 0 &&
+      snapshot->network.has_active_interface) {
+    snprintf(network_line, sizeof(network_line),
+             "Network: route, DNS, and active interface present");
+  } else {
+    snprintf(network_line, sizeof(network_line),
+             "Network: route %s | DNS %s | active %s",
+             snapshot->network.route.has_default ? "ok" : "missing",
+             snapshot->network.dns.count > 0 ? "ok" : "missing",
+             snapshot->network.has_active_interface ? "ok" : "missing");
+  }
+
+  trfx_print_clipped(win, (*row)++, 2, network_line);
+  trfx_print_clipped(win, (*row)++, 2, cpu_line);
+  trfx_print_clipped(win, (*row)++, 2, memory_line);
+  trfx_print_clipped(win, (*row)++, 2, disk_line);
+  trfx_print_clipped(win, (*row)++, 2, process_line);
+
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, 2, "Recent logs:");
+  render_support_log_lines(win, &snapshot->logs, row, max_lines);
+}
+
+static void render_support_bandwidth_view(
+    WINDOW *win, const TrfxNetworkSampleBuffer *samples,
+    const TrfxBandwidthReport *report, const TrfxBandwidthTrend *trend,
+    const char *bandwidth_error, const char *trend_error, int *row,
+    int max_lines) {
+  char line[256];
+  char rx[32];
+  char tx[32];
+
+  if (!win || !samples || !report || !trend || !row)
+    return;
+
+  snprintf(line, sizeof(line), "Mode: %s | Source: %s",
+           trfx_bandwidth_mode_name(report->mode),
+           report->source[0] ? report->source : "unknown");
+  trfx_print_clipped(win, (*row)++, 2, line);
+
+  if (report->interface_count > 0) {
+    double total_rx = 0.0;
+    double total_tx = 0.0;
+    for (int i = 0; i < report->interface_count; i++) {
+      total_rx += report->interface_rates[i].rx_bytes_per_sec;
+      total_tx += report->interface_rates[i].tx_bytes_per_sec;
+    }
+    trfx_format_net_bytes(total_rx, rx, sizeof(rx));
+    trfx_format_net_bytes(total_tx, tx, sizeof(tx));
+    snprintf(line, sizeof(line), "Totals: rx %s/s | tx %s/s", rx, tx);
+    trfx_print_clipped(win, (*row)++, 2, line);
+  } else {
+    trfx_print_clipped(win, (*row)++, 2, "Totals: unavailable");
+  }
+
+  if (report->flow_count == 0) {
+    trfx_print_clipped(win, (*row)++, 2, "No measured bandwidth flows");
+  } else {
+    int visible = report->flow_count < 3 ? report->flow_count : 3;
+    for (int i = 0; i < visible && panel_has_room(*row, max_lines); i++) {
+      const TrfxBandwidthFlow *flow = &report->flows[i];
+      trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
+      trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
+      snprintf(line, sizeof(line), "%d. %s | %s -> %s | rx %s/s | tx %s/s",
+               i + 1, flow->label[0] ? flow->label : "flow",
+               flow->local[0] ? flow->local : "-", flow->remote[0] ? flow->remote : "-",
+               rx, tx);
+      trfx_print_clipped(win, (*row)++, 2, line);
+    }
+  }
+
+  if (trend->point_count > 0) {
+    int latest = trend->point_count - 1;
+    trfx_format_net_bytes(trend->rx_bytes_per_sec[latest], rx, sizeof(rx));
+    trfx_format_net_bytes(trend->tx_bytes_per_sec[latest], tx, sizeof(tx));
+    snprintf(line, sizeof(line), "Trend: %d points | latest rx %s/s | tx %s/s",
+             trend->point_count, rx, tx);
+    trfx_print_clipped(win, (*row)++, 2, line);
+  } else {
+    trfx_print_clipped(win, (*row)++, 2, "Trend: unavailable");
+  }
+
+  if (bandwidth_error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, bandwidth_error);
+  if (trend_error[0] != '\0')
+    trfx_print_clipped(win, (*row)++, 2, trend_error);
+
+  if (trfx_network_sample_buffer_count(samples) > 0) {
+    const TrfxNetworkSample *latest =
+        trfx_network_sample_buffer_at(samples,
+                                      trfx_network_sample_buffer_count(samples) - 1);
+    if (latest) {
+      snprintf(line, sizeof(line),
+               "Latest sample: connections %d | owners %d | interfaces %d",
+               latest->snapshot.connection_count,
+               latest->snapshot.socket_owner_count,
+               latest->snapshot.interfaces.count);
+      trfx_print_clipped(win, (*row)++, 2, line);
+    }
+  }
+}
+
+static void render_support_connection_view(
+    WINDOW *win, const TrfxConnectionSummaryResult *connections,
+    const TrfxBandwidthReport *bandwidth_report, int focus_index, int *row,
+    int max_lines) {
+  const TrfxConnectionSummary *connection;
+  const TrfxBandwidthFlow *flow = NULL;
+  char local[64];
+  char remote[64];
+  char line[256];
+  char rx[32];
+  char tx[32];
+
+  if (!win || !connections || !row)
+    return;
+
+  (void)max_lines;
+
+  if (connections->count <= 0) {
+    trfx_print_empty_state(win, "No visible connections");
+    return;
+  }
+
+  if (focus_index < 0)
+    focus_index = 0;
+  if (focus_index >= connections->count)
+    focus_index = connections->count - 1;
+
+  connection = &connections->rows[focus_index];
+  if (bandwidth_report) {
+    for (int i = 0; i < bandwidth_report->flow_count; i++) {
+      const TrfxBandwidthFlow *current = &bandwidth_report->flows[i];
+
+      if ((current->proto[0] != '\0' &&
+           strcmp(current->proto, connection->protocol) == 0 &&
+           strcmp(current->local, connection->local_endpoint) == 0 &&
+           strcmp(current->remote, connection->remote_endpoint) == 0) ||
+          (current->pid[0] != '\0' &&
+           strcmp(current->pid, connection->pid) == 0 &&
+           current->process[0] != '\0' &&
+           strcmp(current->process, connection->process) == 0)) {
+        flow = current;
+        break;
+      }
+    }
+  }
+  trfx_format_endpoint_for_tui(connection->local_endpoint, local,
+                               sizeof(local));
+  trfx_format_endpoint_for_tui(connection->remote_endpoint, remote,
+                               sizeof(remote));
+
+  snprintf(line, sizeof(line), "Selection: %d/%d", focus_index + 1,
+           connections->count);
+  trfx_print_clipped(win, (*row)++, 2, line);
+  snprintf(line, sizeof(line), "Proto: %s | State: %s",
+           connection->protocol[0] ? connection->protocol : "-",
+           connection->state[0] ? connection->state : "-");
+  trfx_print_clipped(win, (*row)++, 2, line);
+  snprintf(line, sizeof(line), "Local: %s", local);
+  trfx_print_clipped(win, (*row)++, 2, line);
+  snprintf(line, sizeof(line), "Remote: %s", remote);
+  trfx_print_clipped(win, (*row)++, 2, line);
+
+  if (connection->has_owner) {
+    snprintf(line, sizeof(line), "Owner: UID %s | PID %s | %s",
+             connection->uid[0] ? connection->uid : "-",
+             connection->pid[0] ? connection->pid : "-",
+             connection->process[0] ? connection->process : "-");
+  } else {
+    snprintf(line, sizeof(line), "Owner: unavailable for this connection");
+  }
+  trfx_print_clipped(win, (*row)++, 2, line);
+
+  if (flow) {
+    trfx_format_net_bytes(flow->rx_bytes_per_sec, rx, sizeof(rx));
+    trfx_format_net_bytes(flow->tx_bytes_per_sec, tx, sizeof(tx));
+    snprintf(line, sizeof(line), "Activity: top flow | rx %s/s | tx %s/s",
+             rx, tx);
+  } else {
+    snprintf(line, sizeof(line), "Activity: not among measured top flows");
+  }
+  trfx_print_clipped(win, (*row)++, 2, line);
+}
+
+static void render_support_action_audit_view(WINDOW *win, int *row,
+                                             int max_lines) {
+  char line[384];
+
+  if (!win || !row)
+    return;
+
+  if (trfx_action_audit_count() == 0) {
+    trfx_print_clipped(win, (*row)++, 2, "No recorded actions yet.");
+    return;
+  }
+
+  for (size_t i = 0; i < trfx_action_audit_count() &&
+                     panel_has_room(*row, max_lines);
+       i++) {
+    const TrfxActionAuditEntry *entry = trfx_action_audit_at(i);
+    char time_text[32];
+
+    if (!entry)
+      continue;
+
+    format_support_time(entry->when, time_text, sizeof(time_text));
+    snprintf(line, sizeof(line), "%s | %s | %s | %s", time_text,
+             trfx_action_kind_name(entry->request.kind),
+             trfx_action_target_kind_name(entry->request.target.kind),
+             entry->message);
+    trfx_print_clipped(win, (*row)++, 2, line);
+  }
+}
+
 static void format_connection_summary_row(const TrfxConnectionSummary *connection,
                                           int panel_width, char *line,
                                           size_t line_size) {
@@ -210,7 +686,7 @@ static void render_connection_group_summary(
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
-static const TrfxBandwidthFlow *
+static const TrfxBandwidthFlow *__attribute__((unused))
 connection_find_hot_flow(const TrfxConnectionSummary *connection,
                          const TrfxBandwidthReport *report) {
   if (!connection || !report)
@@ -1493,9 +1969,13 @@ void *support_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
+  TrfxNetworkSampleBuffer bandwidth_samples;
 
   free(arg);
   wait_until_ready();
+  trfx_bandwidth_state_init();
+  trfx_connection_state_init();
+  trfx_init_network_sample_buffer(&bandwidth_samples);
 
   while (!trfx_thread_should_stop(local_stop)) {
     if (trfx_runtime_is_paused()) {
@@ -1505,17 +1985,37 @@ void *support_info_thread(void *arg) {
 
     TrfxDiagnosticsSnapshot snapshot;
     TrfxAlertSummary alerts;
+    TrfxBandwidthReport bandwidth_report;
+    TrfxBandwidthTrend bandwidth_trend;
+    TrfxConnectionSummaryResult connections;
     char error[256];
-    char alerts_line[384];
-    char health_line[256];
+    char bandwidth_error[128];
+    char trend_error[128];
     int row = 0;
     int max_rows, max_cols;
+    int bandwidth_focus_index = 0;
+    int connection_focus_index = 0;
+    size_t selected_index;
+    TrfxSupportViewId selected_view_id;
 
     trfx_init_diagnostics_snapshot(&snapshot);
     trfx_init_alert_summary(&alerts);
     TrfxCollectorStatus status =
         trfx_collect_diagnostics_snapshot(&snapshot, error, sizeof(error));
     trfx_collect_diagnostics_alerts(&snapshot, &alerts);
+    trfx_network_sample_buffer_push(&bandwidth_samples, &snapshot.network,
+                                     time(NULL));
+    trfx_init_bandwidth_report(&bandwidth_report);
+    trfx_collect_bandwidth_report(&bandwidth_samples, &bandwidth_report,
+                                  bandwidth_error, sizeof(bandwidth_error));
+    trfx_init_bandwidth_trend(&bandwidth_trend);
+    trfx_collect_bandwidth_trend(&bandwidth_samples, &bandwidth_trend,
+                                 trend_error, sizeof(trend_error));
+    trfx_init_connection_summary_result(&connections);
+    trfx_connection_state_copy(&connections, &connection_focus_index);
+    trfx_bandwidth_state_copy(NULL, &bandwidth_report, &bandwidth_focus_index);
+    selected_index = trfx_support_view_selected_index();
+    selected_view_id = trfx_support_view_id_at(selected_index);
 
     pthread_mutex_lock(&ncurses_mutex);
     getmaxyx(win, max_rows, max_cols);
@@ -1535,57 +2035,56 @@ void *support_info_thread(void *arg) {
       render_support_view_selector(win, &row, max_rows);
     }
 
-    snprintf(health_line, sizeof(health_line),
-             "Status: %s | route %s | DNS %s | active %s",
-             status == TRFX_COLLECTOR_OK ? "ok" : "partial",
-             snapshot.network.route.has_default ? "ok" : "missing",
-             snapshot.network.dns.count > 0 ? "ok" : "missing",
-             snapshot.network.has_active_interface ? "ok" : "missing");
     if (panel_has_room(row, max_rows))
       row++;
-    trfx_print_clipped(win, row++, 2, health_line);
 
-    snprintf(alerts_line, sizeof(alerts_line), "Alerts: ");
-    if (trfx_diagnostics_alert_count(&alerts) == 0) {
-      strncat(alerts_line, "none", sizeof(alerts_line) - strlen(alerts_line) - 1);
-    } else {
-      for (size_t i = 0; i < trfx_diagnostics_alert_count(&alerts); i++) {
-        const char *alert = trfx_diagnostics_alert_at(&alerts, i);
-        if (!alert)
-          continue;
-        if (i > 0)
-          strncat(alerts_line, "; ",
-                  sizeof(alerts_line) - strlen(alerts_line) - 1);
-        strncat(alerts_line, alert,
-                sizeof(alerts_line) - strlen(alerts_line) - 1);
-      }
-    }
-    trfx_print_clipped(win, row++, 2, alerts_line);
-
-    if (error[0] != '\0')
-      trfx_print_clipped(win, row++, 2, error);
-
-    if (panel_has_room(row, max_rows))
-      trfx_print_clipped(win, row++, 2, "Recent logs:");
-
-    if (trfx_diagnostics_log_count(&snapshot.logs) == 0) {
-      trfx_print_empty_state(win, "No readable log lines available");
-    } else {
-      for (size_t i = 0; i < trfx_diagnostics_log_count(&snapshot.logs) &&
-                         row < max_rows - 1; i++) {
-        const TrfxDiagnosticsLogLine *entry =
-            trfx_diagnostics_log_at(&snapshot.logs, i);
-        char line[384];
-        if (!entry)
-          continue;
-        snprintf(line, sizeof(line), "[%s] %s", entry->source, entry->text);
-        trfx_print_clipped(win, row++, 2, line);
-      }
+    switch (selected_view_id) {
+    case TRFX_SUPPORT_VIEW_LOGS:
+      render_support_logs_view(win, &snapshot, error, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_DIAGNOSTICS:
+      render_support_diagnostics_view(win, &snapshot, &alerts, error, &row,
+                                      max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_ROUTE_DNS:
+      render_support_route_dns_view(win, &snapshot, error, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_NETWORK_HEALTH:
+      render_support_network_health_view(win, &snapshot, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_BANDWIDTH:
+      render_support_bandwidth_view(win, &bandwidth_samples, &bandwidth_report,
+                                    &bandwidth_trend, bandwidth_error,
+                                    trend_error, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_CONNECTION_DETAIL:
+      render_support_connection_view(win, &connections, &bandwidth_report,
+                                     connection_focus_index, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_ACTION_AUDIT:
+      render_support_action_audit_view(win, &row, max_rows);
+      break;
+    case TRFX_SUPPORT_VIEW_OVERVIEW:
+    default:
+      render_support_overview_view(win, &snapshot, &alerts, status, error,
+                                   &row, max_rows);
+      break;
     }
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
+
+    {
+      int elapsed = 0;
+      const int step_ms = 25;
+      while (!trfx_thread_should_stop(local_stop) &&
+             elapsed < TUI_REFRESH_INTERVAL_MS) {
+        if (trfx_support_view_consume_refresh_request())
+          break;
+        usleep((useconds_t)step_ms * 1000);
+        elapsed += step_ms;
+      }
+    }
   }
 
   return NULL;

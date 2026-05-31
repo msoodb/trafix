@@ -303,7 +303,7 @@ static const TrfxBandwidthFlow *find_hot_flow_for_connection(
   return NULL;
 }
 
-static void show_bandwidth_detail_popup(void) {
+static void __attribute__((unused)) show_bandwidth_detail_popup(void) {
   TrfxNetworkSampleBuffer samples;
   TrfxBandwidthReport report;
   int focus_index = 0;
@@ -617,17 +617,17 @@ void show_hotkeys_popup(void) {
       {"[s]", "Change the process sort order"},
       {"[r]", "Refresh all panels immediately"},
       {"[c]", "Change the primary module"},
-      {"[d]", "Open the focused bandwidth detail"},
+      {"[d]", "Show bandwidth detail in the support dock"},
       {"[x]", "Open the controlled process kill flow"},
       {"[z]", "Open the controlled connection drop flow"},
-      {"[a]", "Show the recent action audit trail"},
-      {"[g]", "Open the troubleshooting snapshot"},
-      {"[n]", "Inspect route and DNS health"},
-      {"[v]", "Review network and system pressure"},
+      {"[a]", "Show action audit in the support dock"},
+      {"[g]", "Show diagnostics in the support dock"},
+      {"[n]", "Show route and DNS in the support dock"},
+      {"[v]", "Show network health in the support dock"},
       {"[l]", "Cycle the support dock view"},
       {"[t]", "Show or hide the top system panels"},
       {"[J/K]", "Move the selected connection row"},
-      {"[o]", "Open the selected connection detail"},
+      {"[o]", "Show connection detail in the support dock"},
       {"[p]", "Pause or resume live updates"},
       {"[h]", "Open this help popup"},
       {"[q]", "Quit Trafix"},
@@ -638,7 +638,8 @@ void show_hotkeys_popup(void) {
   getmaxyx(stdscr, screen_height, screen_width);
 
   const char *title = "Hotkeys";
-  const char *subtitle = "Primary and support columns stay visible.";
+  const char *subtitle =
+      "Primary and support columns stay visible. `l` cycles support views.";
   const int key_col_width = 8;
   int popup_height = hotkey_count + 6;
   int popup_width = (int)strlen(title) + 8;
@@ -832,7 +833,7 @@ void show_diagnostics_popup(void) {
   resume_dashboard_after_popup();
 }
 
-static void show_route_dns_popup(void) {
+static void __attribute__((unused)) show_route_dns_popup(void) {
   TrfxDiagnosticsSnapshot snapshot;
   char error[256];
   char route_line[256];
@@ -929,7 +930,7 @@ static void show_route_dns_popup(void) {
   resume_dashboard_after_popup();
 }
 
-static void show_network_health_popup(void) {
+static void __attribute__((unused)) show_network_health_popup(void) {
   TrfxDiagnosticsSnapshot snapshot;
   char error[256];
   char cpu_line[256];
@@ -1243,7 +1244,7 @@ static void show_action_result_popup(const TrfxActionRequest *request,
   resume_dashboard_after_popup();
 }
 
-static void show_action_audit_popup(void) {
+static void __attribute__((unused)) show_action_audit_popup(void) {
   size_t count = trfx_action_audit_count();
   int screen_height, screen_width;
   int visible_entries;
@@ -1947,14 +1948,18 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'O':
   case 'o':
-    show_connection_detail_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_CONNECTION_DETAIL));
+    trfx_support_view_request_refresh();
     break;
 
   case 'd':
   case 'D':
   case KEY_ENTER:
   case 10:
-    show_bandwidth_detail_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_BANDWIDTH));
+    trfx_support_view_request_refresh();
     break;
 
   case 'x':
@@ -1969,22 +1974,30 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
 
   case 'a':
   case 'A':
-    show_action_audit_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_ACTION_AUDIT));
+    trfx_support_view_request_refresh();
     break;
 
   case 'g':
   case 'G':
-    show_diagnostics_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_DIAGNOSTICS));
+    trfx_support_view_request_refresh();
     break;
 
   case 'n':
   case 'N':
-    show_route_dns_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_ROUTE_DNS));
+    trfx_support_view_request_refresh();
     break;
 
   case 'v':
   case 'V':
-    show_network_health_popup();
+    trfx_support_view_set_selected_index(
+        trfx_support_view_index_for_id(TRFX_SUPPORT_VIEW_NETWORK_HEALTH));
+    trfx_support_view_request_refresh();
     break;
 
   case 'l':
