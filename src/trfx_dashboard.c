@@ -26,6 +26,7 @@
 #include "trfx_runtime.h"
 #include "trfx_procinfo.h"
 #include "trfx_threads.h"
+#include "trfx_support_views.h"
 #include "trfx_utils.h"
 
 #define TOTAL_ROWS 3
@@ -623,6 +624,7 @@ void show_hotkeys_popup(void) {
       {"[g]", "Open the troubleshooting snapshot"},
       {"[n]", "Inspect route and DNS health"},
       {"[v]", "Review network and system pressure"},
+      {"[l]", "Cycle the support dock view"},
       {"[t]", "Show or hide the top system panels"},
       {"[J/K]", "Move the selected connection row"},
       {"[o]", "Open the selected connection detail"},
@@ -1983,6 +1985,12 @@ void handle_keypress(int ch, WINDOW *sys_win, WINDOW *cpu_win, WINDOW *mem_win,
   case 'v':
   case 'V':
     show_network_health_popup();
+    break;
+
+  case 'l':
+  case 'L':
+    trfx_support_view_cycle_selected_index(ch == 'L' ? -1 : 1);
+    trfx_support_view_request_refresh();
     break;
 
   case 'p':

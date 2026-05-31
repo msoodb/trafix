@@ -39,6 +39,8 @@ const TrfxSupportViewSpec *trfx_support_view_selected(void);
 size_t trfx_support_view_selected_index(void);
 void trfx_support_view_set_selected_index(size_t index);
 size_t trfx_support_view_cycle_selected_index(int delta);
+void trfx_support_view_request_refresh(void);
+int trfx_support_view_consume_refresh_request(void);
 TrfxSupportViewId trfx_support_view_id_at(size_t index);
 size_t trfx_support_view_index_for_id(TrfxSupportViewId id);
 size_t trfx_support_view_next_index(size_t current_index, int delta);

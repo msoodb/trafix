@@ -13,6 +13,7 @@
 
 static pthread_mutex_t support_view_mutex = PTHREAD_MUTEX_INITIALIZER;
 static size_t support_view_selected_index_value = 0;
+static int support_view_refresh_requested = 0;
 
 static const TrfxSupportViewSpec support_views[] = {
     {TRFX_SUPPORT_VIEW_OVERVIEW, "Overview",
@@ -81,6 +82,7 @@ size_t trfx_support_view_selected_index(void) {
 void trfx_support_view_set_selected_index(size_t index) {
   pthread_mutex_lock(&support_view_mutex);
   support_view_selected_index_value = trfx_support_view_next_index(index, 0);
+  support_view_refresh_requested = 1;
   pthread_mutex_unlock(&support_view_mutex);
 }
 
@@ -91,9 +93,27 @@ size_t trfx_support_view_cycle_selected_index(int delta) {
   next_index =
       trfx_support_view_next_index(support_view_selected_index_value, delta);
   support_view_selected_index_value = next_index;
+  support_view_refresh_requested = 1;
   pthread_mutex_unlock(&support_view_mutex);
 
   return next_index;
+}
+
+void trfx_support_view_request_refresh(void) {
+  pthread_mutex_lock(&support_view_mutex);
+  support_view_refresh_requested = 1;
+  pthread_mutex_unlock(&support_view_mutex);
+}
+
+int trfx_support_view_consume_refresh_request(void) {
+  int requested;
+
+  pthread_mutex_lock(&support_view_mutex);
+  requested = support_view_refresh_requested;
+  support_view_refresh_requested = 0;
+  pthread_mutex_unlock(&support_view_mutex);
+
+  return requested;
 }
 
 TrfxSupportViewId trfx_support_view_id_at(size_t index) {

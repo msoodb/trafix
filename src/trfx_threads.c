@@ -1197,7 +1197,18 @@ void *process_info_thread(void *arg) {
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
-    trfx_dynamic_thread_sleep_ms(local_stop, TUI_REFRESH_INTERVAL_MS);
+
+    {
+      int elapsed = 0;
+      const int step_ms = 25;
+      while (!trfx_thread_should_stop(local_stop) &&
+             elapsed < TUI_REFRESH_INTERVAL_MS) {
+        if (trfx_support_view_consume_refresh_request())
+          break;
+        usleep((useconds_t)step_ms * 1000);
+        elapsed += step_ms;
+      }
+    }
   }
   return NULL;
 }

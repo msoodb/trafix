@@ -46,6 +46,9 @@ static int test_support_view_selection_state(void) {
   ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(1), 4);
   ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(-5), 7);
   ASSERT_INT_EQ((int)trfx_support_view_cycle_selected_index(1), 0);
+  trfx_support_view_request_refresh();
+  ASSERT_INT_EQ(trfx_support_view_consume_refresh_request(), 1);
+  ASSERT_INT_EQ(trfx_support_view_consume_refresh_request(), 0);
   return 0;
 }
 
