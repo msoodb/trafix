@@ -84,6 +84,45 @@ static int calculate_row2_y(void) {
   return SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0;
 }
 
+static int layout_timing_enabled(void) {
+  static int cached = -1;
+  const char *value;
+
+  if (cached != -1)
+    return cached;
+
+  value = getenv("TRFX_LAYOUT_TIMING");
+  cached = (value && strcmp(value, "1") == 0) ? 1 : 0;
+  return cached;
+}
+
+static long long layout_elapsed_us(const struct timespec *start,
+                                   const struct timespec *end) {
+  long long seconds;
+  long long nanoseconds;
+
+  if (!start || !end)
+    return 0;
+
+  seconds = (long long)end->tv_sec - (long long)start->tv_sec;
+  nanoseconds = (long long)end->tv_nsec - (long long)start->tv_nsec;
+  return seconds * 1000000LL + nanoseconds / 1000LL;
+}
+
+static void layout_timing_log(const char *label,
+                              const struct timespec *start) {
+  struct timespec end;
+
+  if (!layout_timing_enabled() || !label || !start)
+    return;
+
+  if (clock_gettime(CLOCK_MONOTONIC, &end) != 0)
+    return;
+
+  fprintf(stderr, "[trafix] %s: %lld us\n", label,
+          layout_elapsed_us(start, &end));
+}
+
 static int tui_size_is_too_small(int screen_height, int screen_width) {
   int min_height = (SHOW_TOP_PANELS ? FIXED_ROW1_HEIGHT : 0) + MIN_ROW2_HEIGHT;
   return screen_width < MIN_TUI_WIDTH ||
@@ -142,7 +181,14 @@ static void draw_small_terminal_message(int screen_height, int screen_width) {
 
 static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
                                  WINDOW *mem_win, WINDOW *disk_win) {
+  struct timespec layout_start;
+  int layout_timing_active = 0;
   int screen_height, screen_width;
+
+  if (layout_timing_enabled() &&
+      clock_gettime(CLOCK_MONOTONIC, &layout_start) == 0)
+    layout_timing_active = 1;
+
   getmaxyx(stdscr, screen_height, screen_width);
 
   if (tui_size_is_too_small(screen_height, screen_width)) {
@@ -185,6 +231,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   }
 
   pthread_mutex_unlock(&ncurses_mutex);
+  if (layout_timing_active)
+    layout_timing_log("toggle:top pane relayout", &layout_start);
 
   destroy_support_column();
   cleanup_row2_modules();
@@ -198,6 +246,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
   load_row2_modules_with_selection(row2_height, layout_geometry.primary_width,
                                    row2_y,
                                    preserved_modules);
+  if (layout_timing_active)
+    layout_timing_log("toggle:primary pane rebuild", &layout_start);
 
   if (layout_geometry.secondary_visible && layout_geometry.secondary_width > 0) {
     support_window = create_bordered_window(
@@ -209,6 +259,8 @@ static void update_toggle_layout(WINDOW *sys_win, WINDOW *cpu_win,
 
   if (SHOW_TOP_PANELS)
     trfx_runtime_request_static_refresh_all();
+  if (layout_timing_active)
+    layout_timing_log("toggle:full refresh path", &layout_start);
 }
 
 static int init_color_pair_checked(short pair, short foreground,
