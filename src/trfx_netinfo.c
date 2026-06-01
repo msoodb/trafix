@@ -257,6 +257,36 @@ static void init_dns_summary(TrfxDnsSummary *summary) {
         summary->servers[i][0] = '\0';
 }
 
+static TrfxCollectorStatus collect_public_ip_from_file(FILE *fp, char *ip,
+                                                       size_t ip_size) {
+    char line[256];
+
+    if (!fp || !ip || ip_size == 0)
+        return TRFX_COLLECTOR_INVALID_ARGUMENT;
+
+    ip[0] = '\0';
+
+    while (fgets(line, sizeof(line), fp)) {
+        char copy[256];
+        char *token;
+
+        snprintf(copy, sizeof(copy), "%s", line);
+        token = strtok(copy, " \t\n");
+        while (token) {
+            if (strcmp(token, "src") == 0) {
+                char *value = strtok(NULL, " \t\n");
+                if (value) {
+                    snprintf(ip, ip_size, "%.63s", value);
+                    return TRFX_COLLECTOR_OK;
+                }
+            }
+            token = strtok(NULL, " \t\n");
+        }
+    }
+
+    return TRFX_COLLECTOR_PARSE_FAILED;
+}
+
 static int dns_summary_contains(const TrfxDnsSummary *summary,
                                 const char *server) {
     for (int i = 0; summary && server && i < summary->count; i++) {
@@ -979,6 +1009,8 @@ void trfx_init_network_snapshot(TrfxNetworkSnapshot *snapshot) {
     trfx_init_interface_statuses(&snapshot->interface_statuses);
     snapshot->route_status = TRFX_COLLECTOR_PARSE_FAILED;
     snapshot->dns_status = TRFX_COLLECTOR_PARSE_FAILED;
+    snapshot->has_public_ip = 0;
+    snapshot->public_ip[0] = '\0';
 
     snapshot->route.has_default = 0;
     snprintf(snapshot->route.destination, sizeof(snapshot->route.destination),
@@ -1041,6 +1073,16 @@ TrfxCollectorStatus trfx_collect_network_snapshot(TrfxNetworkSnapshot *snapshot,
     if (local_snapshot.dns_status != TRFX_COLLECTOR_OK &&
         final_status == TRFX_COLLECTOR_OK) {
         final_status = local_snapshot.dns_status;
+    }
+
+    FILE *public_ip_fp = popen("ip route get 1.1.1.1 2>/dev/null", "r");
+    if (public_ip_fp) {
+        if (collect_public_ip_from_file(public_ip_fp, local_snapshot.public_ip,
+                                        sizeof(local_snapshot.public_ip)) ==
+            TRFX_COLLECTOR_OK) {
+            local_snapshot.has_public_ip = 1;
+        }
+        pclose(public_ip_fp);
     }
 
     for (int i = 0; i < local_snapshot.interfaces.count; i++) {

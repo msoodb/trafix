@@ -836,6 +836,20 @@ static void format_network_active_line(const TrfxNetworkSnapshot *snapshot,
                                                         : "N/A");
 }
 
+static void format_network_public_ip_line(const TrfxNetworkSnapshot *snapshot,
+                                          char *line, size_t line_size) {
+  if (!snapshot || !line || line_size == 0)
+    return;
+
+  if (snapshot->has_public_ip && snapshot->public_ip[0] != '\0') {
+    snprintf(line, line_size, "Public IP (best effort): %s",
+             snapshot->public_ip);
+    return;
+  }
+
+  snprintf(line, line_size, "Public IP (best effort): unavailable");
+}
+
 static void format_network_vpn_line(const TrfxNetworkSnapshot *snapshot,
                                     char *line, size_t line_size) {
   if (!snapshot || !line || line_size == 0)
@@ -873,6 +887,10 @@ static void render_network_summary(WINDOW *win,
     trfx_print_clipped(win, (*row)++, line, summary);
 
   format_network_active_line(snapshot, summary, sizeof(summary));
+  if (panel_has_room(*row, max_lines))
+    trfx_print_clipped(win, (*row)++, line, summary);
+
+  format_network_public_ip_line(snapshot, summary, sizeof(summary));
   if (panel_has_room(*row, max_lines))
     trfx_print_clipped(win, (*row)++, line, summary);
 
@@ -1022,8 +1040,8 @@ static void render_bandwidth_history_summary(WINDOW *win,
     return;
   }
 
-  for (int i = 0; i < trend->point_count && panel_has_room(*row, max_lines);
-       i++) {
+  for (int i = trend->point_count - 1; i >= 0 && panel_has_room(*row, max_lines);
+       i--) {
     char rx[32];
     char tx[32];
     char time_line[32];

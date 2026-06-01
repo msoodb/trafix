@@ -91,6 +91,8 @@ typedef struct {
     TrfxDnsSummary dns;
     TrfxCollectorStatus route_status;
     TrfxCollectorStatus dns_status;
+    int has_public_ip;
+    char public_ip[64];
     int has_active_interface;
     char active_interface[32];
     char active_ip[64];
