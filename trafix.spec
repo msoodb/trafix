@@ -2,7 +2,7 @@
 # Copyright (C) 2025 Masoud Bolhassani
 
 Name:           trafix
-Version:        0.1.1
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        A simple monitoring tool for Linux
 
@@ -46,6 +46,9 @@ install -Dpm644 config/config.cfg %{buildroot}%{_sysconfdir}/trafix/config.cfg
 %config(noreplace) %{_sysconfdir}/trafix/config.cfg
 
 %changelog
+* Mon Jun 01 2026 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 0.1.2-1
+- Bump version to 0.1.2
+
 * Fri May 29 2026 Masoud Bolhassani <masoud.bolhassani@gmail.com> - 0.1.1-1
 - Bump version to 0.1.1
 
