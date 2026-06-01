@@ -910,6 +910,34 @@ static void render_network_health_summary(WINDOW *win,
     trfx_print_clipped(win, (*row)++, line, summary);
 }
 
+static void render_overview_section_title(WINDOW *win, int *row, int line,
+                                          int max_lines, const char *title) {
+  if (!win || !row || !title)
+    return;
+
+  if (!panel_has_room(*row, max_lines))
+    return;
+
+  wattron(win, A_BOLD);
+  trfx_print_clipped(win, (*row)++, line, title);
+  wattroff(win, A_BOLD);
+}
+
+static int interface_status_sort_rank(const TrfxNetworkSnapshot *snapshot,
+                                      const TrfxInterfaceStatus *status) {
+  if (!snapshot || !status)
+    return 2;
+
+  if (snapshot->has_active_interface &&
+      strcmp(snapshot->active_interface, status->name) == 0)
+    return 0;
+
+  if (status->is_up)
+    return 1;
+
+  return 2;
+}
+
 static void render_bandwidth_talkers_summary(
     WINDOW *win, const TrfxBandwidthReport *report, int *row, int line,
     int max_lines) {
@@ -1087,10 +1115,13 @@ static void render_interface_status_table(
     WINDOW *win, const TrfxNetworkSnapshot *snapshot,
     const TrfxBandwidthReport *report, int *row, int line, int max_lines) {
   char header[256];
-  char separator[256];
+  TrfxInterfaceStatus sorted[TRFX_MAX_INTERFACES];
+  int sorted_count = 0;
 
   if (!win || !snapshot || !row)
     return;
+
+  render_overview_section_title(win, row, line, max_lines, "Interfaces");
 
   if (!panel_has_room(*row, max_lines))
     return;
@@ -1100,28 +1131,46 @@ static void render_interface_status_table(
            "Carrier", "Address", "Rx/s", "Tx/s");
   trfx_print_clipped(win, (*row)++, line, header);
 
-  if (!panel_has_room(*row, max_lines))
-    return;
-
-  snprintf(separator, sizeof(separator),
-           "--------------------------------------------------------------------");
-  trfx_print_clipped(win, (*row)++, line, separator);
-
   if (snapshot->interface_statuses.count <= 0) {
     trfx_print_empty_state(win, "No interface status data available");
     return;
   }
 
-  for (int i = 0; i < snapshot->interface_statuses.count &&
-                  panel_has_room(*row, max_lines);
-       i++) {
+  sorted_count = snapshot->interface_statuses.count;
+  if (sorted_count > TRFX_MAX_INTERFACES)
+    sorted_count = TRFX_MAX_INTERFACES;
+
+  for (int i = 0; i < sorted_count; i++)
+    sorted[i] = snapshot->interface_statuses.items[i];
+
+  for (int i = 0; i < sorted_count - 1; i++) {
+    for (int j = i + 1; j < sorted_count; j++) {
+      int left_rank = interface_status_sort_rank(snapshot, &sorted[i]);
+      int right_rank = interface_status_sort_rank(snapshot, &sorted[j]);
+
+      if (left_rank > right_rank ||
+          (left_rank == right_rank &&
+           strcmp(sorted[i].name, sorted[j].name) > 0)) {
+        TrfxInterfaceStatus tmp = sorted[i];
+        sorted[i] = sorted[j];
+        sorted[j] = tmp;
+      }
+    }
+  }
+
+  for (int i = 0; i < sorted_count && panel_has_room(*row, max_lines); i++) {
     char linebuf[256];
     const TrfxInterfaceRate *rate =
-        find_interface_rate(report, snapshot->interface_statuses.items[i].name);
+        find_interface_rate(report, sorted[i].name);
 
-    format_interface_status_row(&snapshot->interface_statuses.items[i], rate,
-                                linebuf, sizeof(linebuf));
+    if (snapshot->has_active_interface &&
+        strcmp(snapshot->active_interface, sorted[i].name) == 0)
+      wattron(win, A_BOLD);
+    format_interface_status_row(&sorted[i], rate, linebuf, sizeof(linebuf));
     trfx_print_clipped(win, (*row)++, line, linebuf);
+    if (snapshot->has_active_interface &&
+        strcmp(snapshot->active_interface, sorted[i].name) == 0)
+      wattroff(win, A_BOLD);
   }
 }
 
@@ -2110,18 +2159,24 @@ void *network_info_thread(void *arg) {
     mvwprintw(win, row++, 2, " Network Overview ");
     wattroff(win, A_BOLD);
 
+    render_overview_section_title(win, &row, line, max_lines, "Path");
     render_network_summary(win, &snapshot, &row, line, max_lines);
 
     if (panel_has_room(row, max_lines))
       row++;
-    render_route_consistency_summary(win, &snapshot, &row, line, max_lines);
 
-    if (panel_has_room(row, max_lines))
-      row++;
+    render_overview_section_title(win, &row, line, max_lines, "Health");
+    render_route_consistency_summary(win, &snapshot, &row, line, max_lines);
     render_network_health_summary(win, &snapshot, &row, line, max_lines);
 
     if (panel_has_room(row, max_lines))
       row++;
+    render_interface_status_table(win, &snapshot, &bandwidth_report, &row,
+                                  line, max_lines);
+
+    if (panel_has_room(row, max_lines))
+      row++;
+    render_overview_section_title(win, &row, line, max_lines, "Traffic");
     render_bandwidth_totals_summary(win, &bandwidth_report, &row, line,
                                     max_lines);
 
@@ -2148,11 +2203,6 @@ void *network_info_thread(void *arg) {
         panel_has_room(row, max_lines)) {
       mvwprintw(win, row++, line, "Trend: %s", trend_error);
     }
-
-    if (panel_has_room(row, max_lines))
-      row++;
-    render_interface_status_table(win, &snapshot, &bandwidth_report, &row,
-                                  line, max_lines);
 
     wrefresh(win);
     pthread_mutex_unlock(&ncurses_mutex);
