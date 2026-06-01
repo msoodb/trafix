@@ -1568,7 +1568,6 @@ void *disk_info_thread(void *arg) {
 */
 void *process_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
 
@@ -1610,7 +1609,7 @@ void *process_info_thread(void *arg) {
     int row = 0;
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [%d] Processes ", my_index + 1);
+    mvwprintw(win, row++, 2, " Processes ");
     wattroff(win, A_BOLD);
 
 
@@ -1663,7 +1662,6 @@ void *process_info_thread(void *arg) {
 
 void *process_compact_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
 
@@ -1704,7 +1702,7 @@ void *process_compact_info_thread(void *arg) {
     int row = 0;
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [%d] Processes ", my_index + 1);
+    mvwprintw(win, row++, 2, " Processes ");
     wattroff(win, A_BOLD);
 
     int max_rows = h - 2;
@@ -1740,7 +1738,6 @@ void *process_compact_info_thread(void *arg) {
 
 void *connection_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
 
@@ -1779,7 +1776,7 @@ void *connection_info_thread(void *arg) {
     wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, 0, 2, " [%d] Connections ", my_index + 1);
+    mvwprintw(win, 0, 2, " Connections ");
     wattroff(win, A_BOLD);
 
     int y = 1;
@@ -1849,7 +1846,6 @@ void *connection_info_thread(void *arg) {
 
 void *socket_owner_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
 
@@ -1878,7 +1874,7 @@ void *socket_owner_info_thread(void *arg) {
     wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, 0, 2, " [%d] Socket Inventory ", my_index + 1);
+    mvwprintw(win, 0, 2, " Socket Inventory ");
     wattroff(win, A_BOLD);
 
     int panel_width = getmaxx(win);
@@ -2061,7 +2057,6 @@ void *support_info_thread(void *arg) {
 
 void *network_info_thread(void *arg) {
   ThreadArg *thread_arg = (ThreadArg *)arg;
-  int my_index = thread_arg->module_index;
   WINDOW *win = thread_arg->window;
   volatile int *local_stop = thread_arg->stop_requested;
   TrfxNetworkSampleBuffer bandwidth_samples;
@@ -2112,7 +2107,7 @@ void *network_info_thread(void *arg) {
     wattroff(win, trfx_color_attr(COLOR_BORDER));
 
     wattron(win, A_BOLD);
-    mvwprintw(win, row++, 2, " [%d] Network Overview ", my_index + 1);
+    mvwprintw(win, row++, 2, " Network Overview ");
     wattroff(win, A_BOLD);
 
     render_network_summary(win, &snapshot, &row, line, max_lines);

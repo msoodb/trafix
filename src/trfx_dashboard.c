@@ -48,11 +48,11 @@ const int dynamic_module_indexes[] = {
     DYNAMIC_MODULE_SOCKET_OWNERS};
 
 Module modules[] = {
-    {"Connections", connection_info_thread},
     {"Network", network_info_thread},
+    {"Connections", connection_info_thread},
+    {"Socket Owners", socket_owner_info_thread},
     {"Processes", process_info_thread},
     {"Processes Compact", process_compact_info_thread},
-    {"Socket Owners", socket_owner_info_thread},
     {NULL, NULL} // Sentinel
 };
 
@@ -1024,8 +1024,8 @@ static void handle_connection_drop_action(void) {
 int select_module() {
   trfx_runtime_set_paused(1);
 
-  const char *module_names[] = {" Connections ", " Network Information ",
-                                " Processes ", " Processes Compact ", " Socket Owners "};
+  const char *module_names[] = {" Network Overview ", " Connections ",
+                                " Socket Owners ", " Processes ", " Processes Compact "};
   int module_count = sizeof(module_names) / sizeof(module_names[0]);
 
   int screen_height, screen_width;
