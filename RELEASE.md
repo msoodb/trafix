@@ -10,7 +10,7 @@ For short per-release summaries, see [`RELEASE_NOTES.md`](./RELEASE_NOTES.md).
 
 ## Requirements
 
-Install the required Fedora build tools and runtime dependencies:
+Install the required Fedora build tools and the recommended runtime helpers:
 
 ```sh
 sudo dnf install gcc make git rpm-build rpmdevtools rpmlint ncurses-devel lm_sensors iproute iw procps-ng
